@@ -1,5 +1,5 @@
 import numpy as np
-from recon.autocorrelate3 import autocorrelate3
+from . import autocorrelate3
 
 def fastlen(length):
     fastlens = (8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, 45, 48,
@@ -37,5 +37,5 @@ def prepare(input,z):
 
 def corr(input,z):
     tmp=prepare(input,z)
-    autocorrelate3(tmp)
+    autocorrelate3.autocorrelate3(tmp)
     return tmp[:tmp.shape[0]//2,...]
