@@ -7,7 +7,7 @@ def configuration():
     from numpy.distutils.misc_util import Configuration
     from numpy.distutils.system_info import get_info
     config = Configuration('idi','')
-    srcdir = join(dirname(realpath(__file__)),'src')
+    srcdir = join(dirname(realpath(__file__)),'idi')
     mkl_info = get_info('mkl')
     libs = mkl_info.get('libraries', ['mkl_rt'])
     include_dirs=mkl_info.get('include_dirs')+[srcdir]
@@ -34,12 +34,11 @@ def configuration():
         config.ext_modules = cythonize(config.ext_modules)
     
     config.packages.append('idi')
-    config.package_dir['idi']='./src'
+    config.package_dir['idi']='./idi'
     config.packages.append('idi.simulation')
-    config.package_dir['idi.simulation']='./src/simulation'
+    config.package_dir['idi.simulation']='./idi/simulation'
     config.packages.append('idi.reconstruction')
-    config.package_dir['idi.reconstruction']='./src/reconstruction'
-
+    config.package_dir['idi.reconstruction']='./idi/reconstruction'
     return config
 
 def setup_package():
@@ -50,6 +49,7 @@ def setup_package():
         platforms = ['Linux', 'Mac OS-X'],
         python_requires = '>=2.7',
         install_requires = ['numpy', 'cython','numba','pycuda'],
+        scripts=['idi_sim.py', 'idi_simrecon.py','idi_simrecon_normalize.py'],
         configuration = configuration
     )
     setup(**metadata)

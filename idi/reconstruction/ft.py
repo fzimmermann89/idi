@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as _np
 from . import autocorrelate3
 
 def fastlen(length):
@@ -21,17 +21,17 @@ def fastlen(length):
     return length
 
 def prepare(input,z):
-    y,x=np.meshgrid(np.arange(input.shape[0],dtype=np.float64),np.arange(input.shape[1],dtype=np.float64))
+    y,x=_np.meshgrid(_np.arange(input.shape[0],dtype=_np.float64),_np.arange(input.shape[1],dtype=_np.float64))
     x-=input.shape[0]/2.
     y-=input.shape[1]/2.
-    d=np.sqrt(x**2+y**2+z**2)
+    d=_np.sqrt(x**2+y**2+z**2)
     qx,qy,qz=[(k/d*z) for k in (x,y,z)]
 #     kx1=kx1/(kx1[1,0]-kx1[0,0]) #correct, but slower
 #     ky1=ky1/(ky1[0,1]-ky1[0,0])
-    qx,qy,qz=[np.rint(k-np.min(k)).astype(int,copy=False) for k in (qx,qy,qz)]
-    qlenx,qleny,qlenz=[fastlen(2*(np.max(k)+1)) for k in (qx,qy,qz)]
-    ret=np.zeros((qlenz,qleny,qlenx),dtype=np.float64)
-    np.add.at(ret,(qz,qy,qx),input)
+    qx,qy,qz=[_np.rint(k-_np.min(k)).astype(int,copy=False) for k in (qx,qy,qz)]
+    qlenx,qleny,qlenz=[fastlen(2*(_np.max(k)+1)) for k in (qx,qy,qz)]
+    ret=_np.zeros((qlenz,qleny,qlenx),dtype=_np.float64)
+    _np.add.at(ret,(qz,qy,qx),input)
 #     ret[kz1,ky1,kx1]=input #only if no double assignment
     return ret
 
