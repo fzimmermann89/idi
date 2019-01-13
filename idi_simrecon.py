@@ -3,7 +3,7 @@ from __future__ import division,print_function
 import numpy as np
 from optparse import OptionParser
 import numba
-from idi.reconstruction.direct import corr
+from idi.reconstruction.ft import corr
 from idi.simulation.common import randomphotons
 from idi.util import *
 

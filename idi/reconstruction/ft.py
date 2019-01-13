@@ -35,7 +35,18 @@ def prepare(input,z):
 #     ret[kz1,ky1,kx1]=input #only if no double assignment
     return ret
 
-def corr(input,z):
+def _corr(input,z):
     tmp=prepare(input,z)
     autocorrelate3.autocorrelate3(tmp)
     return tmp[:tmp.shape[0]//2,...]
+
+def corr(input,z):
+    if input.ndim==2: return _corr(input,z)
+    elif input.ndim==3:      
+        s=prepare(_np.zeros_like(input[0,...]),z).shape
+        res=_np.zeros((s[0]//2,s[1],s[2]))
+        for inp in input:
+            _np.add(res,_corr(inp,z),out=res)
+        return res
+    else:
+        raise TypeError
