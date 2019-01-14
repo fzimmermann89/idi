@@ -16,13 +16,13 @@ cpdef int autocorrelate3(np.ndarray[double, ndim=3, mode="c"] input) except -1:
     #strides
     cdef int N1=input.shape[0], N2=input.shape[1], N3=input.shape[2]-2 #N3: extra space needed for r2c-> do smaller fft
     cdef long N[3]
-    N[:] = [N1,N2,N3]  
+    N[:] = [N1, N2, N3]  
     cdef long rs[4]
-    rs[:]=[0,N2*(N3//2+1)*2,(N3//2+1)*2,1]
+    rs[:] = [0, N2*(N3//2+1)*2, (N3//2+1)*2, 1]
     cdef long cs[4]
-    cs[:]=[0,N2*(N3//2+1),(N3//2+1),1]
-    cdef double* x = <double*>&input[0,0,0]
-    cdef mkl_dfti.DFTI_DESCRIPTOR* hand=NULL;
+    cs[:] = [0, N2*(N3//2+1), (N3//2+1), 1]
+    cdef double* x = <double*> &input[0,0,0]
+    cdef mkl_dfti.DFTI_DESCRIPTOR* hand = NULL;
     cdef long status = 0
        
     try:
