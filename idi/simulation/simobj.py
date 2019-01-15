@@ -7,9 +7,9 @@ import numba as _numba
 
 
 class atoms:
-    def __init__(self, N, E, pos):
-        self._N = int(N)
-        self._E = _np.ones(int(N)) * E
+    def __init__(self, E, pos):
+        self._N = len(pos)
+        self._E = _np.ones(self._N) * E
         self._pos = pos
         self.rndPhase = False
 
@@ -36,7 +36,7 @@ class atoms:
 class sphere(atoms):
     def __init__(self, N, r, E):
         pos = self._rndSphere(r, N)
-        atoms.__init__(self, N, E, pos)
+        atoms.__init__(self, E, pos)
         self._r = r
         self.rndPos = False
 
@@ -60,6 +60,17 @@ class sphere(atoms):
         return atoms.get(self, rndPhase)
 
 
+class xyzgrid(atoms):
+    def __init__(self, filename, atomname, rotangles, E):
+        xyz = _np.genfromtxt('Downloads/1010527-5.xyz', dtype=None, skip_header=2)
+        pos = _np.array([[x[1], x[2], x[3]] for x in xyz if x[0]==atomname])
+        if _np.any(rotangles):
+            self._rotmatrix = grid._rotation(*rotangles)
+            pos = _np.matmul(self._rotmatrix,pos)
+        else:
+            self._rotmatrix = None
+        atoms.__init__(self, E, pos)
+
 class grid(atoms):
     def __init__(self, lconst, langle, unitcell, Ns, rotangles, E):
         pos = grid._lattice(lconst, langle, unitcell, Ns)
@@ -68,7 +79,7 @@ class grid(atoms):
             pos = _np.matmul(self._rotmatrix, pos)
         else:
             self._rotmatrix = None
-        atoms.__init__(self, _np.product(Ns) * len(unitcell), E, pos)
+        atoms.__init__(self, E, pos)
 
     @staticmethod
     def _lattice(lconst, langle, unitcell, repeats):
