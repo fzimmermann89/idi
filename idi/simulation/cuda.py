@@ -27,23 +27,23 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
             for (int i = 0; i < {{ Natoms }}; i++)
             {
                 double dist = norm3d((
-                    (double)detx-atom[i].x), 
-                    ((double)dety-atom[i].y), 
-                    ({{ detz }}-atom[i].z) 
+                    (double)detx-atom[i].x),
+                    ((double)dety-atom[i].y),
+                    ({{ detz }}-atom[i].z)
                     );
                 float rdist = 1/__double2float_rn(dist);
                 //float phase = __double2float_rn((dist-(int)dist)*{{ k }}+atom[i].w);
                 float phase = __double2float_rn(fmod(dist*{{ k }},2*PI)+atom[i].w);
                 float real;
                 float imag;
-                __sincosf(phase, &imag, &real);                
+                __sincosf(phase, &imag, &real);
                 wf.x += real*rdist;
                 wf.y += imag*rdist;
             }
             ret[reti].x = wf.x;
             ret[reti].y = wf.y;
         }
-    }  
+    }
     """
     )
     src = tpl.render(maxx=Ndet, maxy=Ndet, pixelsize=pixelsize, Natoms=int(Natoms), detz=detz, k=k)

@@ -63,13 +63,14 @@ class sphere(atoms):
 class xyzgrid(atoms):
     def __init__(self, filename, atomname, rotangles, E):
         xyz = _np.genfromtxt('Downloads/1010527-5.xyz', dtype=None, skip_header=2)
-        pos = _np.array([[x[1], x[2], x[3]] for x in xyz if x[0]==atomname])
+        pos = _np.array([[x[1], x[2], x[3]] for x in xyz if x[0] == atomname])
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
-            pos = _np.matmul(self._rotmatrix,pos)
+            pos = _np.matmul(self._rotmatrix, pos)
         else:
             self._rotmatrix = None
         atoms.__init__(self, E, pos)
+
 
 class grid(atoms):
     def __init__(self, lconst, langle, unitcell, Ns, rotangles, E):
@@ -114,16 +115,17 @@ class grid(atoms):
     @staticmethod
     @_numba.njit
     def _rotation(alpha, beta, gamma):
-#         #euler angles
-#         M = _np.array([[cos(alpha)*cos(gamma)-sin(alpha)*cos(beta)*sin(gamma),
-#                        sin(alpha)*cos(gamma)+cos(alpha)*cos(beta)*sin(gamma),
-#                        sin(beta)*sin(gamma)],
-#                       [-cos(alpha)*sin(gamma)-sin(alpha)*cos(beta)*cos(gamma),
-#                        -sin(alpha)*sin(gamma)+cos(alpha)*cos(beta)*cos(gamma),
-#                        sin(beta)*cos(gamma)],
-#                       [sin(alpha)*sin(beta),
-#                        -cos(alpha)*sin(beta),
-#                        cos(beta)]])
+        # #euler angles
+        # M = _np.array([[cos(alpha)*cos(gamma)-sin(alpha)*cos(beta)*sin(gamma),
+        #               sin(alpha)*cos(gamma)+cos(alpha)*cos(beta)*sin(gamma),
+        #               sin(beta)*sin(gamma)],
+        #              [-cos(alpha)*sin(gamma)-sin(alpha)*cos(beta)*cos(gamma),
+        #               -sin(alpha)*sin(gamma)+cos(alpha)*cos(beta)*cos(gamma),
+        #               sin(beta)*cos(gamma)],
+        #              [sin(alpha)*sin(beta),
+        #               -cos(alpha)*sin(beta),
+        #               cos(beta)]])
+
         # yaw pitch roll
         M = _np.array(
             [
@@ -138,8 +140,8 @@ class grid(atoms):
                     cos(alpha) * sin(beta) * sin(gamma) - sin(alpha) * cos(gamma),
                 ],
                 [
-                    -sin(beta), 
-                    sin(alpha) * cos(beta), 
+                    -sin(beta),
+                    sin(alpha) * cos(beta),
                     cos(alpha) * cos(beta)
                 ]
             ]

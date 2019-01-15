@@ -34,7 +34,7 @@ def rebin(arr, n):
 def bin(ndarray, new_shape, operation='sum'):
     ops = ['sum', 'mean', 'max', 'min']
     operation = operation.lower()
-    if not operation in ops:
+    if operation not in ops:
         raise ValueError("Operation not supported.")
     if ndarray.ndim != len(new_shape):
         raise ValueError("Shape mismatch: {} -> {}".format(ndarray.shape, new_shape))

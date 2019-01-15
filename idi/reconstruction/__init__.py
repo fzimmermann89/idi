@@ -4,7 +4,7 @@ from . import direct, directrad
 
 try:
     from . import autocorrelate3
-except:
+except ImportError:
     _local = True
 else:
     _local = False
@@ -15,7 +15,7 @@ if _local:
 
         _mkl_inc = _getinfo('mkl').get('include_dirs')
         _pyx.install(setup_args={'include_dirs': _mkl_inc})
-    except:
+    except ImportError:
         import warning as _w
 
         _w.warn("no cython!")
