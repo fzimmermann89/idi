@@ -12,9 +12,11 @@ cdef extern from 'mkl_vml.h':
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef int autocorrelate3(np.ndarray[double, ndim=3, mode="c"] input) except -1:
-      
+'''
+calculates NxNxN autocorrelation of (N+2)xNxN array using mkl fft. returns 0 on success.
+'''
     #strides
-    cdef int N1=input.shape[0], N2=input.shape[1], N3=input.shape[2]-2 #N3: extra space needed for r2c-> do smaller fft
+    cdef int N1=input.shape[0]-2, N2=input.shape[1], N3=input.shape[2] #N1: extra space needed for r2c-> do smaller fft
     cdef long N[3]
     N[:] = [N1, N2, N3]  
     cdef long rs[4]
@@ -48,7 +50,7 @@ cpdef int autocorrelate3(np.ndarray[double, ndim=3, mode="c"] input) except -1:
         #ifft
         if mkl_dfti.DftiComputeBackward(hand, x): raise Exception()
         if mkl_dfti.DftiFreeDescriptor(&hand): raise Exception()
-
+        
     except:
         #cleanup
         mkl_dfti.DftiFreeDescriptor(&hand)

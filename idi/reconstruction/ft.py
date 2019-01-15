@@ -3,6 +3,9 @@ from . import autocorrelate3
 
 
 def fastlen(length):
+    ''' 
+    gets fast fft length for at least length
+    '''
     fastlens = (
         8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, 45, 48, 50, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 
         125, 128, 135, 144, 150, 160, 162, 180, 192, 200, 216, 225, 240, 243, 250, 256, 270, 288, 300, 320, 324, 360, 375, 384, 
@@ -15,11 +18,14 @@ def fastlen(length):
     )
     
     for l in fastlens:
-        if l > length: return l
+        if l >= length: return l
     return length
 
 
-def prepare(input, z):
+def _prepare(input, z):
+    '''
+    transform centered 2d input sampled at distance z to 3d k-space
+    '''
     y, x = _np.meshgrid(_np.arange(input.shape[0], dtype=_np.float64), _np.arange(input.shape[1], dtype=_np.float64))
     x -= input.shape[0] / 2.0
     y -= input.shape[1] / 2.0
@@ -29,19 +35,26 @@ def prepare(input, z):
     #     ky1=ky1/(ky1[0,1]-ky1[0,0])
     qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
     qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
-    ret = _np.zeros((qlenz, qleny, qlenx), dtype=_np.float64)
+    ret = _np.zeros((qlenz+2, qleny, qlenx), dtype=_np.float64)
     _np.add.at(ret, (qz, qy, qx), input)
     #     ret[kz1,ky1,kx1]=input #only if no double assignment
     return ret
 
 
 def _corr(input, z):
+    ''' 
+    wrapper for autocorrelate3 that returns only non redundant data
+    '''
     tmp = prepare(input, z)
     autocorrelate3.autocorrelate3(tmp)
     return tmp[: tmp.shape[0] // 2, ...]
 
 
 def corr(input, z):
+    '''
+    calculated 3d correlation of 2d input array sampled at distance z using fft.
+    if input is 3d, the result will be the sum along the first dimension.
+    '''
     if input.ndim == 2:
         return _corr(input, z)
     elif input.ndim == 3:
