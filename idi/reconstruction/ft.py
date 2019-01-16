@@ -26,7 +26,7 @@ def _prepare(input, z):
     '''
     transform centered 2d input sampled at distance z to 3d k-space
     '''
-    y, x = _np.meshgrid(_np.arange(input.shape[0], dtype=_np.float64), _np.arange(input.shape[1], dtype=_np.float64))
+    y, x = _np.meshgrid(_np.arange(input.shape[1], dtype=_np.float64), _np.arange(input.shape[0], dtype=_np.float64))
     x -= input.shape[0] / 2.0
     y -= input.shape[1] / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
