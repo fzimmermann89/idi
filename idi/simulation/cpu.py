@@ -17,9 +17,9 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
                 wfx = 0
                 wfy = 0
                 for i in range(Natoms):
-                    dist = _np.sqrt((detx - atom[0, i]) ** 2 + (dety - atom[1, i]) ** 2 + (detz - atom[2, i]) ** 2)
+                    dist = _np.sqrt((detx - atom[i, 0]) ** 2 + (dety - atom[i, 1]) ** 2 + (detz - atom[i, 2]) ** 2)
                     rdist = 1 / dist
-                    phase = (dist * k) % (2 * _np.pi) + atom[3, i]
+                    phase = (dist * k) % (2 * _np.pi) + atom[i, 3]
                     real = _np.cos(phase)
                     imag = _np.sin(phase)
                     wfx += real * rdist

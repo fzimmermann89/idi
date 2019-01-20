@@ -26,10 +26,10 @@ class atoms:
 
     def get(self, rndPhase=True):
         k = 2 * pi / (1.24 / self._E)  # in 1/um
-        z = self._pos[2, ...]
+        z = self._pos[..., 2]
         rnd = _np.random.rand(self._N) if rndPhase else 0
         phase = _ne.evaluate('(k*z+rnd*2*pi)%(2*pi)')
-        ret = _np.concatenate((self._pos, phase[_np.newaxis, :]))
+        ret = _np.concatenate((self._pos, phase[:, _np.newaxis]),axis=1)
         return ret
 
 
@@ -47,7 +47,7 @@ class sphere(atoms):
         rnd = _np.random.rand(N)
         p = _ne.evaluate('2.*pi*rnd')
         rnd = _np.random.rand(N)
-        r = _ne.evaluate('r*rnd**(1./3)')
+        r = _ne.evaluate('r*rnd**(1./3.)')
         x = _ne.evaluate('r * cos(t) * cos(p)')
         y = _ne.evaluate('r * cos(t) * sin(p)')
         z = _ne.evaluate('r * sin(t)')
@@ -62,8 +62,11 @@ class sphere(atoms):
 
 class xyzgrid(atoms):
     def __init__(self, filename, atomname, rotangles, E):
-        xyz = _np.genfromtxt('Downloads/1010527-5.xyz', dtype=None, skip_header=2)
-        pos = _np.array([[x[1], x[2], x[3]] for x in xyz if x[0] == atomname])
+        import re
+        with open(filename, 'r') as file:
+            data = file.read()
+        lines=re.findall("^"+atomname+"\d*\s*[\d,\.]*\s*[\d,\.]*\s*[\d,\.]*",data,re.IGNORECASE | re.MULTILINE)
+        pos=_np.genfromtxt(lines)[:,1:]
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
             pos = _np.matmul(self._rotmatrix, pos)
@@ -84,8 +87,8 @@ class grid(atoms):
 
     @staticmethod
     def _lattice(lconst, langle, unitcell, repeats):
-        cosa, cosb, cosc = _np.cos(_np.array(langle) * pi / 180.0)
-        sina, sinb, sinc = _np.sin(_np.array(langle) * pi / 180.0)
+        cosa, cosb, cosc = _np.cos(_np.array(langle))
+        sina, sinb, sinc = _np.sin(_np.array(langle))
         basis = _np.array(
             [
                 [1, 0, 0],
@@ -110,7 +113,7 @@ class grid(atoms):
             offset = basis[2] * k
             tmpatoms.append(atoms + offset[_np.newaxis, :])
         atoms = _np.concatenate(tmpatoms)
-        return (atoms - _np.max(atoms, axis=0) / 2.0).T.copy()
+        return (atoms - _np.max(atoms, axis=0) / 2.0)
 
     @staticmethod
     @_numba.njit
@@ -166,18 +169,18 @@ class gridsc(grid):
             N = [N, N, N]
         lconst = [a, a, a]
         unitcell = [[0, 0, 0]]
-        langle = [90, 90, 90]
+        langle = _np.array([90, 90, 90]) * pi / 180.0
         grid.__init__(self, lconst, langle, unitcell, N, rotangles, E)
 
 
 class gridfcc(grid):
     def __init__(self, N, a, E, rotangles):
         if (_np.array(N)).size == 1:
-            N = int(_np.rint((N / 4) ** (1 / 3.0)))
+            N = int(_np.rint((N / 5) ** (1 / 3.0)))
             N = [N, N, N]
         lconst = [a, a, a]
         unitcell = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
-        langle = [90, 90, 90]
+        langle = _np.array([90, 90, 90]) * pi / 180.0
         grid.__init__(self, lconst, langle, unitcell, N, rotangles, E)
 
 
@@ -186,6 +189,6 @@ class gridcuso4(grid):
         N = int(_np.rint((N / 2) ** (1 / 3.0)))
         unitcell = [[0, 0, 0.5], [0, 0.5, 0]]
         lconst = _np.array([0.60, 0.61, 1.07]) * 1e-4
-        langle = _np.array([77.3, 82.3, 72.6])
+        langle = _np.array([77.3, 82.3, 72.6]) * pi / 180.0
         Ns = [N, N, N]
         grid.__init__(self, lconst, langle, unitcell, Ns, rotangles, E)
