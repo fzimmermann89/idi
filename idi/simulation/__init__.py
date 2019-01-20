@@ -1,5 +1,5 @@
-__all__ = ['cpu', 'simobj', 'cuda']
-from . import cpu, simobj
+__all__ = ['cpu', 'simobj', 'cuda', 'common']
+from . import cpu, simobj, common
 
 try:
     from . import cuda

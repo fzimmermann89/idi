@@ -1,3 +1,4 @@
+from __future__ import division as _future_division, print_function as _future_printfun
 import numpy as _np
 from . import autocorrelate3
 
@@ -50,7 +51,7 @@ def _corr(input, z):
     return tmp[: tmp.shape[0] // 2, ...]
 
 
-def corr(input, z):
+def corr(input, z,verbose = False):
     '''
     calculated 3d correlation of 2d input array sampled at distance z using fft.
     if input is 3d, the result will be the sum along the first dimension.
@@ -60,7 +61,8 @@ def corr(input, z):
     elif input.ndim == 3:
         s = _prepare(_np.zeros_like(input[0, ...]), z).shape
         res = _np.zeros((s[0] // 2, s[1], s[2]))
-        for inp in input:
+        for n, inp in enumerate(input):
+            if verbose: print(n)
             _np.add(res, _corr(inp, z), out=res)
         return res
     else:

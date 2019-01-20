@@ -12,9 +12,10 @@ if _local:
     try:
         import pyximport as _pyx
         from numpy.distutils.system_info import get_info as _getinfo
-
+        from numpy import get_include as _np_get_include
         _mkl_inc = _getinfo('mkl').get('include_dirs')
-        _pyx.install(setup_args={'include_dirs': _mkl_inc})
+        _np_inc = [_np_get_include()]
+        _pyx.install(setup_args={'include_dirs': _mkl_inc + _np_inc })
     except ImportError:
         import warning as _w
 
