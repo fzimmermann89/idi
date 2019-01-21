@@ -4,8 +4,6 @@ import numexpr as _ne
 from six import print_ as print
 from numpy import pi
 import numba as _numba
-
-
 class atoms:
     def __init__(self, E, pos):
         self._N = len(pos)
@@ -69,7 +67,7 @@ class xyzgrid(atoms):
         pos=_np.genfromtxt(lines)[:,1:]
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
-            pos = _np.matmul(self._rotmatrix, pos)
+            pos = _np.matmul(pos, self._rotmatrix)
         else:
             self._rotmatrix = None
         atoms.__init__(self, E, pos)
@@ -80,7 +78,7 @@ class grid(atoms):
         pos = grid._lattice(lconst, langle, unitcell, Ns)
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
-            pos = _np.matmul(self._rotmatrix, pos)
+            pos2 = _np.matmul(pos,self._rotmatrix)
         else:
             self._rotmatrix = None
         atoms.__init__(self, E, pos)
@@ -96,8 +94,7 @@ class grid(atoms):
                 [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],
             ]
         ) * _np.expand_dims(lconst, 1)
-        atoms = unitcell
-
+        atoms = unitcell * _np.array(lconst)
         tmpatoms = []
         for i in range(repeats[0]):
             offset = basis[0] * i
@@ -118,34 +115,47 @@ class grid(atoms):
     @staticmethod
     @_numba.njit
     def _rotation(alpha, beta, gamma):
-        # #euler angles
-        # M = _np.array([[cos(alpha)*cos(gamma)-sin(alpha)*cos(beta)*sin(gamma),
-        #               sin(alpha)*cos(gamma)+cos(alpha)*cos(beta)*sin(gamma),
-        #               sin(beta)*sin(gamma)],
-        #              [-cos(alpha)*sin(gamma)-sin(alpha)*cos(beta)*cos(gamma),
-        #               -sin(alpha)*sin(gamma)+cos(alpha)*cos(beta)*cos(gamma),
-        #               sin(beta)*cos(gamma)],
-        #              [sin(alpha)*sin(beta),
-        #               -cos(alpha)*sin(beta),
-        #               cos(beta)]])
+        cosa, cosb, cosg = _np.cos(_np.array((alpha, beta, gamma)))
+        sina, sinb, sing = _np.sin(_np.array((alpha, beta, gamma)))
+        
+        # # euler angles
+        # M = _np.array(
+        #     [
+        #         [
+        #             cosa * cosg - sina * cosb * sing,
+        #            sina * cosg + cosa * cosb * sing,
+        #             sinb * sing
+        #         ],
+        #         [
+        #             -cosa * sing - sina * cosb * cosg,
+        #             -sina * sing + cosa * cosb * cosg,
+        #             sinb*cosg
+        #         ],
+        #         [
+        #             sina * sinb,
+        #             -cosa * sinb,
+        #             cosb
+        #         ]
+        #     ]
+        # )
 
         # yaw pitch roll
         M = _np.array(
             [
                 [
-                    cos(beta) * cos(gamma),
-                    sin(alpha) * sin(beta) * cos(gamma) - cos(alpha) * sin(gamma),
-                    cos(alpha) * sin(beta) * cos(gamma) + sin(alpha) * sin(gamma),
+                    cosb * cosg,
+                    sina * sinb * cosg - cosa * sing,
+                    cosa * sinb * cosg + sina * sing,
                 ],
                 [
-                    cos(beta) * sin(gamma),
-                    sin(alpha) * sin(beta) * sin(gamma) + cos(alpha) * cos(gamma),
-                    cos(alpha) * sin(beta) * sin(gamma) - sin(alpha) * cos(gamma),
+                    cosb * sing,
+                    sina * sinb * sing + cosa * cosg,
+                    cosa * sinb * sing - sina * cosg,
                 ],
                 [
-                    -sin(beta),
-                    sin(alpha) * cos(beta),
-                    cos(alpha) * cos(beta)
+                    -sinb,
+                    sina * cosb,
+                    cosa * cosb
                 ]
             ]
         )
@@ -153,8 +163,8 @@ class grid(atoms):
 
     def get(self, rndPhase=True, rndOrientation=False):
         if rndOrientation:
-            m = grid._rotation(*2 * pi * _np.random.rand(3))
-            self._pos = _np.matmul(m, self._pos)
+            rotmatrix = grid._rotation(*2 * pi * _np.random.rand(3))
+            self._pos = _np.matmul(self._pos, rotmatrix)
         return atoms.get(self, rndPhase)
 
     @property
@@ -176,19 +186,19 @@ class gridsc(grid):
 class gridfcc(grid):
     def __init__(self, N, a, E, rotangles):
         if (_np.array(N)).size == 1:
-            N = int(_np.rint((N / 5) ** (1 / 3.0)))
+            N = int(_np.rint((N / 4.0) ** (1 / 3.0)))
             N = [N, N, N]
         lconst = [a, a, a]
-        unitcell = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
+        unitcell = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
         grid.__init__(self, lconst, langle, unitcell, N, rotangles, E)
 
 
 class gridcuso4(grid):
     def __init__(self, N, E, rotangles):
-        N = int(_np.rint((N / 2) ** (1 / 3.0)))
+        N = int(_np.rint((N / 2.0) ** (1 / 3.0)))
         unitcell = [[0, 0, 0.5], [0, 0.5, 0]]
-        lconst = _np.array([0.60, 0.61, 1.07]) * 1e-4
+        lconst = _np.array([0.60, 0.61, 1.07]) * 1e-3
         langle = _np.array([77.3, 82.3, 72.6]) * pi / 180.0
         Ns = [N, N, N]
         grid.__init__(self, lconst, langle, unitcell, Ns, rotangles, E)

@@ -1,4 +1,5 @@
-from __future__ import division as _future_division, print_function as _future_printfun
+from __future__ import division as _future_division, print_function as _future_print
+from six import print_ as _print
 import numpy as _np
 from . import autocorrelate3
 
@@ -36,7 +37,7 @@ def _prepare(input, z):
     #     ky1=ky1/(ky1[0,1]-ky1[0,0])
     qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
     qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
-    ret = _np.zeros((qlenz + 2, qleny, qlenx), dtype=_np.float64)
+    ret = _np.zeros((qlenz, qleny, qlenx + 2), dtype=_np.float64) # additonal padding in qx for inplace fft
     _np.add.at(ret, (qz, qy, qx), input)
     #     ret[kz1,ky1,kx1]=input #only if no double assignment
     return ret
@@ -57,12 +58,13 @@ def corr(input, z,verbose = False):
     if input is 3d, the result will be the sum along the first dimension.
     '''
     if input.ndim == 2:
+        if verbose:  _print('.', end=' ', flush=True)
         return _corr(input, z)
     elif input.ndim == 3:
         s = _prepare(_np.zeros_like(input[0, ...]), z).shape
         res = _np.zeros((s[0] // 2, s[1], s[2]))
         for n, inp in enumerate(input):
-            if verbose: print(n)
+            if verbose: _print(n, end=' ', flush=True)
             _np.add(res, _corr(inp, z), out=res)
         return res
     else:
