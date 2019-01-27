@@ -11,9 +11,6 @@ class atoms:
         self._pos = pos
         self.rndPhase = False
 
-    def get(self):
-        raise NotImplementedError("abstract method")
-
     @property
     def N(self):
         return self._N
