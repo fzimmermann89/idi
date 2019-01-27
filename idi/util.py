@@ -1,5 +1,7 @@
+from __future__ import division as _future_division, print_function as _future_print
 import numba as _numba
 import numpy as _np
+import scipy.ndimage as _snd
 
 
 def radial_profile(data, center=None, domask=True):
@@ -95,26 +97,17 @@ def abs2c(x):
 
 
 def fill(data, invalid=None):
-    import scipy.ndimage as nd
-
     if invalid is None:
         invalid = _np.isnan(data)
-    ind = nd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
+    ind = _snd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
     return data[tuple(ind)]
 
 
-#     import scipy.ndimage
-#     normnorm=cor(norm)
-#     mask=normnorm<2e7
-#     mask=scipy.ndimage.morphology.binary_dilation(mask,scipy.ndimage.morphology.generate_binary_structure(3,3),iterations=1)
-#     _np.multiply(normnorm,(n+1),out=normnorm)
-#     _np.divide(res,normnorm,out=res)
-
-#     res[mask]=0
-#     m=_np.mean(res[~mask])
-#     _np.subtract(res,max(1,m),out=res)
-#     res=_np.nan_to_num(res,copy=False)
-#     _np.multiply(res,255,out=res)
-#     res=_np.roll(res,shift=(res.shape[1]//2,res.shape[2]//2),axis=(1,2))
-#     res=bin(res,_np.array(res.shape)//_np.array((1,2,2)),'max')
-#     _np.clip(res,0,255,out=res);
+def photons(img, E, thres=0.):
+    data = (img * (img>0)) / E
+    photons = _np.floor(data)
+    rest = data - photons
+    rest_ismax = _np.logical_and(rest == _snd.filters.maximum_filter(rest, 3), rest>thres)
+    el = _snd.morphology.generate_binary_structure(2, 1)
+    photons += _np.rint(_snd.filters.convolve(rest, el) * rest_ismax)
+    return photons
