@@ -9,7 +9,7 @@ class atoms:
         self._N = len(pos)
         self._E = _np.ones(self._N) * E
         self._pos = pos
-        self.rndPhase = False
+        self.rndPhase = True
 
     @property
     def N(self):
@@ -19,10 +19,10 @@ class atoms:
     def E(self):
         return self._E
 
-    def get(self, rndPhase=True):
+    def get(self):
         k = 2 * pi / (1.24 / self._E)  # in 1/um
         z = self._pos[..., 2]
-        rnd = _np.random.rand(self._N) if rndPhase else 0
+        rnd = _np.random.rand(self._N) if self.rndPhase else 0
         phase = _ne.evaluate('(k*z+rnd*2*pi)%(2*pi)')
         ret = _np.concatenate((self._pos, phase[:, _np.newaxis]),axis=1)
         return ret
@@ -34,7 +34,7 @@ class sphere(atoms):
         atoms.__init__(self, E, pos)
         self._r = r
         self.rndPos = False
-
+        
     @staticmethod
     def _rndSphere(r, N):
         rnd = _np.random.rand(N)
@@ -48,11 +48,11 @@ class sphere(atoms):
         z = _ne.evaluate('r * sin(t)')
         return _np.array((x, y, z))
 
-    def get(self, rndPhase=True, rndPos=False):
+    def get(self):
         k = 2 * pi / (1.24 / self._E)  # in 1/um
-        if rndPos:
+        if self.rndPos:
             self._pos = self._rndSphere(self._r, self._N)
-        return atoms.get(self, rndPhase)
+        return atoms.get(self)
 
 
 class xyzgrid(atoms):
@@ -75,11 +75,12 @@ class grid(atoms):
         pos = grid._lattice(lconst, langle, unitcell, Ns)
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
-            pos2 = _np.matmul(pos,self._rotmatrix)
+            pos = _np.matmul(pos,self._rotmatrix)
         else:
             self._rotmatrix = None
         atoms.__init__(self, E, pos)
-
+        self.rndOrientation = False
+        
     @staticmethod
     def _lattice(lconst, langle, unitcell, repeats):
         cosa, cosb, cosc = _np.cos(_np.array(langle))
@@ -158,11 +159,11 @@ class grid(atoms):
         )
         return M
 
-    def get(self, rndPhase=True, rndOrientation=False):
-        if rndOrientation:
+    def get(self):
+        if self.rndOrientation:
             rotmatrix = grid._rotation(*2 * pi * _np.random.rand(3))
             self._pos = _np.matmul(self._pos, rotmatrix)
-        return atoms.get(self, rndPhase)
+        return atoms.get(self)
 
     @property
     def n(self):
