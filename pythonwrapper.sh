@@ -32,3 +32,5 @@ fi
 echo started on $(hostname)..
 python "$@"
 
+#finished
+echo "done"

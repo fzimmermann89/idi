@@ -1,9 +1,11 @@
 from __future__ import division as _future_div, print_function as _future_printf
 import numpy as _np
 import numexpr as _ne
-from six import print_ as print
+from six import print_ as _print
 from numpy import pi
 import numba as _numba
+
+
 class atoms:
     def __init__(self, E, pos):
         self._N = len(pos)
