@@ -69,3 +69,10 @@ def corr(input, z,verbose = False):
         return res
     else:
         raise TypeError
+
+        
+def unwrap(img):
+    '''
+    unwraps a single correlation result
+    '''
+    return _np.roll(img[...,:-2],shift=(img.shape[1]//2,(img.shape[2]-2)//2),axis=(1,2))
