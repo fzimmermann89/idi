@@ -48,7 +48,7 @@ class sphere(atoms):
         x = _ne.evaluate('r * cos(t) * cos(p)')
         y = _ne.evaluate('r * cos(t) * sin(p)')
         z = _ne.evaluate('r * sin(t)')
-        return _np.array((x, y, z))
+        return _np.stack((x, y, z),axis=1)
 
     def get(self):
         k = 2 * pi / (1.24 / self._E)  # in 1/um
