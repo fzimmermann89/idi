@@ -93,7 +93,7 @@ class grid(atoms):
                 [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],
             ]
         ) * _np.expand_dims(lconst, 1)
-        atoms = unitcell * _np.array(lconst)
+        atoms = _np.dot(unitcell,basis)
         tmpatoms = []
         for i in range(repeats[0]):
             offset = basis[0] * i
