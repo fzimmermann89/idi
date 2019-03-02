@@ -228,10 +228,11 @@ class hcpspheres(atoms):
             self._hcppos = _np.matmul(self._hcppos, self._rotmatrix)
         else:
             self._rotmatrix = None
-
+        import random
         pos=[]
         for p in self._hcppos:
-            pos.append(sphere._rndSphere(r, Nsphere)+p)
+            rr=random.gauss(r,0.1*r)
+            pos.append(sphere._rndSphere(rr, Nsphere)+p)
         pos=_np.concatenate(pos)
         atoms.__init__(self, E, pos)
         self.rndPos = False
@@ -243,8 +244,10 @@ class hcpspheres(atoms):
             rotmatrix = grid._rotation(*2 * pi * _np.random.rand(3))
             self._hcppos = _np.matmul(self._hcppos, rotmatrix)
         if self.rndOrientation or self.rndPos:
+            import random
             pos=[]
             for p in self._hcppos:
-                pos.append(sphere._rndSphere(self._r, self._Nsphere)+p)
+                rr=random.gauss(self._r,0.3*self._r)
+                pos.append(sphere._rndSphere(rr, self._Nsphere)+p)
             self._pos=_np.concatenate(pos)
         return atoms.get(self)
