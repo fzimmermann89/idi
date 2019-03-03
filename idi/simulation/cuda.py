@@ -8,7 +8,7 @@ from jinja2 import Template as _Template
 
 
 def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
-    maxx = maxy = Ndet
+    maxx, maxy = Ndet
     tpl = _Template(
     """
     __global__ void wfkernel( float2* __restrict__ ret, const double4* __restrict__  atom)
@@ -46,7 +46,7 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
     }
     """
     )
-    src = tpl.render(maxx=Ndet, maxy=Ndet, pixelsize=pixelsize, Natoms=int(Natoms), detz=detz, k=k)
+    src = tpl.render(maxx=maxx, maxy=maxy, pixelsize=pixelsize, Natoms=int(Natoms), detz=detz, k=k)
     # print(src)
     mod = _SrcMod(src)
 
@@ -55,12 +55,14 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
 
 
 def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True):
-    result = _np.empty((Nimg, Ndet, Ndet), dtype=complex)
+    if _np.size(Ndet) == 1: 
+        Ndet = [Ndet, Ndet]
+    result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=complex)
     threadsperblock = (16, 16, 1)
-    blockspergrid_x = int(_np.ceil(Ndet / threadsperblock[0]))
-    blockspergrid_y = int(_np.ceil(Ndet / threadsperblock[1]))
+    blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
+    blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
     blockspergrid = (blockspergrid_x, blockspergrid_y)
-    h_wf1 = _np.empty((Ndet, Ndet, 2), dtype=_np.float32)
+    h_wf1 = _np.empty((Ndet[0], Ndet[1], 2), dtype=_np.float32)
     d_wf1 = pycuda.driver.mem_alloc(h_wf1.nbytes)
     fwavefield = wavefield_kernel(simobject.N, Ndet, pixelsize, detz, k)
     d_atoms1 = pycuda.driver.mem_alloc(32 * simobject.N)

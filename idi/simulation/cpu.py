@@ -6,7 +6,7 @@ import IPython
 
 
 def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
-    maxx = maxy = Ndet
+    maxx, maxy = Ndet
 
     @_numba.njit('complex64[:, ::1],float64[:, ::1]', parallel=True, fastmath=True)
     def wfkernel(ret, atom):
@@ -31,8 +31,10 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
 
 
 def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True):
-    result = _np.empty((Nimg, Ndet, Ndet), dtype=complex)
-    h_wf1 = _np.empty((Ndet, Ndet), dtype=_np.complex64)
+    if _np.size(Ndet) == 1: 
+        Ndet = [Ndet, Ndet]
+    result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=complex)
+    h_wf1 = _np.empty((Ndet[0], Ndet[1]), dtype=_np.complex64)
     fwavefield = wavefield_kernel(simobject.N, Ndet, pixelsize, detz, k)
     for n in range(0, Nimg):
         if verbose: _print(n, end='', flush=True)
