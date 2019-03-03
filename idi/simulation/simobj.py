@@ -207,9 +207,10 @@ class gridhcp(grid):
 class gridcuso4(grid):
     def __init__(self, N, E, rotangles):
         N = int(_np.rint((N / 2.0) ** (1 / 3.0)))
-        unitcell = [[0, 0, 0.5], [0, 0.5, 0]]
-        lconst = _np.array([0.60, 0.61, 1.07]) * 1e-3
-        langle = _np.array([77.3, 82.3, 72.6]) * pi / 180.0
+        #https://doi.org/10.1524%2Fzkri.1975.141.5-6.330
+        unitcell = [[0, 0, 0], [0.5, 0.5, 0]]
+        lconst = _np.array([6.141, 10.736, 5.986]) * 1e-4
+        langle = _np.array([82.27, 107.43, 102.67]) * pi / 180.0        
         Ns = [N, N, N]
         grid.__init__(self, lconst, langle, unitcell, Ns, rotangles, E)
 
