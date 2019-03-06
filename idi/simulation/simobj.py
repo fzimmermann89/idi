@@ -83,7 +83,7 @@ class grid(atoms):
         self.rndOrientation = False
 
     @staticmethod
-    def _lattice(lconst, langle, unitcell, repeats):
+    def _lattice(lconst, langle, unitcell, repeats, sigma=0):
         cosa, cosb, cosc = _np.cos(_np.array(langle))
         sina, sinb, sinc = _np.sin(_np.array(langle))
         basis = _np.array(
@@ -94,21 +94,30 @@ class grid(atoms):
             ]
         ) * _np.expand_dims(lconst, 1)
         atoms = _np.dot(unitcell,basis)
+        atoms += sigma * _np.random.rand(*atoms.shape)
+
+
         tmpatoms = []
         for i in range(repeats[0]):
             offset = basis[0] * i
             tmpatoms.append(atoms + offset[_np.newaxis, :])
         atoms = _np.concatenate(tmpatoms)
+        atoms += sigma * _np.random.rand(*atoms.shape)
+
         tmpatoms = []
         for j in range(repeats[1]):
             offset = basis[1] * j
             tmpatoms.append(atoms + offset[_np.newaxis, :])
         atoms = _np.concatenate(tmpatoms)
+        atoms += sigma * _np.random.rand(*atoms.shape)
+
         tmpatoms = []
         for k in range(repeats[2]):
             offset = basis[2] * k
             tmpatoms.append(atoms + offset[_np.newaxis, :])
         atoms = _np.concatenate(tmpatoms)
+        atoms += sigma * _np.random.rand(*atoms.shape)
+
         return (atoms - _np.max(atoms, axis=0) / 2.0)
 
     @staticmethod
@@ -216,14 +225,14 @@ class gridcuso4(grid):
 
 
 class hcpspheres(atoms):
-    def __init__(self, Nhcp, Nsphere, a, r, E, rotangles):
+    def __init__(self, Nhcp, Nsphere, a, r, E, rotangles, sigma = 0):
         if (_np.array(Nhcp)).size == 1:
             Nhcp = int(_np.rint((Nhcp / 2.0) ** (1 / 3.0)))
             Nhcp = [Nhcp, Nhcp, Nhcp]
         lconst = [a, a, 1.633*a]
         unitcell = [[0, 0, 0], [1./3, 2./3, 1./2]]
         langle = _np.array([90, 90, 120]) * pi / 180.0
-        self._hcppos = grid._lattice(lconst, langle, unitcell, Nhcp)
+        self._hcppos = grid._lattice(lconst, langle, unitcell, Nhcp, sigma)
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
             self._hcppos = _np.matmul(self._hcppos, self._rotmatrix)
@@ -238,9 +247,13 @@ class hcpspheres(atoms):
         atoms.__init__(self, E, pos)
         self.rndPos = False
         self.rndOrientation = False
-        self._Nhcp, self._Nsphere, self._r, self._a = Nhcp, Nsphere, r, a
+        self._Nhcp, self._Nsphere, self._r, self._a, self._sigma = Nhcp, Nsphere, r, a, sigma
+        self._lconst, self._langle, self._unitcell = lconst, langle, unitcell
+
 
     def get(self):
+        if self._sigma != 0 and self.rndPos:
+            self._hcppos = grid._lattice(self._lconst, self._langle, self._unitcell, self._Nhcp, self._sigma)
         if self.rndOrientation:
             rotmatrix = grid._rotation(*2 * pi * _np.random.rand(3))
             self._hcppos = _np.matmul(self._hcppos, rotmatrix)
@@ -248,7 +261,7 @@ class hcpspheres(atoms):
             import random
             pos=[]
             for p in self._hcppos:
-                rr=random.gauss(self._r,0.3*self._r)
+                rr=random.gauss(self._r,0.2*self._r)
                 pos.append(sphere._rndSphere(rr, self._Nsphere)+p)
             self._pos=_np.concatenate(pos)
         return atoms.get(self)
