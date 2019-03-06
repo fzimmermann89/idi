@@ -15,7 +15,7 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
     {
         int x = blockIdx.x*blockDim.x + threadIdx.x;
         int y = blockIdx.y*blockDim.y + threadIdx.y;
-        int reti = y*{{ maxx }} + x;
+        int reti = x*{{ maxy }} + y;
         if ((x < {{ maxx }}) && (y < {{ maxy }}))
         {
             const double PI =3.141592653589793238463;
