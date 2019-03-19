@@ -45,10 +45,11 @@ parser.add_option('--nocuda', action='store_false', dest='cuda', default=True,
                   help="dont use cuda")
 (options, args) = parser.parse_args()
 if len(args) != 1:
-    parser.error("incorrect number of arguments. Specify either sphere, gridsc, gridfcc or grudcuso4")
+    parser.error("incorrect number of arguments. Specify either sphere, gridsc, gridfcc, gridhcp or gridcuso4. Use --help for help")
 if options.Nunitcells is not None and (options.Natoms is not None or args[0] == 'sphere'):
     parser.error("Nunitcells is only allowed for grid* and if Natoms is not specified")
 
+simtype=args[0]
 outfile = options.outfile
 Natoms = int(options.Natoms) if options.Natoms is not None else int(1e5)
 Ndet = int(options.Ndet)
@@ -61,7 +62,7 @@ rndpos = options.rndpos
 rotangles = np.array([options.ax, options.ay, options.az]) / 180 * pi
 k = 2 * pi / (1.24 / E)  # in 1/um
 
-if args[0] == 'sphere':
+if simtype == 'sphere':
     r = options.r * 1e-3  # in um
     simobject = sim.simobj.sphere(Natoms, r, E)
     simobject.rndPhase = rndphase
@@ -69,14 +70,19 @@ if args[0] == 'sphere':
 else:
     a = options.a * 1e-4  # in um
     N = options.Nunitcells if options.Nunitcells is not None else Natoms
-    if args[0] == 'gridsc':
+    print(N)
+    if simtype == 'gridsc':
         simobject = sim.simobj.gridsc(N, a, E, rotangles)
-    elif args[0] == 'gridfcc':
+    elif simtype == 'gridfcc':
         simobject = sim.simobj.gridfcc(N, a, E, rotangles)
-    elif args[0] == 'gridcuso4':
-        simobject = sim.simobj.gridcuso4(N, a, E, rotangles)
+    elif simtype == 'gridcuso4':
+        simobject = sim.simobj.gridcuso4(N, E, rotangles)
+    elif simtype == 'gridhcp':
+        simobject = sim.simobj.gridhcp(N, a, E, rotangles)
     else:
         raise NotImplementedError("unknown object to simulate")
+    if rndpos:
+         raise NotImplementedError("rndpos for grids not implemented")
     simobject.rndPhase = rndphase
 if options.cuda:
     result = sim.cuda.simulate(Nimg, simobject, Ndet, pixelsize, detz, k)
