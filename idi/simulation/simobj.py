@@ -168,10 +168,31 @@ class grid(atoms):
             ]
         )
         return M
+    
+    @staticmethod
+    @_numba.njit 
+    def _random_rotation(amount=1):
+        deflection = 1
+        # https://doc.lagout.org/Others/Game%20Development/Programming/Graphics%20Gems%203.pdf
+        theta, phi, z = _np.random.rand(3) * _np.array(
+            (2.0 * _np.pi * amount, 2.0 * _np.pi, amount)
+        )
+        V = (
+            _np.cos(phi) * _np.sqrt(z),
+            _np.sin(phi) * _np.sqrt(z),
+            _np.sqrt(1.0 - z)
+        )
+        sint, cost = _np.sin(theta), _np.cos(theta)
+        R = _np.array(
+            ((cost, sint, 0), (-sint, cost, 0), (0, 0, 1))
+        )
+        M = _np.dot(2 * _np.outer(V, V) - _np.eye(3), R)
+        return M
+
 
     def get(self):
         if self.rndOrientation:
-            rotmatrix = grid._rotation(*2 * pi * _np.random.rand(3))
+            rotmatrix = grid._random_rotation()
             self._pos = _np.matmul(self._pos, rotmatrix)
         return atoms.get(self)
 
@@ -255,7 +276,7 @@ class hcpspheres(atoms):
         if self._sigma != 0 and self.rndPos:
             self._hcppos = grid._lattice(self._lconst, self._langle, self._unitcell, self._Nhcp, self._sigma)
         if self.rndOrientation:
-            rotmatrix = grid._rotation(*2 * pi * _np.random.rand(3))
+            rotmatrix = grid._random_rotation()
             self._hcppos = _np.matmul(self._hcppos, rotmatrix)
         if self.rndOrientation or self.rndPos:
             import random
