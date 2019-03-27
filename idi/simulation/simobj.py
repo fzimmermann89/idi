@@ -61,13 +61,14 @@ class xyzgrid(atoms):
         import re
         with open(filename, 'r') as file:
             data = file.read()
-        lines=re.findall("^"+atomname+"\d*\s*[\d,\.]*\s*[\d,\.]*\s*[\d,\.]*",data,re.IGNORECASE | re.MULTILINE)
-        pos=_np.genfromtxt(lines)[:,1:]
+        lines=re.findall("^"+atomname+"\d*\s*[\d,\.]+\s+[\d,\.]+\s+[\d,\.]+",data,re.IGNORECASE | re.MULTILINE)
+        pos=_np.genfromtxt(lines)[:,1:] * 1e-4
         if _np.any(rotangles):
             self._rotmatrix = grid._rotation(*rotangles)
             pos = _np.matmul(pos, self._rotmatrix)
         else:
             self._rotmatrix = None
+        pos = pos - (_np.max(pos, axis=0) / 2.0)
         atoms.__init__(self, E, pos)
 
 
