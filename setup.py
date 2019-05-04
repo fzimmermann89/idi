@@ -51,7 +51,7 @@ def setup_package():
         description='idi simulation and reconstruction',
         platforms=['Linux', 'Mac OS-X'],
         python_requires='>=2.7',
-        install_requires=['numpy', 'cython', 'numba', 'pycuda'],
+        install_requires=['numpy', 'cython', 'numba'],
         scripts=['idi_sim.py', 'idi_simrecon.py', 'idi_simrecon_normalize.py'],
         configuration=configuration,
     )
