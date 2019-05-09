@@ -17,15 +17,18 @@ def corrfunction(shape,z,qmax):
     qx, qy, qz = [(k - np.min(k)) for k in (qx, qy, qz)]
 
     def corr(input,finner):
+        input=np.asarray(input).astype(np.float64,copy=False)
         return np.sum(finner(input),axis=0)
     def inner(input):
         out=np.zeros((shape[0],qmax))
         for refx in numba.prange(shape[0]):
             for refy in range(shape[1]):
+                refv=input[refx,refy]
+                if refv==0: continue
                 qstep=min(abs(qy[refx,refy+1]-qy[refx,refy]),abs(qx[refx+1,refy]-qx[refx,refy]))
                 xmin=int(max(0,-5+np.floor(refx-qmax/qstep)))
                 xmax=int(min(shape[0],5+np.ceil(refx+qmax/qstep)))
-                refv=input[refx,refy]
+
                 for x in range(xmin,xmax):
                     dqy=np.sqrt((qmax/qstep)**2-(qx[x,refy]-qx[refx,refy])**2)
                     ymin=int(max(0,-5+np.floor(refy-dqy)))
@@ -39,4 +42,5 @@ def corrfunction(shape,z,qmax):
                         qsave=int(np.rint(np.sqrt(dq)))                    
                         out[refx,qsave]+=val
         return out
-    return functools.partial(corr,finner=numba.njit(inner,parallel=True).compile("float64[:,:](float64[:,:])"))
+    jitted=numba.njit(inner,parallel=True).compile("float64[:,:](float64[:,:])")
+    return functools.partial(corr,finner=jitted)

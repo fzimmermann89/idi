@@ -1,6 +1,6 @@
 __all__ = ['direct', 'directrad', 'autocorrelate3', 'ft','newrad']
 
-from . import direct, directrad
+from . import direct, directrad, newrad
 
 try:
     from . import autocorrelate3
