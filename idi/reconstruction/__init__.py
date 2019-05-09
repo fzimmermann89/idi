@@ -1,4 +1,4 @@
-__all__ = ['direct', 'directrad', 'autocorrelate3', 'ft']
+__all__ = ['direct', 'directrad', 'autocorrelate3', 'ft','newrad']
 
 from . import direct, directrad
 
