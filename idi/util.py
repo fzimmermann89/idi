@@ -4,21 +4,28 @@ import numpy as _np
 import scipy.ndimage as _snd
 
 
-def radial_profile(data, center=None, domask=True):
-    if center is None:
-        center = _np.array(data.shape) // 2
-    x, y = _np.indices(data.shape)
-    r = _np.rint((_np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2))).astype(_np.int)
-    if domask:
-        r = r * (data != 0)
-    rr = _np.ravel(r)
-    nr = _np.bincount(rr)
-    tbin = _np.bincount(rr, data.ravel())
-    radialprofile = tbin / nr
-    if domask:
-        radialprofile[0] = 0
-        radialprofile = _np.nan_to_num(radialprofile)
-    return radialprofile
+def radial_profile(data, center, calcStd=False, os=1):
+    '''
+    calculates a ND radial profile of data around center. will ignore nans
+    calStd: calculate standard deviation, return tuple of (profile, std)
+    os: oversample by a factor. With default 1 the stepsize will be 1 pixel, with 2 it will be .5 pixels etc. 
+    '''
+
+    if len(center) != data.ndim:
+        raise TypeError('center should be of length data.ndim')
+    center = _np.array(center)[tuple([slice(len(center))] + data.ndim * [None])]
+    ind = _np.indices((data.shape))
+    r = (_np.rint(os * _np.sqrt(((ind - center) ** 2).sum(axis=0)))).astype(int)
+    databin = _np.bincount(r.ravel(), (_np.nan_to_num(data)).ravel())
+    nr = _np.bincount(r.ravel(), ((~_np.isnan(data)).astype(float)).ravel())
+    radialprofile = databin / nr
+    if not calcStd:
+        return radialprofile
+    
+    data2bin = _np.bincount(r.ravel(), (_np.nan_to_num(data ** 2)).ravel())
+    radial2profile = data2bin / nr
+    std = _np.sqrt(radial2profile - radialprofile ** 2)
+    return radialprofile, std
 
 
 def cutnan(array):
