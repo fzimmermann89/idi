@@ -140,10 +140,11 @@ def _pcorrs(input, z):
 
 
 def unwrap(input):
-    ret = np.zeros((2 * input.shape[0], input.shape[1], input.shape[2]))
-    ret[1 : input.shape[0], 1:, 1:] = input[:0:-1, :0:-1, :0:-1]
-    ret[input.shape[0] :, :, :] += input[..., :]
+    ret = _np.zeros((2 * input.shape[0], input.shape[1], input.shape[2]))
+    ret[1 : input.shape[0] + 1, 1:, 1:] = input[::-1, :0:-1, :0:-1]
+    ret[input.shape[0] :, :, :] += input
     return ret
+
 
 
 # should give a pattern after unwrapping...

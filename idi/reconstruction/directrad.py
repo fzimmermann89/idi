@@ -86,7 +86,7 @@ def _pradcorr(input, z):
 #                     print(q,qlen,(qx,qy,qx))
 #                     pass
 #                 else:
-                 tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
+                tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
     out = _np.zeros(qlen)
     for n in range(pmax):
         out += tmp[n, ...]
