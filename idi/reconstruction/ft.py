@@ -28,15 +28,20 @@ def _prepare(input, z):
     '''
     transform centered 2d input sampled at distance z to 3d k-space
     '''
+    
     y, x = _np.meshgrid(_np.arange(input.shape[1], dtype=_np.float64), _np.arange(input.shape[0], dtype=_np.float64))
     x -= input.shape[0] / 2.0
     y -= input.shape[1] / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     qx, qy, qz = [(k / d * z) for k in (x, y, z)]
-    #     kx1=kx1/(kx1[1,0]-kx1[0,0]) #correct, but slower
-    #     ky1=ky1/(ky1[0,1]-ky1[0,0])
+#     qz=0 # for debugging disable qz correction
+#     qx=x # for debugging disable qz correction
+#     qy=y # for debugging disable qz correction
+#     qstep=min(abs(qy[0,1]-qy[0,0]),abs(qx[1,0]-qx[0,0])) #(more) correct, but slower. should think about correct oversampling
+#     qx, qy, qz = [(k / qstep) for k in (qx, qy, qz)] #(more) correct, but slower
     qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
     qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
+#     print(qlenx, qleny, qlenz)
     ret = _np.zeros((qlenz, qleny, qlenx + 2), dtype=_np.float64) # additonal padding in qx for inplace fft
     _np.add.at(ret, (qz, qy, qx), input)
     #     ret[kz1,ky1,kx1]=input #only if no double assignment
