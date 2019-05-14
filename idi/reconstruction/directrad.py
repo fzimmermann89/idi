@@ -5,7 +5,7 @@ import numba as _numba
 from six.moves import range  # for python2 compatibility
 from .common import _getidx
 
-pmax = 12
+pmax = 16
 
 
 def corr(input, z):
@@ -28,13 +28,13 @@ def _radcorr(input, z):
     radial profile of correlation
     for one NxN array
     """
-    N = max(input.shape)
+    Nx,Ny = input.shape
     xi, yi = _np.where(input > 0)
     Nhits = len(xi)
-    qlen = int(_np.ceil(N * 2))
+    int(_np.ceil(2 * max(input.shape[-2:])))
     tmp = _np.zeros(qlen, dtype=_np.uint64)
-    x = (xi).astype(_numba.float64) - N / 2.0
-    y = (yi).astype(_numba.float64) - N / 2.0
+    x = (xi).astype(_numba.float64) - Nx / 2.0
+    y = (yi).astype(_numba.float64) - Ny / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = x / d * z
     ky = y / d * z
@@ -46,11 +46,11 @@ def _radcorr(input, z):
             qx = kx[n] - kx[m]
             qy = ky[n] - ky[m]
             q = int(_np.rint(_np.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-            if q > qlen:
-                # print(q,qlen,(qx,qy,qx))
-                pass
-            else:
-                tmp[q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
+#             if q > qlen:
+#                 # print(q,qlen,(qx,qy,qx))
+#                 pass
+#             else:
+            tmp[q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
     return tmp
 
 
@@ -62,17 +62,18 @@ def _pradcorr(input, z):
     """
     # TODO worksize aka getidx
     print(pmax)
-    N = max(input.shape)
+    Nx,Ny = input.shape
     xi, yi = _np.where(input)
-    x = (xi).astype(_numba.float64) - N / 2.0
-    y = (yi).astype(_numba.float64) - N / 2.0
+    x = (xi).astype(_numba.float64) - Nx / 2.0
+    y = (yi).astype(_numba.float64) - Ny / 2.0
     Nhits = len(xi)
-    qlen = int(_np.ceil(N * 2))
+    qlen = int(_np.ceil(2 * max(input.shape[-2:])))
     tmp = _np.zeros((pmax, qlen), dtype=_numba.uint64)
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = (x / d) * z
     ky = (y / d) * z
     kz = z / d * z
+    
     for p in _numba.prange(pmax):
         idx = _getidx(p, pmax, Nhits)
         for n in idx:
@@ -81,12 +82,11 @@ def _pradcorr(input, z):
                 qx = kx[n] - kx[m]
                 qy = ky[n] - ky[m]
                 q = int(_np.rint(_np.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-                if q > qlen:
-                    # print(q,qlen,(qx,qy,qx))
-                    pass
-                else:
-                    tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
-        print(p)
+#                 if q > qlen:
+#                     print(q,qlen,(qx,qy,qx))
+#                     pass
+#                 else:
+                 tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
     out = _np.zeros(qlen)
     for n in range(pmax):
         out += tmp[n, ...]
