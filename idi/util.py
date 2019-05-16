@@ -35,6 +35,7 @@ def cutnan(array):
 
 
 def rebin(arr, n):
+    #deprecated
     shape = (arr.shape[0] // 2 ** n, 2 ** n, arr.shape[1] // 2 ** n, 2 ** n, arr.shape[2] // 2 ** n, 2 ** n)
     return arr.reshape(shape).mean(-1).mean(1).mean(-2)
 
@@ -57,7 +58,9 @@ def bin(ndarray, new_shape, operation='sum'):
 
 
 def centered_part(arr, newshape):
-    # Return the center newshape portion of the array.
+    '''
+    Return the center newshape portion of the array.
+    '''
     newshape = _np.asarray(newshape)
     currshape = _np.array(arr.shape)
     startind = (currshape - newshape) // 2
@@ -104,6 +107,9 @@ def abs2c(x):
 
 
 def fill(data, invalid=None):
+    '''
+    fill invalid values by closest valid value. invalid: mask of invalid values, default: np.isnan(data)
+    '''
     if invalid is None:
         invalid = _np.isnan(data)
     ind = _snd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
@@ -111,10 +117,115 @@ def fill(data, invalid=None):
 
 
 def photons(img, E, thres=0.):
+    '''
+    photonize image. First count whole photons. Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
+    '''
     data = (img * (img>0)) / E
-    photons = _np.floor(data)
-    rest = data - photons
-    rest_ismax = _np.logical_and(rest == _snd.filters.maximum_filter(rest, 3), rest>thres)
+    photons = _np.floor(data) #whole photons
+    remainder = data - photons
+    remainder_ismax = _np.logical_and(remainder == _snd.filters.maximum_filter(remainder, 3), remainder>thres)
     el = _snd.morphology.generate_binary_structure(2, 1)
-    photons += _np.rint(_snd.filters.convolve(rest, el) * rest_ismax)
+    photons += _np.rint(_snd.filters.convolve(rest, el) * rest_ismax) #sum over neighbours
     return photons
+
+
+
+from functools import wraps, partial, reduce   
+def aslist(fn=None):
+    def aslist_return(fn):
+        @wraps(fn)
+        def aslist_helper(*args, **kw):
+            return list(fn(*args, **kw))
+        return aslist_helper
+    if fn is None:
+        return aslist_return
+    return aslist_return(fn)
+
+def asgen(fn=None):
+    def asgen_return(fn):
+        @wraps(fn)
+        def asgen_helper(arg, *args, **kw):
+            for item in arg:
+                yield fn(item, *args, **kw)
+        return asgen_helper
+    if fn is None:
+        return asgen_return
+    return asgen_return(fn)
+
+def aslengen(fn=None):
+    class lengen(object):
+        def __init__(self, gen, length):
+            self.gen = gen
+            self.length = length
+
+        def __len__(self): 
+            return self.length
+
+        def __iter__(self):
+            return self.gen
+
+try:
+    from pathos.multiprocessing import Pool
+except ImportError:
+    import warnings
+    warnings.warn('no pathos available, be careful with parallel decorator and pickling errors.')
+    from multiprocessing import Pool
+from collections import deque
+import time
+def parallel(fn=None):
+    def parallel_return(fn):
+        @wraps(fn)
+        def parallel_helper(arg,*args,**kw):            
+            with Pool(4) as p:
+                q=deque()
+                for item in arg:
+                    if len(q)>4 and q[0].ready(): yield q.popleft().get()
+                    while len(q)>8 and not q[0].ready(): time.sleep(0.01)
+                    q.append(p.apply_async(fn,(item,)+args, kw))                   
+                for r in q: yield r.get()
+        return parallel_helper
+    if fn is None:
+        return parallel_return
+    return parallel_return(fn)
+
+def chain(*fns):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)),fns)
+
+
+# import dataclasses
+# @dataclasses.dataclass
+# dataclasses are python 3 only
+class accumulator:
+    #     _n: int = 0
+    #     _mean: float = 0
+    #     _nvar: float = 0
+    def __init__(self):
+        self._n = 0
+        self._mean = 0.
+        self._nvar = 0.
+
+    def __repr__(self):
+        if self._n == 0:
+            return 'accumulator<empty>'
+        return 'accumulator<%s[%i]>' % (str(type(self._mean))[1:-1], self._n)
+
+    def add(self, value):
+        self._n += 1
+        delta = value - self.mean
+        self._mean += delta / (self._n)
+        self._nvar += delta * (value - self.mean)
+
+    def __len__(self):
+        return n
+
+    @property
+    def mean(self):
+        return self._mean
+
+    @property
+    def var(self):
+        return self._nvar / (self._n - 1)
+
+    @property
+    def std(self):
+        return np.sqrt(self.var)
