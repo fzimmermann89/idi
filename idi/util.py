@@ -2,7 +2,7 @@ from __future__ import division as _future_division, print_function as _future_p
 import numba as _numba
 import numpy as _np
 import scipy.ndimage as _snd
-
+import numexpr as _ne
 
 def radial_profile(data, center, calcStd=False, os=1):
     '''
@@ -192,28 +192,34 @@ def chain(*fns):
     return functools.reduce(lambda f, g: lambda x: f(g(x)),fns)
 
 
-# import dataclasses
-# @dataclasses.dataclass
-# dataclasses are python 3 only
+
 class accumulator:
-    #     _n: int = 0
-    #     _mean: float = 0
-    #     _nvar: float = 0
-    def __init__(self):
+    def __init__(self, like=None):
         self._n = 0
-        self._mean = 0.
-        self._nvar = 0.
+        if like is None:
+            self._mean = None
+            self._nvar = None
+        else:
+            self._mean = np.zeros_like(like)
+            self._nvar = np.zeros_like(like)
 
     def __repr__(self):
-        if self._n == 0:
-            return 'accumulator<empty>'
-        return 'accumulator<%s[%i]>' % (str(type(self._mean))[1:-1], self._n)
+        print(type(self._mean))
+        return 'accumulator[%i]' % self._n
 
-    def add(self, value):
-        self._n += 1
-        delta = value - self.mean
-        self._mean += delta / (self._n)
-        self._nvar += delta * (value - self.mean)
+    def add(self, value, count=1):
+        self._n += count
+        if self._mean is None:
+            self._mean = np.asarray(value).astype(np.float64)
+            self._nvar = np.zeros_like(value).astype(np.float64)
+        else:
+            with _np.errstate(divide='ignore', invalid='ignore'):
+                delta = value - self._mean
+                self._mean = _np.add(self._mean, delta / self._n, where=count, out=self._mean)
+                self._nvar = _ne.evaluate(
+                    'nvar + delta * (value - mean)',
+                    local_dict={'nvar': self._nvar, 'value': value, 'delta': delta, 'mean': self._mean},
+                )
 
     def __len__(self):
         return n
@@ -224,7 +230,7 @@ class accumulator:
 
     @property
     def var(self):
-        return self._nvar / (self._n - 1)
+        return self._nvar / self._n
 
     @property
     def std(self):
