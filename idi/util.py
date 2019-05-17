@@ -200,8 +200,8 @@ class accumulator:
             self._mean = None
             self._nvar = None
         else:
-            self._mean = np.zeros_like(like)
-            self._nvar = np.zeros_like(like)
+            self._mean = _np.zeros_like(like)
+            self._nvar = _np.zeros_like(like)
 
     def __repr__(self):
         print(type(self._mean))
@@ -210,20 +210,26 @@ class accumulator:
     def add(self, value, count=1):
         self._n += count
         if self._mean is None:
-            self._mean = np.asarray(value).astype(np.float64)
-            self._nvar = np.zeros_like(value).astype(np.float64)
+            self._mean = _np.asarray(value).astype(_np.float64)
+            self._nvar = _np.zeros_like(value).astype(_np.float64)
         else:
             with _np.errstate(divide='ignore', invalid='ignore'):
                 delta = value - self._mean
-                self._mean = _np.add(self._mean, delta / self._n, where=count, out=self._mean)
+                self._mean = _np.add(self._mean, delta / self._n, where=(count!=0), out=self._mean)
                 self._nvar = _ne.evaluate(
                     'nvar + delta * (value - mean)',
                     local_dict={'nvar': self._nvar, 'value': value, 'delta': delta, 'mean': self._mean},
                 )
 
     def __len__(self):
-        return n
-
+        return _np.max(self._n)
+    
+    @property
+    def shape(self):
+        if self._mean is not None:
+            return _np.asarray(self._mean).shape
+        else:
+            return 0
     @property
     def mean(self):
         return self._mean
@@ -234,4 +240,4 @@ class accumulator:
 
     @property
     def std(self):
-        return np.sqrt(self.var)
+        return _np.sqrt(self.var)
