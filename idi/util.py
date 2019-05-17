@@ -206,7 +206,7 @@ class accumulator:
     def __repr__(self):
         print(type(self._mean))
         return 'accumulator[%i]' % self._n
-
+    
     def add(self, value, count=1):
         self._n += count
         if self._mean is None:
@@ -232,11 +232,17 @@ class accumulator:
             return 0
     @property
     def mean(self):
-        return self._mean
+        if self._mean is not None:
+            return self._mean
+        else:
+            return 0
 
     @property
     def var(self):
-        return self._nvar / self._n
+        if self._nvar is not None:
+            return self._nvar / self._n
+        else: 
+            return 0
 
     @property
     def std(self):
