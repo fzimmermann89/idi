@@ -22,8 +22,7 @@ def corrfunction(shape, z, qmax):
         return np.sum(finner(input, qx, qy, qz), axis=0)
 
     def inner(input, qx, qy, qz):
-        print(qmax)
-        out = np.zeros((shape[0] + 10, 2 * qmax + 100), dtype=np.float64)
+        out = np.zeros((shape[0] + 10, qmax), dtype=np.float64)
         for refx in numba.prange(shape[0]):
             # if refx>200: continue
             for refy in range(shape[1]):
@@ -45,7 +44,7 @@ def corrfunction(shape, z, qmax):
                     # ymax=int(min(shape[1],5+np.ceil(refy+dqy))) #or range(ymin,ymax)...
                     for y in range(ymin, ymax):
                         dq = (qx[x, y] - qx[refx, refy]) ** 2 + (qy[x, y] - qy[refx, refy]) ** 2 + (qz[x, y] - qz[refx, refy]) ** 2
-                        if dq >= (qmax - 5) ** 2:
+                        if dq >= (qmax - 0.5) ** 2:
                             continue
                         val = refv * input[x, y]
                         qsave = int(np.rint(np.sqrt(dq)))
