@@ -247,3 +247,25 @@ class accumulator:
     @property
     def std(self):
         return _np.sqrt(self.var)
+
+    
+
+
+
+def filter_std(image, size):
+    import numpy as np
+    import scipy.ndimage as ndi
+    from numba import cfunc, carray
+    from numba.types import intc, intp, float64, voidptr, CPointer
+    from scipy import LowLevelCallable
+    @cfunc(intc(CPointer(float64), intp, CPointer(float64), voidptr))
+    def _std(values_ptr, len_values, result, data):
+        values = carray(values_ptr, (len_values,), dtype=float64)
+        accumx = 0
+        accumx2 = 0
+        for x in values:
+            accumx += x
+            accumx2 += x * x
+        result[0] = np.sqrt((accumx2 / len_values) - (accumx / len_values) ** 2)
+        return 1 
+    return ndi.generic_filter(image, LowLevelCallable(_std.ctypes), size)
