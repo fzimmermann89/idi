@@ -252,20 +252,33 @@ class accumulator:
 
 
 
-def filter_std(image, size):
+def filter_std(image, size, sigma=1):
+    '''
+    filters an nd image based on deviation by local stdev over local mean.
+    return mask of points that are sigma local stdev over(under) the local mean if sigma is positiv(negativ)
+    '''
     import numpy as np
+    import ctypes
     import scipy.ndimage as ndi
     from numba import cfunc, carray
     from numba.types import intc, intp, float64, voidptr, CPointer
     from scipy import LowLevelCallable
-    @cfunc(intc(CPointer(float64), intp, CPointer(float64), voidptr))
+    @cfunc(intc(CPointer(float64), intp, CPointer(float64), voidptr), fastmath=True)
     def _std(values_ptr, len_values, result, data):
         values = carray(values_ptr, (len_values,), dtype=float64)
         accumx = 0
         accumx2 = 0
+        sigma = carray(data, (1,), dtype=float64)[0]
         for x in values:
             accumx += x
             accumx2 += x * x
-        result[0] = np.sqrt((accumx2 / len_values) - (accumx / len_values) ** 2)
+        mean = accumx / len_values
+        std = np.sqrt((accumx2 / len_values) - mean ** 2)
+        result[0] = sigma * std + mean
         return 1 
-    return ndi.generic_filter(image, LowLevelCallable(_std.ctypes), size)
+    
+    csigma = ctypes.c_double(sigma)
+    ptr = ctypes.cast(ctypes.pointer(csigma), ctypes.c_void_p)
+    res = image>ndi.generic_filter(image, LowLevelCallable(_std.ctypes, ptr), size)
+    if sigma<0: res = ~res
+    return res
