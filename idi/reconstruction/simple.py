@@ -1,5 +1,5 @@
 import numpy as _np
-from idi.util import abs2
+from ..util import abs2
 
 def corr(input):
     ret = _np.zeros([2 * s for s in input.shape])
