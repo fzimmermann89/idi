@@ -15,7 +15,7 @@ if _local:
         from numpy import get_include as _np_get_include
         _mkl_inc = _getinfo('mkl').get('include_dirs')
         _np_inc = [_np_get_include()]
-        _pyx.install(setup_args={'include_dirs': _mkl_inc + _np_inc })
+        _pyx.install(setup_args={'include_dirs': _mkl_inc + _np_inc }, language_level=2)
     except ImportError:
         import warning as _w
 
