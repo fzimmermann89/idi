@@ -4,6 +4,38 @@ import numpy as _np
 import scipy.ndimage as _snd
 import numexpr as _ne
 
+def create_mask(img, lowthres=50, highthres=95, sigma=10):
+    '''
+    create mask by high/low threshold in blurred image. WIP
+    '''
+    blured=_snd.gaussian_filter(img,sigma)
+    blured[img==0]=_np.nan
+    #blured[img<_np.nanpercentile(blured,5)]=_np.nan
+    low=blured<=_np.nanpercentile(blured,lowthres)
+    high=blured>=_np.nanpercentile(blured,highthres)
+    mask=_np.logical_or(high,low)
+    mask[img==0]=True
+    mask_cleaned=_snd.morphology.binary_dilation(mask,_snd.morphology.generate_binary_structure(2,1),2)
+    mask_cleaned=_snd.morphology.binary_closing(mask_cleaned,_snd.morphology.generate_binary_structure(2,1),20)
+    mask_cleaned=_snd.morphology.binary_dilation(mask_cleaned,_snd.morphology.generate_binary_structure(2,2),2)
+    mask=_np.logical_or(mask,mask_cleaned)
+    
+    #hotpixel
+    hotpixel=img>(_np.mean(img[~mask])+5*_np.std(img[~mask]))
+    hotpixel=_snd.morphology.binary_dilation(hotpixel,_snd.morphology.generate_binary_structure(2,2),2)
+    mask[hotpixel]=True
+    return mask
+
+def diffdist(*args):
+    '''
+    returns Euclidean norm next neighbour difference of n coordinates: |diffdist(x,y,z)=diff(x),diff(y),diff(z)|
+    '''
+    accum = 0
+    for arg in args:
+        accum += _np.diff(arg) ** 2
+    return _np.sqrt(accum)
+
+
 def radial_profile(data, center, calcStd=False, os=1):
     '''
     calculates a ND radial profile of data around center. will ignore nans
@@ -116,7 +148,7 @@ def fill(data, invalid=None):
     return data[tuple(ind)]
 
 
-def photons(img, E, thres=0.):
+def photons_localmax(img, E, thres=0.):
     '''
     photonize image. First count whole photons. Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
     '''
@@ -128,72 +160,14 @@ def photons(img, E, thres=0.):
     photons += _np.rint(_snd.filters.convolve(rest, el) * rest_ismax) #sum over neighbours
     return photons
 
-
-
-from functools import wraps, partial, reduce   
-def aslist(fn=None):
-    def aslist_return(fn):
-        @wraps(fn)
-        def aslist_helper(*args, **kw):
-            return list(fn(*args, **kw))
-        return aslist_helper
-    if fn is None:
-        return aslist_return
-    return aslist_return(fn)
-
-def asgen(fn=None):
-    def asgen_return(fn):
-        @wraps(fn)
-        def asgen_helper(arg, *args, **kw):
-            for item in arg:
-                yield fn(item, *args, **kw)
-        return asgen_helper
-    if fn is None:
-        return asgen_return
-    return asgen_return(fn)
-
-def aslengen(fn=None):
-    class lengen(object):
-        def __init__(self, gen, length):
-            self.gen = gen
-            self.length = length
-
-        def __len__(self): 
-            return self.length
-
-        def __iter__(self):
-            return self.gen
-
-try:
-    from pathos.multiprocessing import Pool
-except ImportError:
-    import warnings
-    warnings.warn('no pathos available, be careful with parallel decorator and pickling errors.')
-    from multiprocessing import Pool
-from collections import deque
-import time
-def parallel(fn=None):
-    def parallel_return(fn):
-        @wraps(fn)
-        def parallel_helper(arg,*args,**kw):            
-            with Pool(4) as p:
-                q=deque()
-                for item in arg:
-                    if len(q)>4 and q[0].ready(): yield q.popleft().get()
-                    while len(q)>8 and not q[0].ready(): time.sleep(0.01)
-                    q.append(p.apply_async(fn,(item,)+args, kw))                   
-                for r in q: yield r.get()
-        return parallel_helper
-    if fn is None:
-        return parallel_return
-    return parallel_return(fn)
-
-def chain(*fns):
-    return functools.reduce(lambda f, g: lambda x: f(g(x)),fns)
-
+def photons_simple(img, E, ev_per_adu=3.65, bg=0):
+    return np.rint(((np.squeeze(np.array(img)) ev_per_adu) - bg) / E)
 
 
 class accumulator:
+    '''
+    simple accumulator for large number of data points. allows retrieval of mean and stdev
+    '''
     def __init__(self, like=None):
         self._n = 0
         if like is None:
