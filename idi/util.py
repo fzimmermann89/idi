@@ -161,7 +161,7 @@ def photons_localmax(img, E, thres=0.):
     return photons
 
 def photons_simple(img, E, ev_per_adu=3.65, bg=0):
-    return np.rint(((np.squeeze(np.array(img)) ev_per_adu) - bg) / E)
+    return _np.rint(((_np.squeeze(_np.array(img)) * ev_per_adu) - bg) / E)
 
 
 class accumulator:
