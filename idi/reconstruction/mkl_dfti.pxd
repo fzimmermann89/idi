@@ -1,6 +1,6 @@
 #Translation of mkl_dfti.h to cython
 
-cdef extern from "mkl.h":
+cdef extern from "mkl.h" nogil:
     ctypedef enum DFTI_CONFIG_PARAM:
         # Domain for forward transform. No default value 
         DFTI_FORWARD_DOMAIN = 0,
