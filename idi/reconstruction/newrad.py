@@ -7,7 +7,7 @@ import functools
 #   WORK IN PROGRESS   #
 #                      #
 ########################
-
+#numba.config.NUMBA_NUM_THREADS = 12
 
 def corrfunction(shape, z, qmax):
     y, x = np.meshgrid(np.arange(shape[1], dtype=np.float64), np.arange(shape[0], dtype=np.float64))
