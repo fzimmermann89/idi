@@ -5,7 +5,7 @@ import numba as _numba
 from six.moves import range  # for python2 compatibility
 from .common import _getidx
 
-pmax = 12
+pmax = 16
 
 
 def corr(input, z, qmax=0):
@@ -28,13 +28,13 @@ def _radcorr(input, z, qmax=0):
     radial profile of correlation
     for one NxN array
     """
-    N = max(input.shape)
+    Nx,Ny = input.shape
     xi, yi = _np.where(input > 0)
     Nhits = len(xi)
-    if qmax == 0: qmax = int(max(input.shape) * 2)
+    if qmax==0: qmax=int(_np.ceil(2 * max(input.shape[-2:])))
     tmp = _np.zeros(qmax, dtype=_np.uint64)
-    x = (xi).astype(_numba.float64) - input.shape[0] / 2.0
-    y = (yi).astype(_numba.float64) - input.shape[1] / 2.0
+    x = (xi).astype(_numba.float64) - Nx / 2.0
+    y = (yi).astype(_numba.float64) - Ny / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = (x / d) * z
     ky = (y / d) * z
@@ -51,8 +51,6 @@ def _radcorr(input, z, qmax=0):
                 pass
             else:
                 tmp[q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
-    return tmp
-
 
 @_numba.njit(parallel=True, cache=False, nogil=True, fastmath=True)
 def _pradcorr(input, z, qmax=0):
@@ -61,16 +59,18 @@ def _pradcorr(input, z, qmax=0):
     for one NxN array (parallel version)
     """
     print(pmax)
+    Nx,Ny = input.shape
     xi, yi = _np.where(input)
-    x = (xi).astype(_numba.float64) - input.shape[0] / 2.0
-    y = (yi).astype(_numba.float64) - input.shape[1] / 2.0
+    x = (xi).astype(_numba.float64) - Nx / 2.0
+    y = (yi).astype(_numba.float64) - Ny / 2.0
     Nhits = len(xi)
-    if qmax == 0: qmax = int(max(input.shape) * 2)
+    if qmax==0: qmax = int(_np.ceil(2 * max(input.shape[-2:])))
     tmp = _np.zeros((pmax, qmax), dtype=_numba.uint64)
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = (x / d) * z
     ky = (y / d) * z
     kz = (z / d) * z
+    
     for p in _numba.prange(pmax):
         idx = _getidx(p, pmax, Nhits)
         for n in idx:
@@ -84,7 +84,6 @@ def _pradcorr(input, z, qmax=0):
                     pass
                 else:
                     tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
-        print(p)
     out = _np.zeros(qmax)
     for n in range(pmax):
         out += tmp[n, ...]
@@ -97,8 +96,8 @@ def _pradcorrs(input, z):
     radial profile of correlation
     for n NxN arrays, parallel over n
     """
-    qlen = int(_np.ceil(2 * max(input.shape[-2:])))
-    out = _np.zeros((input.shape[0], qlen), dtype=_numba.uint64)
+    qmax = int(_np.ceil(2 * max(input.shape[-2:])))
+    out = _np.zeros((input.shape[0], qmax), dtype=_numba.uint64)
     for n in _numba.prange(input.shape[0]):
         out[n] = _radcorr(input[n, ...], z)
     return out

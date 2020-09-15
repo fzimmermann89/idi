@@ -38,9 +38,14 @@ cpdef int autocorrelate3(np.ndarray[double, ndim=3, mode="c"] input) except -1:
         #fft
         if mkl_dfti.DftiComputeForward(hand, x): raise Exception()
 
-        #abs (inplace)
-        xc = <MKL_COMPLEX16*>x
-        vzMulByConj(N1*N2*(N3//2+1),xc,xc,xc)
+        ##abs (inplace)
+        #xc = <MKL_COMPLEX16*>x
+        #vzMulByConj(N1*N2*(N3//2+1),xc,xc,xc)
+
+        #abs (inplace, batched to avoid bug in vml)
+        for i in range(N1):
+            xc = <MKL_COMPLEX16*>&x[i*(2*N2*(N3//2+1))]
+            vzMulByConj(N2*(N3//2+1),xc,xc,xc)
 
         #c2r ifft setup
         if mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_INPUT_STRIDES, cs): raise Exception()
