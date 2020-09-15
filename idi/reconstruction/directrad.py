@@ -8,22 +8,22 @@ from .common import _getidx
 pmax = 12
 
 
-def corr(input, z):
+def corr(input, z, qmax=0):
     _numba.config.NUMBA_NUM_THREADS = pmax
     """
     radial profile of correlation
     for one NxN array or nx(NxN) arrays
     """
     if input.ndim == 2:
-        return _pradcorr(input, z)
+        return _pradcorr(input, z, qmax)
     elif input.ndim == 3:
-        return _np.sum(_pradcorrs(input, z), axis=0)
+        return _np.sum(_pradcorrs(input, z, qmax), axis=0)
     else:
         raise TypeError
 
 
 @_numba.njit(parallel=False)
-def _radcorr(input, z):
+def _radcorr(input, z, qmax=0):
     """
     radial profile of correlation
     for one NxN array
@@ -31,14 +31,14 @@ def _radcorr(input, z):
     N = max(input.shape)
     xi, yi = _np.where(input > 0)
     Nhits = len(xi)
-    qlen = int(_np.ceil(N * 2))
-    tmp = _np.zeros(qlen, dtype=_np.uint64)
-    x = (xi).astype(_numba.float64) - N / 2.0
-    y = (yi).astype(_numba.float64) - N / 2.0
+    if qmax == 0: qmax = int(max(input.shape) * 2)
+    tmp = _np.zeros(qmax, dtype=_np.uint64)
+    x = (xi).astype(_numba.float64) - input.shape[0] / 2.0
+    y = (yi).astype(_numba.float64) - input.shape[1] / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    kx = x / d * z
-    ky = y / d * z
-    kz = z / d * z
+    kx = (x / d) * z
+    ky = (y / d) * z
+    kz = (z / d) * z
 
     for n in range(Nhits):
         for m in range(n):
@@ -46,7 +46,7 @@ def _radcorr(input, z):
             qx = kx[n] - kx[m]
             qy = ky[n] - ky[m]
             q = int(_np.rint(_np.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-            if q > qlen:
+            if q > qmax:
                 # print(q,qlen,(qx,qy,qx))
                 pass
             else:
@@ -55,24 +55,22 @@ def _radcorr(input, z):
 
 
 @_numba.njit(parallel=True, cache=False, nogil=True, fastmath=True)
-def _pradcorr(input, z):
+def _pradcorr(input, z, qmax=0):
     """
     radial profile of correlation
     for one NxN array (parallel version)
     """
-    # TODO worksize aka getidx
     print(pmax)
-    N = max(input.shape)
     xi, yi = _np.where(input)
-    x = (xi).astype(_numba.float64) - N / 2.0
-    y = (yi).astype(_numba.float64) - N / 2.0
+    x = (xi).astype(_numba.float64) - input.shape[0] / 2.0
+    y = (yi).astype(_numba.float64) - input.shape[1] / 2.0
     Nhits = len(xi)
-    qlen = int(_np.ceil(N * 2))
-    tmp = _np.zeros((pmax, qlen), dtype=_numba.uint64)
+    if qmax == 0: qmax = int(max(input.shape) * 2)
+    tmp = _np.zeros((pmax, qmax), dtype=_numba.uint64)
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = (x / d) * z
     ky = (y / d) * z
-    kz = z / d * z
+    kz = (z / d) * z
     for p in _numba.prange(pmax):
         idx = _getidx(p, pmax, Nhits)
         for n in idx:
@@ -81,13 +79,13 @@ def _pradcorr(input, z):
                 qx = kx[n] - kx[m]
                 qy = ky[n] - ky[m]
                 q = int(_np.rint(_np.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-                if q > qlen:
+                if q > qmax:
                     # print(q,qlen,(qx,qy,qx))
                     pass
                 else:
                     tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
         print(p)
-    out = _np.zeros(qlen)
+    out = _np.zeros(qmax)
     for n in range(pmax):
         out += tmp[n, ...]
     return out
