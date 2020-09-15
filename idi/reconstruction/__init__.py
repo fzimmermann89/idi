@@ -1,10 +1,13 @@
 __all__ = ['direct', 'directrad', 'autocorrelate3', 'ft', 'newrad', 'simple']
 
+import mkl as _mkl
+_vml_threads=_mkl.domain_get_max_threads('vml')
+
 from . import direct, directrad, newrad, simple
 
 try:
     from . import autocorrelate3
-except ImportError:
+except ImportError as e:
     _local = True
 else:
     _local = False
@@ -24,3 +27,5 @@ if _local:
         from . import ft
 else:
     from . import ft
+
+_mkl.domain_set_num_threads(_vml_threads,'vml') #numexpr messes with vml thread number
