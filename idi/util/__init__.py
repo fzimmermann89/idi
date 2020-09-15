@@ -2,7 +2,7 @@ from __future__ import division as _future_division, print_function as _future_p
 
 from .accum import *
 from .filters import *
-from .func import *
+from .functools import *
 from .poissondisk import *
 
 import numba as _numba
@@ -37,6 +37,9 @@ def radial_profile(data, center=None, calcStd=False, os=1):
 
 
 def cutnan(array):
+    '''
+    remove full-nan rows and columns of 2d array
+    '''
     ind0 = ~_np.all(_np.isnan(array), axis=0)
     ind1 = ~_np.all(_np.isnan(array), axis=1)
     return array[ind1, :][:, ind0]
@@ -124,7 +127,7 @@ def fill(data, invalid=None):
     return data[tuple(ind)]
 
 
-def photons(img, E, thres=0.):
+def photons_localmax(img, E, thres=0.):
     '''
     photonize image. First count whole photons. Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
     '''
@@ -138,3 +141,37 @@ def photons(img, E, thres=0.):
 
 
 
+def photons_simple(img, E, ev_per_adu=3.65, bg=0):
+    return _np.rint(((_np.squeeze(_np.array(img)) * ev_per_adu) - bg) / E)
+
+
+def create_mask(img, lowthres=50, highthres=95, sigma=10):
+    '''
+    create mask by high/low threshold in blurred image. WIP
+    '''
+    blured=_snd.gaussian_filter(img,sigma)
+    blured[img==0]=_np.nan
+    #blured[img<_np.nanpercentile(blured,5)]=_np.nan
+    low=blured<=_np.nanpercentile(blured,lowthres)
+    high=blured>=_np.nanpercentile(blured,highthres)
+    mask=_np.logical_or(high,low)
+    mask[img==0]=True
+    mask_cleaned=_snd.morphology.binary_dilation(mask,_snd.morphology.generate_binary_structure(2,1),2)
+    mask_cleaned=_snd.morphology.binary_closing(mask_cleaned,_snd.morphology.generate_binary_structure(2,1),20)
+    mask_cleaned=_snd.morphology.binary_dilation(mask_cleaned,_snd.morphology.generate_binary_structure(2,2),2)
+    mask=_np.logical_or(mask,mask_cleaned)
+    
+    #hotpixel
+    hotpixel=img>(_np.mean(img[~mask])+5*_np.std(img[~mask]))
+    hotpixel=_snd.morphology.binary_dilation(hotpixel,_snd.morphology.generate_binary_structure(2,2),2)
+    mask[hotpixel]=True
+    return mask
+
+def diffdist(*args):
+    '''
+    returns Euclidean norm next neighbour difference of n coordinates: |diffdist(x,y,z)=diff(x),diff(y),diff(z)|
+    '''
+    accum = 0
+    for arg in args:
+        accum += _np.diff(arg) ** 2
+    return _np.sqrt(accum)
