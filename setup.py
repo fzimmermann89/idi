@@ -40,6 +40,8 @@ def configuration():
     config.package_dir['idi.simulation'] = './idi/simulation'
     config.packages.append('idi.reconstruction')
     config.package_dir['idi.reconstruction'] = './idi/reconstruction'
+    config.packages.append('idi.util')
+    config.package_dir['idi.util'] = './idi/util'
     return config
 
 
@@ -50,8 +52,8 @@ def setup_package():
         maintainer='zimmf',
         description='idi simulation and reconstruction',
         platforms=['Linux', 'Mac OS-X'],
-        python_requires='>=2.7',
-        install_requires=['numpy', 'cython', 'numba'],
+        python_requires='>=3.6',
+        install_requires=['numpy', 'cython', 'numba', 'numexpr', 'scipy'],
         scripts=['idi_sim.py', 'idi_simrecon.py', 'idi_simrecon_normalize.py'],
         configuration=configuration,
     )
