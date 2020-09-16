@@ -2,66 +2,49 @@ from __future__ import division as _future_division, print_function as _future_p
 from six import print_ as _print
 import numpy as _np
 from . import autocorrelate3
-
-
-def fastlen(length):
-    '''
-    gets fast fft length for at least length
-    '''
-    fastlens = (
-        8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, 45, 48, 50, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120,
-        125, 128, 135, 144, 150, 160, 162, 180, 192, 200, 216, 225, 240, 243, 250, 256, 270, 288, 300, 320, 324, 360, 375, 384,
-        400, 405, 432, 450, 480, 486, 500, 512, 540, 576, 600, 625, 640, 648, 675, 720, 729, 750, 768, 800, 810, 864, 900, 960,
-        972, 1000, 1024, 1080, 1125, 1152, 1200, 1215, 1250, 1280, 1296, 1350, 1440, 1458, 1500, 1536, 1600, 1620, 1728, 1800,
-        875, 1920, 1944, 2000, 2025, 2048, 2160, 2187, 2250, 2304, 2400, 2430, 2500, 2560, 2592, 2700, 2880, 2916, 3000, 3072,
-        3125, 3200, 3240, 3375, 3456, 3600, 3645, 3750, 3840, 3888, 4000, 4050, 4096, 4320, 4374, 4500, 4608, 4800, 4860, 5000,
-        5120, 5184, 5400, 5625, 5760, 5832, 6000, 6075, 6144, 6250, 6400, 6480, 6561, 6750, 6912, 7200, 7290, 7500, 7680, 7776,
-        8000, 8100, 8192, 8640, 8748, 9000, 9216, 9375, 9600, 9720, 10000
-    )
-
-    for fastlen in fastlens:
-        if fastlen >= length: return fastlen
-    return length
-
-
-def _prepare(input, z):
-    '''
-    transform centered 2d input sampled at distance z to 3d k-space
-    '''
-    
-    y, x = _np.meshgrid(_np.arange(input.shape[1], dtype=_np.float64), _np.arange(input.shape[0], dtype=_np.float64))
-    x -= input.shape[0] / 2.0
-    y -= input.shape[1] / 2.0
-    d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    qx, qy, qz = [(k / d * z) for k in (x, y, z)]
-#     qz=0 # for debugging disable qz correction
-#     qx=x # for debugging disable qz correction
-#     qy=y # for debugging disable qz correction
-#     qstep=min(abs(qy[0,1]-qy[0,0]),abs(qx[1,0]-qx[0,0])) #(more) correct, but slower. should think about correct oversampling
-#     qx, qy, qz = [(k / qstep) for k in (qx, qy, qz)] #(more) correct, but slower
-    qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
-    qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
-#     print(qlenx, qleny, qlenz)
-    ret = _np.zeros((qlenz, qleny, qlenx + 2), dtype=_np.float64) # additonal padding in qx for inplace fft
-    _np.add.at(ret, (qz, qy, qx), input)
-    #     ret[kz1,ky1,kx1]=input #only if no double assignment
-    return ret
-
-
-def _corr(input, z):
-    '''
-    wrapper for autocorrelate3 that returns only non redundant data
-    '''
-    tmp = _prepare(input, z)
-    autocorrelate3.autocorrelate3(tmp)
-    return tmp[: tmp.shape[0] // 2, ...]
-
-
+import numba as _numba
+import numexpr as _ne
+from ..util import fastlen, atleastnd
+import itertools as _it
+import warning as _w
 def corr(input, z,verbose = False):
     '''
     calculated 3d correlation of 2d input array sampled at distance z using fft.
+    assumes center of input to be center of image
     if input is 3d, the result will be the sum along the first dimension.
     '''
+    
+    def _prepare(input, z):
+        '''
+        transform centered 2d input sampled at distance z to 3d k-space
+        '''
+
+        y, x = _np.meshgrid(_np.arange(input.shape[1], dtype=_np.float64), _np.arange(input.shape[0], dtype=_np.float64))
+        x -= input.shape[0] / 2.0
+        y -= input.shape[1] / 2.0
+        d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        qx, qy, qz = [(k / d * z) for k in (x, y, z)]
+    #     qz=0 # for debugging disable qz correction
+    #     qx=x # for debugging disable qz correction
+    #     qy=y # for debugging disable qz correction
+    #     qstep=min(abs(qy[0,1]-qy[0,0]),abs(qx[1,0]-qx[0,0])) #(more) correct, but slower. should think about correct oversampling
+    #     qx, qy, qz = [(k / qstep) for k in (qx, qy, qz)] #(more) correct, but slower
+        qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
+        qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
+    #     print(qlenx, qleny, qlenz)
+        ret = _np.zeros((qlenz, qleny, qlenx + 2), dtype=_np.float64) # additonal padding in qx for inplace fft
+        _np.add.at(ret, (qz, qy, qx), input)
+        #     ret[kz1,ky1,kx1]=input #only if no double assignment
+        return ret
+
+    def _corr(input, z):
+        '''
+        wrapper for autocorrelate3, removes redundant slices in first dimension
+        '''
+        tmp = _prepare(input, z)
+        autocorrelate3.autocorrelate3(tmp)
+        return tmp[:tmp.shape[0] // 2, ...]
+    
     if input.ndim == 2:
         if verbose:  _print('.', end=' ', flush=True)
         return _corr(input, z)
@@ -81,3 +64,151 @@ def unwrap(img):
     unwraps a single correlation result
     '''
     return _np.roll(img[...,:-2],shift=(img.shape[1]//2,(img.shape[2]-2)//2),axis=(1,2))
+
+
+
+class correlator:
+    def __init__(self, qs, maskout, meandata):
+        """
+        3d fft correlator
+        qs: q vectors of data points, array of shape (T,P,3) with T: non overlapping tiles, P: pixels per tile
+        maskout: points on detector that will not be used, array of shape (T,P)
+        meandata: mean of data values used for normalisation, array of shape (T,P)
+        resolution is fixed at dq=1
+        """
+        q = atleastnd(qs, 3)
+        for a, b in _it.combinations(range(q.shape[0]), 2):
+            if len(_np.intersect1d(q[a, :, :], q[b, :, :])):
+                _w.warn('qs are asummed to be unique in first dimension!')
+        if not q.shape[2] == 3:
+            raise ValueError('q should qx,qy,qz in last axis')
+        mask = atleastnd(maskout, 2)
+        mean = atleastnd(meandata, 2)
+        if not q.shape[:2] == mask.shape == mean.shape:
+            print(q.shape, mask.shape, mean.shape)
+            raise ValueError('shape missmatch')
+
+        q = _np.rint(q - _np.min(q[~maskout], axis=(0))).astype(int)
+        q[mask] = _np.max(q, axis=(0, 1)) + 2
+        qlen = _np.array([fastlen(2 * (_np.max(k) + 1)) for k in q[~mask].T])
+        self.qlenz = _np.max(q[~mask][:,0])+1 #unpadded
+        self.q = q
+        self.mask = _np.copy(mask)
+        tmp = _np.zeros((qlen[0], qlen[1], qlen[2] + 2))
+        _np.subtract(tmp, 0, out=tmp) #force allocation
+        self._tmp = tmp
+        accum = _np.zeros((self.qlenz,qlen[1], qlen[2] + 2))
+        _np.subtract(accum, 0, out=accum) #force allocation
+        self.accum = accum
+        assemblenorm = correlator._getnorm(q, mask)
+        with _np.errstate(divide='ignore'):
+            self.invmean = 1 / (mean * assemblenorm)
+        self.invmean[~_np.isfinite(self.invmean)] = 0
+        self._N = 0
+        self.finished = False
+
+    def suspend(self):
+        """
+        free tmp buffer
+        """
+        self._tmp = None
+
+    def add(self, data):
+        """
+        does correlation of data and adds to internal accumulator
+        data: array of shape T,P with T: non overlapping tiles, P pixel per Tile
+        """
+        d = atleastnd(data, 2)
+        if not d.shape == self.q.shape[:-1]:
+            print(d.shape, self.q.shape, flush=True)
+            raise ValueError('shape missmatch')
+        if self.finished:
+            raise GeneratorExit('already finished')
+        if self._tmp is None:
+            self._tmp = _np.zeros_like(self.accum)
+        # zero(self.data)
+        _zero(self._tmp)
+        d = d * self.invmean
+        d[self.mask] = 0
+        _addat(self._tmp, self.q, d)
+        err = autocorrelate3.autocorrelate3(self._tmp)
+        if err:
+            raise RuntimeError(f'cython autocorrelations failed with error code {err}')
+        _np.add(self.accum, self._tmp[:self.qlenz,...], out=self.accum)
+        self._N += 1
+
+    def result(self, finish=False):
+        """
+        returns result of accumulated correlations
+        finish: free accumulator and buffer.
+        """
+        _zero(self._tmp)
+        assemblenorm = _getnorm(self.q, self.mask)
+        _addat(self._tmp, self.q, _np.sqrt(self.N) * _np.array(~self.mask, dtype=_np.float64) / assemblenorm)
+        err = autocorrelate3.autocorrelate3(self._tmp)
+        if err:
+            raise RuntimeError(f'cython autocorrelations failed with error code {err}')
+
+        res = _ne.evaluate('where((norm<(100*N)), nan,accum/norm)', local_dict={'N': self._N, 'norm': self._tmp[:self.qlenz,...], 'nan': _np.nan, 'accum': self.accum})
+        if finish:
+            self.finished = True
+            self.accum = None
+            self._tmp = None
+        res = unwrap(res)
+        return res
+    
+    @property
+    def shape(self):
+        '''
+        shape of the result
+        '''
+        return self.accum.shape
+    
+    @property
+    def N(self):
+        '''
+        number of images added
+        '''
+        return self._N
+    
+    @staticmethod
+    def _getnorm(q, mask):
+    """
+    returns amount of pixels with same q
+    """
+    maxq = _np.max(q.reshape(-1, 3), axis=0)
+    hist = _np.histogramdd(q.reshape(-1, 3), bins=maxq + 1, range=[[-0.5, mq + 0.5] for mq in maxq], weights=~mask.ravel())[0]
+    ret = hist[q.reshape(-1, 3)[:, 0], q.reshape(-1, 3)[:, 1], q.reshape(-1, 3)[:, 2]].reshape(q.shape[:2])
+    ret[mask] = 1
+    return ret
+
+    
+@_numba.njit(parallel=True)
+def _addat(array, ind, input):
+    """
+    sets array to input at ind, parallel
+    """
+    nproc = ind.shape[0]
+    nel = ind.shape[1]
+    for i in _numba.prange(nproc):
+        tinp = input[i, ...]
+        tind = ind[i, ...]
+        for j in range(nel):
+            array[tind[j, 0], tind[j, 1], tind[j, 2]] += tinp[j]
+    return
+
+
+@_numba.njit(parallel=True)
+def _zero(array):
+    """
+    set array to zero
+    """
+    a = array.ravel()
+    for i in _numba.prange(len(a)):
+        a[i] = 0
+    return True
+
+
+
+
+
