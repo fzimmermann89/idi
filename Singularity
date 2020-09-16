@@ -54,7 +54,7 @@ rm -rf /var/cache/yum
 echo "installing texlive"
 cat > /tmp/texlive.profile << "EOF0"
 # texlive.profile
-selected_scheme scheme-full
+selected_scheme scheme-minimal
 TEXDIR /usr/local/texlive/
 TEXMFCONFIG ~/.texlive/texmf-config
 TEXMFHOME ~/.texlive/texmf
