@@ -18,7 +18,7 @@ preparation for lcls/psana:
     those are not installed in any of the psana conda environments, you have to create one for yourself.
 
     (on pslogin)
-        conda create -n local3 python=3.7 numpy mkl ipython ipykernel cython jinja2 numba numexpr matplotlib six
+        conda create -n local3 python=3.7 numpy mkl mkl-dev ipython ipykernel cython jinja2 numba numexpr matplotlib six scipy
         conda activate local3
         pip download pycuda -d ~/tmp    #download the files, won't build without cuda
     (on psanagpu102)
@@ -29,6 +29,19 @@ preparation for lcls/psana:
 
     you should now be able to choose this as an kernel in jupyter
     note: do not use pycuda from anaconda.
+
+preparation for sdf:
+---------------------------
+    Use Singulariy recipe
+
+
+preparation for sacla:
+---------------------------
+    Download and install miniconda
+    conda create -n local3 python=3.7 numpy mkl mkl-dev ipython ipykernel cython jinja2 numba numexpr matplotlib six scipy
+    conda activate local3
+    python -m ipykernel install --user --name local-simulation-env3 --display-name "local simulation(py37)"
+    As there are no gpus available, skip pycuda installation.
 
 licence
 --------
