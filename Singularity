@@ -104,7 +104,7 @@ echo "installing conda extensions"
 conda activate
 conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn  cupy "python>3.6" seaborn pandas line_profiler black ninja colorama
 conda install -q -y -c  conda-forge lmfit ipympl "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1"
-conda install -q -y -c conda-forge -c plotly jupyter-dash
+conda install -q -y -c conda-forge -c plotly jupyter-dash ipyvolume jupyter-server-proxy
 
 #jupyterlab extensions
 echo "installing jlab extensions"
@@ -114,7 +114,10 @@ jupyter labextension install jupyter-threejs --no-build
 jupyter labextension install @krassowski/jupyterlab_go_to_definition --no-build
 jupyter labextension install @aquirdturtle/collapsible_headings --no-build
 jupyter labextension install @jupyterlab/google-drive --no-build
-pip install -q --upgrade jupyterlab-git jupyterlab_code_formatter  jupyterlab_latex
+jupyter labextension install jupyterlab-plotly --no-build
+jupyter labextension install @jupyterlab/server-proxy
+
+pip install -q --upgrade jupyterlab-git jupyterlab_code_formatter  jupyterlab_latex jupyter-dash
 jupyter labextension install @jupyterlab/latex --no-build
 jupyter labextension install @ryantam626/jupyterlab_code_formatter --no-build
 jupyter labextension install @jupyterlab/git --no-build
