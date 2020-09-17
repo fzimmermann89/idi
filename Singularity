@@ -45,7 +45,7 @@ yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.re
 yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm
 yum update -y
 yum upgrade -y
-yum install -y mc unzip libtiff  make cmake binutils mosh less vim aria2  rsync openssh  screen  tmux htop curl  wget zsh  git224  perl-Digest-MD5 zip  binutils gcc gcc-c++ gettext  man man-pages libtool make patch elfutils  patchutils gdb diffutils intel-mkl openmpi-devel environment-modules  fontconfig freetype freetype-devel fontconfig-devel libstdc++
+yum install -y mc unzip libtiff  make cmake binutils mosh less vim aria2  rsync openssh  screen  tmux htop curl  wget zsh  git224  perl-Digest-MD5 zip  binutils gcc gcc-c++ gettext  man man-pages libtool make patch elfutils  patchutils gdb diffutils  openmpi-devel environment-modules  fontconfig freetype freetype-devel fontconfig-devel libstdc++ strace ltrace ghostscript intel-mkl
 yum clean all
 rm -rf /var/cache/yum
 
@@ -115,22 +115,35 @@ jupyter labextension install @krassowski/jupyterlab_go_to_definition --no-build
 jupyter labextension install @aquirdturtle/collapsible_headings --no-build
 jupyter labextension install @jupyterlab/google-drive --no-build
 pip install -q --upgrade jupyterlab-git jupyterlab_code_formatter  jupyterlab_latex
-jupyter lab build
 jupyter labextension install @jupyterlab/latex --no-build
-#jupyter labextension install @ryantam626/jupyterlab_code_formatter --no-build
+jupyter labextension install @ryantam626/jupyterlab_code_formatter --no-build
 jupyter labextension install @jupyterlab/git --no-build
 jupyter labextension install @jupyterlab/debugger --no-build
 jupyter labextension install  jupyterlab-dash --no-build
-jupyter lab build
-#jupyter serverextension enable --py jupyterlab_code_formatter --sys-prefix
+jupyter serverextension enable --py jupyterlab_code_formatter --sys-prefix
 jupyter serverextension enable --sys-prefix jupyterlab_latex
 jupyter serverextension enable --py jupyterlab_git --sys-prefix
 jupyter lab build
 
 #disable extensions not working with sdf hub
-jupyter labextension disable @jupyterlab/git
+#jupyter labextension disable @jupyterlab/git
 #jupyter labextension disable @ryantam626/jupyterlab_code_formatter
-jupyter labextension disable @jupyterlab/latex
+#jupyter labextension disable @jupyterlab/latex
+
+cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
+{
+  "NotebookApp": {
+    "nbserver_extensions": {
+      "jupyterlab_git": true,
+      "jupyterlab": true,
+      "jupyterlab_latex": true,
+      "nbdime": true,
+      "jupyterlab_code_formatter": true,
+    }
+  }
+}
+EOF3
+
 rm -rf /tmp/npm*
 
 
