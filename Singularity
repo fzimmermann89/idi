@@ -127,7 +127,7 @@ jupyter lab build
 
 #disable extensions not working with sdf hub
 #jupyter labextension disable @jupyterlab/git
-jupyter labextension disable @ryantam626/jupyterlab_code_formatter
+#jupyter labextension disable @ryantam626/jupyterlab_code_formatter
 #jupyter labextension disable @jupyterlab/latex
 
 cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
