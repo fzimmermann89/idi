@@ -54,7 +54,7 @@ rm -rf /var/cache/yum
 echo "installing texlive"
 cat > /tmp/texlive.profile << "EOF0"
 # texlive.profile
-selected_scheme scheme-minimal
+selected_scheme scheme-medium
 TEXDIR /usr/local/texlive/
 TEXMFCONFIG ~/.texlive/texmf-config
 TEXMFHOME ~/.texlive/texmf
@@ -127,7 +127,7 @@ jupyter lab build
 
 #disable extensions not working with sdf hub
 #jupyter labextension disable @jupyterlab/git
-#jupyter labextension disable @ryantam626/jupyterlab_code_formatter
+jupyter labextension disable @ryantam626/jupyterlab_code_formatter
 #jupyter labextension disable @jupyterlab/latex
 
 cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
@@ -138,7 +138,7 @@ cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
       "jupyterlab": true,
       "jupyterlab_latex": true,
       "nbdime": true,
-      "jupyterlab_code_formatter": true,
+      "jupyterlab_code_formatter": true
     }
   }
 }
