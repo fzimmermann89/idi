@@ -6,7 +6,7 @@ import numba as _numba
 import numexpr as _ne
 from ..util import fastlen, atleastnd
 import itertools as _it
-import warning as _w
+import warnings as _w
 def corr(input, z,verbose = False):
     '''
     calculated 3d correlation of 2d input array sampled at distance z using fft.
@@ -173,14 +173,14 @@ class correlator:
     
     @staticmethod
     def _getnorm(q, mask):
-    """
-    returns amount of pixels with same q
-    """
-    maxq = _np.max(q.reshape(-1, 3), axis=0)
-    hist = _np.histogramdd(q.reshape(-1, 3), bins=maxq + 1, range=[[-0.5, mq + 0.5] for mq in maxq], weights=~mask.ravel())[0]
-    ret = hist[q.reshape(-1, 3)[:, 0], q.reshape(-1, 3)[:, 1], q.reshape(-1, 3)[:, 2]].reshape(q.shape[:2])
-    ret[mask] = 1
-    return ret
+        """
+        returns amount of pixels with same q
+        """
+        maxq = _np.max(q.reshape(-1, 3), axis=0)
+        hist = _np.histogramdd(q.reshape(-1, 3), bins=maxq + 1, range=[[-0.5, mq + 0.5] for mq in maxq], weights=~mask.ravel())[0]
+        ret = hist[q.reshape(-1, 3)[:, 0], q.reshape(-1, 3)[:, 1], q.reshape(-1, 3)[:, 2]].reshape(q.shape[:2])
+        ret[mask] = 1
+        return ret
 
     
 @_numba.njit(parallel=True)
