@@ -1,14 +1,12 @@
-import numba
-import numpy as np
-import functools
-
 ########################
 #                      #
 #   WORK IN PROGRESS   #
 #                      #
 ########################
 #numba.config.NUMBA_NUM_THREADS = 12
-
+import math
+import numpy as np
+import numba, functools
 def corrfunction(shape, z, qmax):
     y, x = np.meshgrid(np.arange(shape[1], dtype=np.float64), np.arange(shape[0], dtype=np.float64))
     x -= shape[0] / 2.0
@@ -24,30 +22,29 @@ def corrfunction(shape, z, qmax):
     def inner(input, qx, qy, qz):
         out = np.zeros((shape[0] + 10, qmax), dtype=np.float64)
         for refx in numba.prange(shape[0]):
-            # if refx>200: continue
             for refy in range(shape[1]):
                 refv = input[refx, refy]
-                # if refv == 0:
-                #     print(refx, refy)
-                #     continue
-                qstep = min(abs(qy[refx, refy + 1] - qy[refx, refy]), abs(qx[refx + 1, refy] - qx[refx, refy]))
-                localqmax = qmax / qstep
-                xmin = int(max(0, -5 + np.floor(refx - localqmax)))
-                xmax = int(min(shape[0], 5 + np.ceil(refx + localqmax)))
-
+                x=refx-shape[0]/2
+                y=refy-shape[1]/2
+                qstepx = abs(
+                    ((z * (abs(x) + qmax/2) / math.sqrt((abs(x) + qmax/2) ** 2 + y ** 2 + z ** 2)))
+                    - ((z * (abs(x) + (qmax/2 - 1)) / math.sqrt((abs(x) + (qmax/2 - 1)) ** 2 + y ** 2 + z ** 2)))
+                    )
+                qstepy = abs(
+                    ((z * (abs(y) + qmax/2) / math.sqrt((abs(y) + qmax/2) ** 2 + x ** 2 + z ** 2)))
+                    - ((z * (abs(y) + (qmax/2 - 1)) / math.sqrt((abs(y) + (qmax/2 - 1)) ** 2 + x ** 2 + z ** 2)))
+                    )
+                xmin = int(max(0, np.floor(refx - qmax/qstepx)))
+                xmax = int(min(shape[0],np.ceil(refx + qmax/qstepx)+1))
                 for x in range(xmin, xmax):
-                    dqy = np.sqrt(localqmax ** 2 - (qx[x, refy] - qx[refx, refy]) ** 2)
-                    ymin = int(max(0, -5 + np.floor(refy - dqy)))
-                    # ymin=int(max(0,-5+np.floor(refy-dqy)))
-                    ymax = int(min(shape[1], refy + 1))
-                    # ymax=int(min(shape[1],5+refy+dqy))
-                    # ymax=int(min(shape[1],5+np.ceil(refy+dqy))) #or range(ymin,ymax)...
+                    ymin = refy
+                    ymax = int(min(shape[1], 1+np.ceil(refy+qmax/qstepy)))
                     for y in range(ymin, ymax):
                         dq = (qx[x, y] - qx[refx, refy]) ** 2 + (qy[x, y] - qy[refx, refy]) ** 2 + (qz[x, y] - qz[refx, refy]) ** 2
-                        if dq >= (qmax - 0.5) ** 2:
-                            continue
+                        qsave = int(round(math.sqrt(dq)))
+                        if qsave >= qmax:
+                            break
                         val = refv * input[x, y]
-                        qsave = int(np.rint(np.sqrt(dq)))
                         out[refx, qsave] += val
         return out
 

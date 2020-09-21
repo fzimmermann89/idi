@@ -1,0 +1,119 @@
+import functools
+import numba
+from numba import cuda
+import numpy as np
+import math
+import contextlib
+import warnings
+
+@contextlib.contextmanager
+def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
+    stream = None
+    try:
+        if not 15<=maxq<=511:
+            warnings.warn('maxq will be clamped between 15 and 511')
+        cuda.select_device(0)
+        stream = cuda.stream()
+        qmax=int(max(15,min(511,maxq)))
+        Nr, Nc = int(shape[0]), int(shape[1])
+        y, x = np.meshgrid(np.arange(Nc, dtype=np.float64), np.arange(Nr, dtype=np.float64))
+        if xcenter is None:
+            xcenter = numba.float32(Nr / 2)
+        else:
+            xcenter = numba.float32(xcenter)
+        if ycenter is None:
+            ycenter = numba.float32(Nc / 2)
+        else:
+            ycenter=numba.float32(ycenter)
+        x -= xcenter
+        y -= ycenter
+        d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        qx, qy, qz = ((k * z / d).astype(np.float32) for k in (x, y, z))
+
+        with stream.auto_synchronize():
+            dqx = numba.cuda.to_device(qx, stream)
+            dqy = numba.cuda.to_device(qy, stream)
+            dqz = numba.cuda.to_device(qz, stream)
+            doutput = numba.cuda.device_array((32, qmax + 1), np.float64, stream=stream)
+
+        def corr(input, fkernel, fzero, freduce):
+            with stream.auto_synchronize():
+                dvals = cuda.to_device(input.astype(np.float32), stream)
+                fzero(doutput)
+                fkernel(dqx, dqy, dqz, dvals, doutput)
+                freduce(doutput)
+            return doutput[0, :qmax].copy_to_host(stream=stream)
+
+        def kernel(qx, qy, qz, val, out):
+            refr = numba.cuda.blockIdx.y
+            offsetr = numba.cuda.blockIdx.z
+
+            saveblock = int(numba.cuda.threadIdx.x % 32)
+            refq0, refq1, refq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
+            refv = numba.cuda.shared.array((Nc), np.float32)
+            tq0, tq1, tq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
+            tv = numba.cuda.shared.array((Nc), np.float32)
+            tr = refr + offsetr
+            if not (0 <= tr < Nr and 0 <= refr < Nr):
+                return
+            loadid = numba.cuda.threadIdx.x
+            numba.cuda.syncthreads()
+            while loadid < Nc:
+                refq0[loadid] = qx[refr, loadid]
+                refq1[loadid] = qy[refr, loadid]
+                refq2[loadid] = qz[refr, loadid]
+                refv[loadid] = val[refr, loadid]
+                tq0[loadid] = qx[tr, loadid]
+                tq1[loadid] = qy[tr, loadid]
+                tq2[loadid] = qz[tr, loadid]
+                tv[loadid] = val[tr, loadid]
+                loadid += numba.cuda.blockDim.x
+            numba.cuda.syncthreads()
+
+            offsetc = numba.cuda.threadIdx.x - qmax
+            val = numba.float32(0)
+            dqold = numba.cuda.threadIdx.x // 2
+            dq = qmax + 1
+            for refc in range(0, Nc):
+                tc = refc + offsetc
+                if 0 <= tc < Nc:
+                    dq = int(round(math.sqrt((refq0[refc] - tq0[tc]) ** 2 + (refq1[refc] - tq1[tc]) ** 2 + (refq2[refc] - tq2[tc]) ** 2)))
+                    if dq <= qmax:
+                        if dq != dqold:
+                            numba.cuda.atomic.add(out, (saveblock, dqold), numba.float64(val))
+                            dqold = dq
+                            val = numba.float32(0)
+                        val += numba.float32(refv[refc] * tv[tc])
+            if dq < qmax:
+                numba.cuda.atomic.add(out, (saveblock, dq), numba.float64(val))
+
+        def reduce(vals):
+            for i in range(1, vals.shape[0]):
+                vals[0, numba.cuda.threadIdx.x] += vals[i, numba.cuda.threadIdx.x]
+                vals[i, numba.cuda.threadIdx.x] = 0
+
+        def zero(vals):
+            numba.cuda.syncthreads()
+            vals[numba.cuda.blockIdx.x, numba.cuda.threadIdx.x] = 0
+
+        jkernel = numba.cuda.jit(kernel,).compile(
+            "numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float64[:,:]"
+        )[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]
+        jzero = numba.cuda.jit(zero,).compile(
+            "numba.float64[:,:],"
+        )[(32), (qmax + 1), stream]
+        jreduce = numba.cuda.jit(reduce,).compile(
+            "numba.float64[:,:],"
+        )[(1), doutput.shape[1], stream]
+        yield functools.partial(corr, fkernel=jkernel, freduce=jreduce, fzero=jzero)
+    finally:
+        if stream is not None:
+            stream.synchronize()
+        dqx = None
+        dqy = None
+        dqz = None
+        doutput = None
+        dvals = None
+        jkernel = None
+        jzero = None
+        jreduce = None

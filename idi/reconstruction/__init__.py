@@ -1,9 +1,9 @@
-__all__ = ['direct', 'directrad', 'autocorrelate3', 'ft', 'newrad', 'simple']
+__all__ = ['direct', 'directrad', 'autocorrelate3', 'ft', 'newrad', 'simple','curad','cudirect']
 
 import mkl as _mkl
 _vml_threads=_mkl.domain_get_max_threads('vml')
 
-from . import direct, directrad, newrad, simple
+from . import direct, directrad, newrad, simple, curad, cudirect
 
 try:
     from . import autocorrelate3
