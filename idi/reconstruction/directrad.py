@@ -1,15 +1,12 @@
-#!/bin/env python
 from __future__ import division as _future_div, print_function as _future_print
 import numpy as _np
 import numba as _numba
 from six.moves import range  # for python2 compatibility
 from .common import _getidx
+import math as _math
 
-pmax = 16
 
-
-def corr(input, z, qmax=0):
-    _numba.config.NUMBA_NUM_THREADS = pmax
+def corr(input, z, qmax=None):
     """
     radial profile of correlation
     for one NxN array or nx(NxN) arrays
@@ -22,17 +19,17 @@ def corr(input, z, qmax=0):
         raise TypeError
 
 
-@_numba.njit(parallel=False)
-def _radcorr(input, z, qmax=0):
+@_numba.njit(fastmath=True,boundcheck=True)
+def _radcorr(input, z, qmax=None):
     """
     radial profile of correlation
     for one NxN array
     """
-    Nx,Ny = input.shape
+    Nx, Ny = input.shape
     xi, yi = _np.where(input > 0)
     Nhits = len(xi)
-    if qmax==0: qmax=int(_np.ceil(2 * max(input.shape[-2:])))
-    tmp = _np.zeros(qmax, dtype=_np.uint64)
+    qmax = qmax or int(_np.ceil(2 * max(input.shape[-2:])))
+    tmp = _np.zeros(qmax, dtype=_np.float64)
     x = (xi).astype(_numba.float64) - Nx / 2.0
     y = (yi).astype(_numba.float64) - Ny / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
@@ -45,32 +42,31 @@ def _radcorr(input, z, qmax=0):
             qz = kz[n] - kz[m]
             qx = kx[n] - kx[m]
             qy = ky[n] - ky[m]
-            q = int(_np.rint(_np.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-            if q > qmax:
-                # print(q,qlen,(qx,qy,qx))
-                pass
-            else:
+            q = int(round(_math.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
+            if 0<= q < qmax:
                 tmp[q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
+    return tmp
 
-@_numba.njit(parallel=True, cache=False, nogil=True, fastmath=True)
-def _pradcorr(input, z, qmax=0):
+
+@_numba.njit(parallel=True, cache=False, nogil=True, fastmath=True,boundcheck=True)
+def _pradcorr(input, z, qmax=None):
     """
     radial profile of correlation
     for one NxN array (parallel version)
     """
-    print(pmax)
-    Nx,Ny = input.shape
+    pmax = 16
+    Nx, Ny = input.shape
     xi, yi = _np.where(input)
     x = (xi).astype(_numba.float64) - Nx / 2.0
     y = (yi).astype(_numba.float64) - Ny / 2.0
     Nhits = len(xi)
-    if qmax==0: qmax = int(_np.ceil(2 * max(input.shape[-2:])))
-    tmp = _np.zeros((pmax, qmax), dtype=_numba.uint64)
+    qmax = qmax or int(_np.ceil(2 * max(input.shape[-2:])))
+    tmp = _np.zeros((pmax, qmax), dtype=_numba.float64)
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = (x / d) * z
     ky = (y / d) * z
     kz = (z / d) * z
-    
+
     for p in _numba.prange(pmax):
         idx = _getidx(p, pmax, Nhits)
         for n in idx:
@@ -78,11 +74,8 @@ def _pradcorr(input, z, qmax=0):
                 qz = kz[n] - kz[m]
                 qx = kx[n] - kx[m]
                 qy = ky[n] - ky[m]
-                q = int(_np.rint(_np.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-                if q > qmax:
-                    # print(q,qlen,(qx,qy,qx))
-                    pass
-                else:
+                q = int(round(_math.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
+                if 0<= q < qmax:
                     tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
     out = _np.zeros(qmax)
     for n in range(pmax):
@@ -90,14 +83,17 @@ def _pradcorr(input, z, qmax=0):
     return out
 
 
-@_numba.njit(parallel=True)
-def _pradcorrs(input, z):
+@_numba.njit(parallel=True,boundcheck=True)
+def _pradcorrs(input, z, qmax=None):
     """
     radial profile of correlation
     for n NxN arrays, parallel over n
     """
-    qmax = int(_np.ceil(2 * max(input.shape[-2:])))
-    out = _np.zeros((input.shape[0], qmax), dtype=_numba.uint64)
+    qmax = qmax or int(_np.ceil(2 * max(input.shape[-2:])))
+    out = _np.zeros((input.shape[0], qmax), dtype=_numba.float64)
+    print(out.shape)
     for n in _numba.prange(input.shape[0]):
-        out[n] = _radcorr(input[n, ...], z)
+        print('start',n)
+        out[n] = _radcorr(input[n, ...], z,qmax)
+        print('end',n)
     return out
