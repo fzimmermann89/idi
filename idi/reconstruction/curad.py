@@ -9,12 +9,13 @@ import warnings
 @contextlib.contextmanager
 def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
     stream = None
+    saveblocks=numba.int32(16)
     try:
         if not 15<=maxq<=511:
             warnings.warn('maxq will be clamped between 15 and 511')
         cuda.select_device(0)
         stream = cuda.stream()
-        qmax=int(max(15,min(511,maxq)))
+        qmax=numba.int32(max(15,min(511,maxq)))
         Nr, Nc = int(shape[0]), int(shape[1])
         y, x = np.meshgrid(np.arange(Nc, dtype=np.float64), np.arange(Nr, dtype=np.float64))
         if xcenter is None:
@@ -34,7 +35,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             dqx = numba.cuda.to_device(qx, stream)
             dqy = numba.cuda.to_device(qy, stream)
             dqz = numba.cuda.to_device(qz, stream)
-            doutput = numba.cuda.device_array((32, qmax + 1), np.float64, stream=stream)
+            doutput = numba.cuda.device_array((saveblocks, qmax + 1), np.float64, stream=stream)
 
         def corr(input, fkernel, fzero, freduce):
             with stream.auto_synchronize():
@@ -48,17 +49,17 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             refr = numba.cuda.blockIdx.y
             offsetr = numba.cuda.blockIdx.z
 
-            saveblock = int(numba.cuda.threadIdx.x % 32)
+            saveblock = numba.int32(numba.cuda.threadIdx.x % saveblocks)
             refq0, refq1, refq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
             refv = numba.cuda.shared.array((Nc), np.float32)
             tq0, tq1, tq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
             tv = numba.cuda.shared.array((Nc), np.float32)
-            tr = refr + offsetr
+            tr = numba.int32(refr + offsetr)
             if not (0 <= tr < Nr and 0 <= refr < Nr):
                 return
             loadid = numba.cuda.threadIdx.x
             numba.cuda.syncthreads()
-            while loadid < Nc:
+            while loadid < numba.int32(Nc):
                 refq0[loadid] = qx[refr, loadid]
                 refq1[loadid] = qy[refr, loadid]
                 refq2[loadid] = qz[refr, loadid]
@@ -70,14 +71,14 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
                 loadid += numba.cuda.blockDim.x
             numba.cuda.syncthreads()
 
-            offsetc = numba.cuda.threadIdx.x - qmax
+            offsetc = numba.int32(numba.cuda.threadIdx.x - qmax)
             val = numba.float32(0)
             dqold = numba.cuda.threadIdx.x // 2
-            dq = qmax + 1
-            for refc in range(0, Nc):
-                tc = refc + offsetc
+            dq = qmax + numba.int32(1)
+            for refc in range(numba.int32(0), numba.int32(Nc)):
+                tc = numba.int32(refc + offsetc)
                 if 0 <= tc < Nc:
-                    dq = int(round(math.sqrt((refq0[refc] - tq0[tc]) ** 2 + (refq1[refc] - tq1[tc]) ** 2 + (refq2[refc] - tq2[tc]) ** 2)))
+                    dq = numba.int32(round(math.sqrt((refq0[refc] - tq0[tc]) ** 2 + (refq1[refc] - tq1[tc]) ** 2 + (refq2[refc] - tq2[tc]) ** 2)))
                     if dq <= qmax:
                         if dq != dqold:
                             numba.cuda.atomic.add(out, (saveblock, dqold), numba.float64(val))
@@ -96,15 +97,13 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             numba.cuda.syncthreads()
             vals[numba.cuda.blockIdx.x, numba.cuda.threadIdx.x] = 0
 
-        jkernel = numba.cuda.jit(kernel,).compile(
-            "numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float64[:,:]"
-        )[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]
-        jzero = numba.cuda.jit(zero,).compile(
-            "numba.float64[:,:],"
-        )[(32), (qmax + 1), stream]
-        jreduce = numba.cuda.jit(reduce,).compile(
-            "numba.float64[:,:],"
-        )[(1), doutput.shape[1], stream]
+        jkernel = numba.cuda.jit(kernel,).compile("numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float64[:,:]")
+        #print(jkernel.inspect_asm())
+        jkernel=jkernel[[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]]
+        jzero = numba.cuda.jit(zero,).compile("numba.float64[:,:],")
+        jzero=jzero[(doutput.shape[0]), (doutput.shape[1]), stream]
+        jreduce = numba.cuda.jit(reduce,).compile("numba.float64[:,:],")
+        jreduce=jreduce[(1), doutput.shape[1], stream]
         yield functools.partial(corr, fkernel=jkernel, freduce=jreduce, fzero=jzero)
     finally:
         if stream is not None:
@@ -117,3 +116,11 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         jkernel = None
         jzero = None
         jreduce = None
+
+if __name__=='__main__':
+    qmax=256
+    z=2000
+    input=np.ones((512,512))
+    with corrfunction(input.shape,z,qmax) as f:
+        out=f(input)
+        print(out.sum())
