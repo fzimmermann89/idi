@@ -1,31 +1,26 @@
 import functools
 import numba
-from numba import cuda
 import numpy as np
 import math
 import contextlib
 import warnings
+import gc
+
 
 @contextlib.contextmanager
 def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
     stream = None
-    saveblocks=numba.int32(16)
+    saveblocks = numba.int32(32)
     try:
-        if not 15<=maxq<=511:
+        if not 15 <= maxq <= 511:
             warnings.warn('maxq will be clamped between 15 and 511')
-        cuda.select_device(0)
-        stream = cuda.stream()
-        qmax=numba.int32(max(15,min(511,maxq)))
+        numba.cuda.select_device(0)
+        stream = numba.cuda.stream()
+        qmax = numba.int32(max(15, min(511, maxq)))
         Nr, Nc = int(shape[0]), int(shape[1])
         y, x = np.meshgrid(np.arange(Nc, dtype=np.float64), np.arange(Nr, dtype=np.float64))
-        if xcenter is None:
-            xcenter = numba.float32(Nr / 2)
-        else:
-            xcenter = numba.float32(xcenter)
-        if ycenter is None:
-            ycenter = numba.float32(Nc / 2)
-        else:
-            ycenter=numba.float32(ycenter)
+        xcenter = numba.float32(xcenter or Nr / 2)
+        ycenter = numba.float32(xcenter or Nc / 2)
         x -= xcenter
         y -= ycenter
         d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
@@ -39,7 +34,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
 
         def corr(input, fkernel, fzero, freduce):
             with stream.auto_synchronize():
-                dvals = cuda.to_device(input.astype(np.float32), stream)
+                dvals = numba.cuda.to_device(input.astype(np.float32), stream)
                 fzero(doutput)
                 fkernel(dqx, dqy, dqz, dvals, doutput)
                 freduce(doutput)
@@ -97,13 +92,11 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             numba.cuda.syncthreads()
             vals[numba.cuda.blockIdx.x, numba.cuda.threadIdx.x] = 0
 
-        jkernel = numba.cuda.jit(kernel,).compile("numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float32[:,:],numba.float64[:,:]")
-        #print(jkernel.inspect_asm())
-        jkernel=jkernel[[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]]
-        jzero = numba.cuda.jit(zero,).compile("numba.float64[:,:],")
-        jzero=jzero[(doutput.shape[0]), (doutput.shape[1]), stream]
-        jreduce = numba.cuda.jit(reduce,).compile("numba.float64[:,:],")
-        jreduce=jreduce[(1), doutput.shape[1], stream]
+        jkernel = numba.cuda.jit("void(float32[:,:],float32[:,:],float32[:,:],float32[:,:],float64[:,:])", fastmath=True)(kernel)
+        # print(jkernel.inspect_asm())
+        jkernel = jkernel[[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]]
+        jzero = numba.cuda.jit("void(float64[:,:])", fastmath=True)(zero)[(doutput.shape[0]), (doutput.shape[1]), stream]
+        jreduce = numba.cuda.jit("void(float64[:,:])", fastmath=True)(reduce)[(1), doutput.shape[1], stream]
         yield functools.partial(corr, fkernel=jkernel, freduce=jreduce, fzero=jzero)
     finally:
         if stream is not None:
@@ -116,11 +109,13 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         jkernel = None
         jzero = None
         jreduce = None
+        gc.collect()
 
-if __name__=='__main__':
-    qmax=256
-    z=2000
-    input=np.ones((512,512))
-    with corrfunction(input.shape,z,qmax) as f:
-        out=f(input)
+
+if __name__ == '__main__':
+    qmax = 256
+    z = 2000
+    input = np.ones((512, 512))
+    with corrfunction(input.shape, z, qmax) as f:
+        out = f(input)
         print(out.sum())
