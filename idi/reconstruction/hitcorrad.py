@@ -19,7 +19,7 @@ def corr(input, z, qmax=None):
         raise TypeError
 
 
-@_numba.njit(fastmath=True,boundcheck=True)
+@_numba.njit(fastmath=True)
 def _radcorr(input, z, qmax=None):
     """
     radial profile of correlation
@@ -48,7 +48,7 @@ def _radcorr(input, z, qmax=None):
     return tmp
 
 
-@_numba.njit(parallel=True, cache=False, nogil=True, fastmath=True,boundcheck=True)
+@_numba.njit(parallel=True, cache=False, nogil=True, fastmath=True)
 def _pradcorr(input, z, qmax=None):
     """
     radial profile of correlation
@@ -83,7 +83,7 @@ def _pradcorr(input, z, qmax=None):
     return out
 
 
-@_numba.njit(parallel=True,boundcheck=True)
+@_numba.njit(parallel=True)
 def _pradcorrs(input, z, qmax=None):
     """
     radial profile of correlation
