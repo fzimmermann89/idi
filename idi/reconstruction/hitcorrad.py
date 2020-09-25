@@ -8,7 +8,7 @@ import math as _math
 
 def corr(input, z, qmax=None):
     """
-    radial profile of correlation
+    radial profile of correlation of hits
     for one NxN array or nx(NxN) arrays
     """
     if input.ndim == 2:

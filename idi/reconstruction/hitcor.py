@@ -82,8 +82,8 @@ def _pcorr(input, z):
 
 def corr(input, z):
     """
-    correlation
-    for one NxN array or nx(NxN) arrays
+    correlation of hits
+    in NxN array or nx(NxN) arrays
     """
     if input.ndim == 2:
         return _pcorr(input, z)
