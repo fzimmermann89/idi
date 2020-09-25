@@ -97,12 +97,11 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             numba.cuda.syncthreads()
             vals[numba.cuda.blockIdx.x, numba.cuda.threadIdx.x] = 0
 
-        jkernel = numba.cuda.jit(kernel, fastmath=True).compile("float32[:,:],float32[:,:],float32[:,:],float32[:,:],float64[:,:]")
-        # print(jkernel.inspect_asm())
+        jkernel = numba.cuda.jit("void(float32[:,:],float32[:,:],float32[:,:],float32[:,:],float64[:,:])", fastmath=True)(kernel)
         jkernel = jkernel[[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]]
-        jzero = numba.cuda.jit(zero).compile("float64[:,:],")
+        jzero = numba.cuda.jit("void(float64[:,:])")(zero)
         jzero = jzero[(doutput.shape[0]), (doutput.shape[1]), stream]
-        jreduce = numba.cuda.jit(reduce).compile("float64[:,:],")
+        jreduce = numba.cuda.jit("void(float64[:,:])")(reduce)
         jreduce = jreduce[(1), doutput.shape[1], stream]
 
         def corr(input):

@@ -92,10 +92,9 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             vals[idx, idy, idz] += vals[idx, idy2, idz]
             vals[idx, idy2, idz] += tmp
 
-        jkernel = numba.cuda.jit(kernel, fastmath=True).compile("float32[:,:],float32[:,:],float32[:,:,:]")
-        # print(jkernel.inspect_asm())
+        jkernel = numba.cuda.jit("void(float32[:,:],float32[:,:],float32[:,:,:])",fastmath=True)(kernel)
         jkernel = jkernel[(1, Nr, qmax), (qmax, 1, 1), stream]
-        jassemble = numba.cuda.jit(assemble, fastmath=True, debug=True).compile("float32[:,:,:],")
+        jassemble = numba.cuda.jit("void(float32[:,:,:])", fastmath=True, debug=True)(assemble)
         jassemble = jassemble[(doutput.shape[0], 1, doutput.shape[2]), (1, qmax, 1), stream]
 
         def corr(input):
