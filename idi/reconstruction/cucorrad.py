@@ -1,44 +1,49 @@
 import functools
 import numba
+from numba import cuda
 import numpy as np
 import math
 import contextlib
 import warnings
-import gc
 
 
 @contextlib.contextmanager
 def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
+    """
+    GPU based radial Autocorrelation with q correction
+
+    parameters:
+    shape (tuple) of inputs in pixels
+    z (scalar) distance of detector in pixels
+    maxq (scalar): maxmum distance
+    optional:
+    xcenter (scalar): position of center in x direction, defaults to shape[0]/2
+    ycenter (scalar): position of center in x direction, defaults to shape[1]/2
+    returns a function with signature float[:](float[:,:] image) that does the correlation
+    """
     stream = None
-    saveblocks = numba.int32(32)
+    saveblocks = numba.int32(16)
     try:
         if not 15 <= maxq <= 511:
-            warnings.warn('maxq will be clamped between 15 and 511')
-        numba.cuda.select_device(0)
-        stream = numba.cuda.stream()
+            warnings.warn("maxq will be clamped between 15 and 511")
+        cuda.select_device(0)
+        stream = cuda.stream()
         qmax = numba.int32(max(15, min(511, maxq)))
         Nr, Nc = int(shape[0]), int(shape[1])
         y, x = np.meshgrid(np.arange(Nc, dtype=np.float64), np.arange(Nr, dtype=np.float64))
         xcenter = numba.float32(xcenter or Nr / 2)
-        ycenter = numba.float32(xcenter or Nc / 2)
+        ycenter = numba.float32(ycenter or Nc / 2)
         x -= xcenter
         y -= ycenter
         d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
         qx, qy, qz = ((k * z / d).astype(np.float32) for k in (x, y, z))
-
         with stream.auto_synchronize():
             dqx = numba.cuda.to_device(qx, stream)
             dqy = numba.cuda.to_device(qy, stream)
             dqz = numba.cuda.to_device(qz, stream)
             doutput = numba.cuda.device_array((saveblocks, qmax + 1), np.float64, stream=stream)
-
-        def corr(input, fkernel, fzero, freduce):
-            with stream.auto_synchronize():
-                dvals = numba.cuda.to_device(input.astype(np.float32), stream)
-                fzero(doutput)
-                fkernel(dqx, dqy, dqz, dvals, doutput)
-                freduce(doutput)
-            return doutput[0, :qmax].copy_to_host(stream=stream)
+        
+        del x, y, d, qx, qy, qz
 
         def kernel(qx, qy, qz, val, out):
             refr = numba.cuda.blockIdx.y
@@ -92,27 +97,35 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             numba.cuda.syncthreads()
             vals[numba.cuda.blockIdx.x, numba.cuda.threadIdx.x] = 0
 
-        jkernel = numba.cuda.jit("void(float32[:,:],float32[:,:],float32[:,:],float32[:,:],float64[:,:])", fastmath=True)(kernel)
+        jkernel = numba.cuda.jit(kernel, fastmath=True).compile("float32[:,:],float32[:,:],float32[:,:],float32[:,:],float64[:,:]")
         # print(jkernel.inspect_asm())
         jkernel = jkernel[[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]]
-        jzero = numba.cuda.jit("void(float64[:,:])", fastmath=True)(zero)[(doutput.shape[0]), (doutput.shape[1]), stream]
-        jreduce = numba.cuda.jit("void(float64[:,:])", fastmath=True)(reduce)[(1), doutput.shape[1], stream]
-        yield functools.partial(corr, fkernel=jkernel, freduce=jreduce, fzero=jzero)
+        jzero = numba.cuda.jit(zero).compile("float64[:,:],")
+        jzero = jzero[(doutput.shape[0]), (doutput.shape[1]), stream]
+        jreduce = numba.cuda.jit(reduce).compile("float64[:,:],")
+        jreduce = jreduce[(1), doutput.shape[1], stream]
+
+        def corr(input):
+            """
+            Do the correlation
+            """
+            if stream is None:
+                raise ValueError("already closed, use within with statement")
+            with stream.auto_synchronize():
+                dvals = cuda.to_device(input.astype(np.float32), stream)
+                jzero(doutput)
+                jkernel(dqx, dqy, dqz, dvals, doutput)
+                jreduce(doutput)
+            return doutput[0, :qmax].copy_to_host(stream=stream)
+
+        yield corr
     finally:
         if stream is not None:
             stream.synchronize()
-        dqx = None
-        dqy = None
-        dqz = None
-        doutput = None
-        dvals = None
-        jkernel = None
-        jzero = None
-        jreduce = None
-        gc.collect()
+        stream = dqx = dqy = dqz = dvals = doutput = jkernel = jreduce = jzero = None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     qmax = 256
     z = 2000
     input = np.ones((512, 512))
