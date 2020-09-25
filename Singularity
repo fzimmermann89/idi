@@ -101,7 +101,7 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 . /etc/profile.d/conda.sh
 echo "installing conda extensions"
 conda activate
-conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn  cupy "python>3.6" seaborn pandas line_profiler black ninja colorama
+conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn  cupy "python>3.6" seaborn pandas line_profiler black ninja colorama memory_profiler
 conda install -q -y -c  conda-forge lmfit ipympl "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1"
 conda install -q -y -c conda-forge -c plotly jupyter-dash ipyvolume jupyter-server-proxy
 
