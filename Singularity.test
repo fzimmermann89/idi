@@ -1,0 +1,104 @@
+bootstrap: docker
+from: nvidia/cuda:10.2-devel-centos7
+
+
+
+
+%help
+Centos7 with conda python, jupyter, latex, cuda and mkl
+
+
+
+
+%environment
+CUDA_ROOT=/usr/local/cuda
+export CUDA_ROOT
+SINGULARITY_SHELL=/bin/zsh
+export SINGULARITY_SHELL
+MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl
+export MKLROOT
+TBBROOT=/opt/intel/compilers_and_libraries/linux/tbb
+export TBBROOT
+INTEL_LICENSE_FILE=/opt/intel/compilers_and_libraries/linux/licenses
+export INTEL_LICENSE_FILE
+LIBRARY_PATH=$LIBRARY_PATH:/opt/intel/compilers_and_libraries/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8
+export LIBRARY_PATH
+CPATH=$CPATH:/opt/intel/compilers_and_libraries/linux/mkl/include:/opt/intel/compilers_and_libraries/linux/tbb/include:/opt/intel/compilers_and_libraries/linux/tbb/include
+export CPATH
+PATH=$PATH:/opt/anaconda3/bin:/usr/local/texlive/bin/x86_64-linux:/usr/local/cuda/bin
+PATH=$PATH:/opt/intel/compilers_and_libraries/linux/bin/intel64:/opt/intel/compilers_and_libraries/linux/bin
+export PATH
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/compilers_and_libraries/linux/mkl/bin/pkgconfig
+export PKG_CONFIG_PATH
+LD_PRELOAD=/usr/local/lib64/mklpatch.so
+export LD_PRELOAD
+
+
+%post
+##yum
+yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo
+yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm
+yum update -y
+yum upgrade -y
+yum install -y bsdtar p7zip p7zip-plugins mc unzip libtiff  make cmake binutils mosh less vim aria2  rsync openssh  screen  tmux htop curl  wget zsh  git224  perl-Digest-MD5 perl-File-Fetch zip  binutils gcc gcc-c++ gettext  man man-pages libtool make patch elfutils  patchutils gdb diffutils  openmpi-devel environment-modules  fontconfig freetype freetype-devel fontconfig-devel libstdc++ strace ltrace ghostscript intel-mkl perf perl-File-Fetch axel
+yum clean all
+rm -rf /var/cache/yum
+
+
+##texlive
+echo "installing texlive"
+cat > /tmp/texlive.profile << "EOF0"
+# texlive.profile
+selected_scheme scheme-full
+TEXDIR /usr/local/texlive/
+TEXMFCONFIG ~/.texlive/texmf-config
+TEXMFHOME ~/.texlive/texmf
+TEXMFLOCAL /usr/local/texlive/texmf-local
+TEXMFSYSCONFIG /usr/local/texlive/texmf-config
+TEXMFSYSVAR /usr/local/texlive/texmf-var
+TEXMFVAR ~/.texlive/texmf-var
+binary_x86_64-linux 1
+instopt_adjustpath 0
+instopt_adjustrepo 1
+instopt_letter 0
+instopt_portable 0
+instopt_write18_restricted 1
+tlpdbopt_autobackup 1
+tlpdbopt_backupdir tlpkg/backups
+tlpdbopt_create_formats 1
+tlpdbopt_desktop_integration 1
+tlpdbopt_file_assocs 1
+tlpdbopt_generate_updmap 0
+tlpdbopt_install_docfiles 1
+tlpdbopt_install_srcfiles 1
+tlpdbopt_post_code 1
+tlpdbopt_sys_bin /usr/local/bin
+tlpdbopt_sys_info /usr/local/share/info
+tlpdbopt_sys_man /usr/local/share/man
+tlpdbopt_w32_multi_user 1
+EOF0
+
+#cd /tmp && aria2c -q -j8 -x8 http://mirror.ctan.org/systems/texlive/Images/texlive2020.iso && mkdir /tmp/iso &&  mount -o loop /tmp/texlive2020.iso /tmp/iso && cd /tmp/iso && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads  &&  umount /tmp/iso && rm /tmp/texlive2020.iso && echo 'done'
+
+cd /tmp && aria2c -q -j8 -x8 http://mirror.ctan.org/systems/texlive/Images/texlive2020.iso && mkdir /tmp/iso &&  bsdtar -xf texlive2020.iso -C /tmp/iso && cd /tmp/iso && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads  &&  umount /tmp/iso && rm /tmp/texlive2020.iso && echo 'done'
+
+
+
+%labels
+    Maintainer zimmf
+    Version 0.1-200910
+        
+%runscript
+exec /opt/runscript.sh python "$@"
+
+%startscript
+exec /opt/runscript.sh jupyter lab "$@"
+
+%apprun jupyter
+exec /opt/runscript.sh jupyter "$@"
+
+%apprun ipython
+exec /opt/runscript.sh ipython "$@"
+
+%apprun pdftex
+exec pdftex "$@"

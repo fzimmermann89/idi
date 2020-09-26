@@ -15,10 +15,6 @@ CUDA_ROOT=/usr/local/cuda
 export CUDA_ROOT
 SINGULARITY_SHELL=/bin/zsh
 export SINGULARITY_SHELL
-PIP_TARGET=/opt/pip-packages
-export PIP_TARGET
-PYTHONPATH=/opt/pip-packages:$PYTHONPATH
-export PYTHONPATH
 MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl
 export MKLROOT
 TBBROOT=/opt/intel/compilers_and_libraries/linux/tbb
@@ -41,19 +37,39 @@ export LD_PRELOAD
 %post
 ##yum
 yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo
-yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm
-yum update -y
-yum upgrade -y
-yum install -y mc unzip libtiff  make cmake binutils mosh less vim aria2  rsync openssh  screen  tmux htop curl  wget zsh  git224  perl-Digest-MD5 zip  binutils gcc gcc-c++ gettext  man man-pages libtool make patch elfutils  patchutils gdb diffutils  openmpi-devel environment-modules  fontconfig freetype freetype-devel fontconfig-devel libstdc++ strace ltrace ghostscript intel-mkl perf
-yum clean all
-rm -rf /var/cache/yum
+yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm && yum update -y && yum upgrade -y
+yum install -y bsdtar perl-libwww-perl aria2 rsync wget git224 perl-Digest-MD5 perl-File-Fetch zip unzip p7zip p7zip-plugins 
+yum install -y axel binutils cmake curl diffutils elfutils environment-modules fontconfig fontconfig-devel freetype freetype-devel gcc gcc-c++ gdb gettext ghostscript htop intel-mkl-64bit-2020.3-111.x86_64 intel-mkl-gnu-2020.3-279.x86_64 intel-mkl-tbb-rt-2020.3-279.x86_64 less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh && yum clean all && rm -rf /var/cache/yum &
 
 
 ##texlive
 echo "installing texlive"
 cat > /tmp/texlive.profile << "EOF0"
 # texlive.profile
-selected_scheme scheme-medium
+selected_scheme scheme-custom
+collection-basic 1
+collection-bibtexextra 1
+collection-context 0
+collection-fontsextra 1
+collection-fontsrecommended 1
+collection-fontutils 1
+collection-formatsextra 1
+collection-humanities 1
+collection-langenglish 1
+collection-langfrench 1
+collection-langgerman 1
+collection-langgreek 1
+collection-latex 1
+collection-latexextra 1
+collection-latexrecommended 1
+collection-luatex 1
+collection-mathscience 1
+collection-metapost 1
+collection-pictures 1
+collection-plaingeneric 1
+collection-pstricks 1
+collection-publishers 1
+collection-xetex 1
 TEXDIR /usr/local/texlive/
 TEXMFCONFIG ~/.texlive/texmf-config
 TEXMFHOME ~/.texlive/texmf
@@ -67,14 +83,14 @@ instopt_adjustrepo 1
 instopt_letter 0
 instopt_portable 0
 instopt_write18_restricted 1
-tlpdbopt_autobackup 1
+tlpdbopt_autobackup 0
 tlpdbopt_backupdir tlpkg/backups
 tlpdbopt_create_formats 1
 tlpdbopt_desktop_integration 1
 tlpdbopt_file_assocs 1
 tlpdbopt_generate_updmap 0
-tlpdbopt_install_docfiles 1
-tlpdbopt_install_srcfiles 1
+tlpdbopt_install_docfiles 0
+tlpdbopt_install_srcfiles 0
 tlpdbopt_post_code 1
 tlpdbopt_sys_bin /usr/local/bin
 tlpdbopt_sys_info /usr/local/share/info
@@ -82,10 +98,14 @@ tlpdbopt_sys_man /usr/local/share/man
 tlpdbopt_w32_multi_user 1
 EOF0
 
+#cd /tmp && aria2c -q -j8 -x8 http://mirror.ctan.org/systems/texlive/Images/texlive2020.iso && mkdir /mnt/iso &&  mount -o loop /tmp/texlive2020.iso /mnt/iso && cd /mnt/iso && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads  && sleep 60 &&  umount /mnt/iso || true && rm -f /tmp/texlive2020.iso && echo 'done' &
+
+#cd /tmp && aria2c -q -j8 -x8 http://mirror.ctan.org/systems/texlive/Images/texlive2020.iso && mkdir /tmp/iso &&  bsdtar -xf texlive2020.iso -C /tmp/iso && rm /tmp/texlive2020.iso && cd /tmp/iso && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads -q &&  rm /tmp/texlive2020.iso && rm -rf /tmp/iso && echo 'done' &
+
 wget -q -O /tmp/install-tl-unx.tar.gz http://ftp.acc.umu.se/mirror/CTAN/systems/texlive/tlnet/install-tl-unx.tar.gz && \
-    cd /tmp/ && tar xzf install-tl-unx.tar.gz
-cd /tmp/install-tl-* && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads -q
-rm -rf /tmp/install-tl*
+    cd /tmp/ && tar xzf install-tl-unx.tar.gz && \
+cd /tmp/install-tl-* && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads  && \
+rm -rf /tmp/install-tl* && echo 'tl install done'
 
 
 #miniconda
@@ -101,9 +121,9 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 . /etc/profile.d/conda.sh
 echo "installing conda extensions"
 conda activate
-conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn  cupy "python>3.6" seaborn pandas line_profiler black ninja colorama memory_profiler
-conda install -q -y -c  conda-forge lmfit ipympl "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1"
-conda install -q -y -c conda-forge -c plotly jupyter-dash ipyvolume jupyter-server-proxy
+conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn  cupy "python>3.6" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-include
+conda install -q -y -c  conda-forge -c plotly lmfit ipympl "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy
+conda clean -a
 
 #jupyterlab extensions
 echo "installing jlab extensions"
@@ -114,7 +134,7 @@ jupyter labextension install @krassowski/jupyterlab_go_to_definition --no-build
 jupyter labextension install @aquirdturtle/collapsible_headings --no-build
 jupyter labextension install @jupyterlab/google-drive --no-build
 jupyter labextension install jupyterlab-plotly --no-build
-jupyter labextension install @jupyterlab/server-proxy
+jupyter labextension install @jupyterlab/server-proxy --no-build
 
 pip install -q --upgrade jupyterlab-git jupyterlab_code_formatter  jupyterlab_latex jupyter-dash
 jupyter labextension install @jupyterlab/latex --no-build
@@ -125,7 +145,10 @@ jupyter labextension install  jupyterlab-dash --no-build
 jupyter serverextension enable --py jupyterlab_code_formatter --sys-prefix
 jupyter serverextension enable --sys-prefix jupyterlab_latex
 jupyter serverextension enable --py jupyterlab_git --sys-prefix
-jupyter lab build
+jupyter serverextension enable --py jupyter_server_proxy --sys-prefix
+jupyter serverextension enable --py nbdime --sys-prefix
+wait #make sure not to run out of memory
+jupyter lab build --dev-build=False 
 
 #disable extensions not working with sdf hub
 #jupyter labextension disable @jupyterlab/git
@@ -140,26 +163,20 @@ cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
       "jupyterlab": true,
       "jupyterlab_latex": true,
       "nbdime": true,
-      "jupyterlab_code_formatter": true
+      "jupyterlab_code_formatter": true,
+      "jupyter_server_proxy": true
     }
   }
 }
 EOF3
 
-rm -rf /tmp/npm*
-
+#idi
+echo "installing idi from github" && pip install git+https://github.com/fzimmermann89/idi 
 
 #pycuda
-echo "installing pycuda from pip"
-LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda
+echo "installing pycuda from pip" && LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda &
 
-#idi
-echo "installing idi from github"
-pip install git+https://github.com/fzimmermann89/idi
 
-#pip-packages for overlay
-mkdir /opt/pip-packages
-chmod 777 /opt/pip-packages
 
 
 #conda config
@@ -180,29 +197,36 @@ EOF2
 chmod +x /opt/runscript.sh
 
 
-#cleanup
-conda clean -a
-pip cache purge
-rm -rf /root/.conda
-rm -rf /root/.npm
-rm -rf /root/.cache
-
-
 #patch for mkl
+echo 'compiling mkl patch'
 cat > /tmp/mklpatch.c << "EOF4"
 //https://danieldk.eu/Posts/2020-08-31-MKL-Zen.html
 int mkl_serv_intel_cpu_true() {
   return 1;
 }
-"EOF4"
-gcc -shared -fPIC -o /usr/local/lib64/mklpatch.so /tmp/mklpatch.c
+EOF4
+gcc -shared -fPIC -o /tmp/mklpatch.so /tmp/mklpatch.c
+cp /tmp/mklpatch.so /usr/local/lib64/mklpatch.so && chmod 775 /usr/local/lib64/mklpatch.so && echo 'done'
+
+
+#cleanup
+wait
+conda clean -a
+pip cache purge
+rm -rf /root/.conda
+rm -rf /root/.npm
+rm -rf /root/.cache
+rm -rf /tmp/npm*
+rm -rf /tmp/texlive*
+rm -rf /tmp/yarn*
+rm -rf /var/cache/*
+echo '####ALL DONE####'
+
+
 %labels
     Maintainer zimmf
     Version 0.1-200910
-    
-    
-    
-    
+        
 %runscript
 exec /opt/runscript.sh python "$@"
 
