@@ -44,3 +44,13 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True):
         result[n, ...] = h_wf1.copy()
         if verbose: _print('. ', end='', flush=True)
     return result
+
+def simulate_gen(simobject,Ndet,pixelsize,detz,k):
+    if _np.size(Ndet) == 1: 
+        Ndet = [Ndet, Ndet]
+    h_wf1 = _np.empty((Ndet[0], Ndet[1]), dtype=_np.complex64)
+    fwavefield = wavefield_kernel(simobject.N, Ndet, pixelsize, detz, k)
+    while True:
+        h_atoms1 = simobject.get()
+        fwavefield(h_wf1, h_atoms1)
+        yield h_wf1.copy()

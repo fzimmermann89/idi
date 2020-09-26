@@ -77,3 +77,24 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True):
         result[n, ...] = h_wf1.view(dtype=_np.complex64)[..., 0]
         if verbose: _print('. ', end='', flush=True)
     return result
+
+def simulate_gen(simobject,Ndet,pixelsize,detz,k):
+    if _np.size(Ndet) == 1: 
+        Ndet = [Ndet, Ndet]
+    threadsperblock = (16, 16, 1)
+    blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
+    blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
+    blockspergrid = (blockspergrid_x, blockspergrid_y)
+    h_wf1 = _np.empty((Ndet[0], Ndet[1], 2), dtype=_np.float32)
+    d_wf1 = pycuda.driver.mem_alloc(h_wf1.nbytes)
+    fwavefield = wavefield_kernel(simobject.N, Ndet, pixelsize, detz, k)
+    d_atoms1 = pycuda.driver.mem_alloc(32 * simobject.N)
+    h_atoms1 = simobject.get()
+
+    while True:
+        pycuda.driver.memcpy_htod(d_atoms1, h_atoms1)
+        fwavefield(d_wf1, d_atoms1, block=threadsperblock, grid=blockspergrid)
+        h_atoms1 = simobject.get()
+        pycuda.driver.memcpy_dtoh(h_wf1, d_wf1)
+        result = _np.copy(h_wf1.view(dtype=_np.complex64)[..., 0])
+        yield result
