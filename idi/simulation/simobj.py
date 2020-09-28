@@ -87,6 +87,7 @@ class multisphere(atoms):
         self.spacing = spacing
         atoms.__init__(self, E, self._atompos())
         self.rndPos = True
+        self._debug = None
 
     def _atompos(self):
         """
@@ -102,7 +103,7 @@ class multisphere(atoms):
         nc = _np.cumsum(n)
         posatoms = sphere._rndSphere(self.rsphere, int(self._N))
         multisphere._staggeredadd(self._posspheres, posatoms, nc)
-        #print(len(self._posspheres),_np.min(n),_np.max(n),_np.mean(n))
+        self._debug = (len(self._posspheres),_np.min(n),_np.max(n),_np.mean(n))
         return posatoms
 
     def get(self):
