@@ -127,8 +127,8 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 . /etc/profile.d/conda.sh
 echo "installing conda extensions"
 conda activate
-conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn "python>3.6" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-include fastrlock six setuptools opencv
-conda install -q -y -c  conda-forge -c plotly lmfit ipympl pathos "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy
+conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn "python=3.7" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
+conda install -q -y -c  conda-forge -c plotly lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
 conda clean -a -y &
 
 
@@ -155,11 +155,14 @@ jupyter serverextension enable --py jupyterlab_git --sys-prefix
 jupyter serverextension enable --py jupyter_server_proxy --sys-prefix
 jupyter serverextension enable --py nbdime --sys-prefix
 echo 'waiting'
+
 sleep 10
 wait #make sure not to run out of memory
-sleep 10
+sleep 30
+
 echo 'building lab'
-jupyter lab build --dev-build=False 
+jupyter lab build --dev-build=False ||true
+cat /tmp/jupyterlab-debug-* ||true
 
 cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
 {
