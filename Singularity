@@ -5,7 +5,7 @@ from: nvidia/cuda:10.2-devel-centos7
 
 
 %help
-Centos7 with conda python, jupyter, latex, cuda and mkl
+Centos7 with conda python, jupyter, latex, cuda
 
 
 
@@ -34,12 +34,15 @@ LD_PRELOAD=/usr/local/lib64/mklpatch.so
 export LD_PRELOAD
 
 
+
+
 %post
 ##yum
 yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo
 yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm && yum update -y && yum upgrade -y
-yum install -y bsdtar perl-libwww-perl aria2 rsync wget git224 perl-Digest-MD5 perl-File-Fetch zip unzip p7zip p7zip-plugins 
-yum install -y axel binutils cmake curl diffutils elfutils environment-modules fontconfig fontconfig-devel freetype freetype-devel gcc gcc-c++ gdb gettext ghostscript htop intel-mkl-64bit-2020.3-111.x86_64 intel-mkl-gnu-2020.3-279.x86_64 intel-mkl-tbb-rt-2020.3-279.x86_64 less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh && yum clean all && rm -rf /var/cache/yum &
+yum install -y aria2 bsdtar curl git224 gzip lz4 p7zip p7zip-plugins perl-Digest-MD5 perl-File-Fetch perl-LWP-Protocol-https perl-Mozilla-CA perl-libwww-perl rsync unzip wget xz zip
+#intel-mkl-64bit-2020.3-111.x86_64 intel-mkl-gnu-2020.3-279.x86_64 intel-mkl-tbb-rt-2020.3-279.x86_64 
+yum install -y axel binutils cmake curl diffutils elfutils environment-modules gcc gcc-c++ gdb gettext ghostscript htop less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh && yum clean all && rm -rf /var/cache/yum &
 
 
 ##texlive
@@ -98,14 +101,17 @@ tlpdbopt_sys_man /usr/local/share/man
 tlpdbopt_w32_multi_user 1
 EOF0
 
+#mounting iso (not possible on shub)
 #cd /tmp && aria2c -q -j8 -x8 http://mirror.ctan.org/systems/texlive/Images/texlive2020.iso && mkdir /mnt/iso &&  mount -o loop /tmp/texlive2020.iso /mnt/iso && cd /mnt/iso && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads  && sleep 60 &&  umount /mnt/iso || true && rm -f /tmp/texlive2020.iso && echo 'done' &
 
+#unpacking iso (can cause checksum fails?)
 #cd /tmp && aria2c -q -j8 -x8 http://mirror.ctan.org/systems/texlive/Images/texlive2020.iso && mkdir /tmp/iso &&  bsdtar -xf texlive2020.iso -C /tmp/iso && rm /tmp/texlive2020.iso && cd /tmp/iso && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads -q &&  rm /tmp/texlive2020.iso && rm -rf /tmp/iso && echo 'done' &
 
+#online install
 wget -q -O /tmp/install-tl-unx.tar.gz http://ftp.acc.umu.se/mirror/CTAN/systems/texlive/tlnet/install-tl-unx.tar.gz && \
     cd /tmp/ && tar xzf install-tl-unx.tar.gz && \
-cd /tmp/install-tl-* && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads  && \
-rm -rf /tmp/install-tl* && echo 'tl install done'
+    cd /tmp/install-tl-* && ./install-tl -profile /tmp/texlive.profile -no-verify-downloads -persistent-downloads -q && \
+    rm -rf /tmp/install-tl* && echo 'tl install done' &
 
 
 #miniconda
@@ -121,9 +127,10 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 . /etc/profile.d/conda.sh
 echo "installing conda extensions"
 conda activate
-conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn  cupy "python>3.6" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-include
-conda install -q -y -c  conda-forge -c plotly lmfit ipympl "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy
-conda clean -a
+conda install -q -y "numpy<1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2"  jupyter scikit-image appdirs mako scikit-learn "python>3.6" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-include fastrlock six setuptools opencv
+conda install -q -y -c  conda-forge -c plotly lmfit ipympl pathos "nodejs>=12"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy
+conda clean -a -y &
+
 
 #jupyterlab extensions
 echo "installing jlab extensions"
@@ -147,13 +154,12 @@ jupyter serverextension enable --sys-prefix jupyterlab_latex
 jupyter serverextension enable --py jupyterlab_git --sys-prefix
 jupyter serverextension enable --py jupyter_server_proxy --sys-prefix
 jupyter serverextension enable --py nbdime --sys-prefix
+echo 'waiting'
+sleep 10
 wait #make sure not to run out of memory
+sleep 10
+echo 'building lab'
 jupyter lab build --dev-build=False 
-
-#disable extensions not working with sdf hub
-#jupyter labextension disable @jupyterlab/git
-#jupyter labextension disable @ryantam626/jupyterlab_code_formatter
-#jupyter labextension disable @jupyterlab/latex
 
 cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
 {
@@ -170,14 +176,10 @@ cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
 }
 EOF3
 
-#idi
-echo "installing idi from github" && pip install git+https://github.com/fzimmermann89/idi 
 
-#pycuda
-echo "installing pycuda from pip" && LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda &
-
-
-
+#pip
+echo "installing pycuda from pip" && LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda && \
+echo 'installing cupy from pip' && pip install cupy-cuda102  &
 
 #conda config
 conda config  --file /opt/anaconda3/.condarc --set changeps1 False
@@ -209,9 +211,15 @@ gcc -shared -fPIC -o /tmp/mklpatch.so /tmp/mklpatch.c
 cp /tmp/mklpatch.so /usr/local/lib64/mklpatch.so && chmod 775 /usr/local/lib64/mklpatch.so && echo 'done'
 
 
+
+#idi
+wait
+echo 'install idi' && pip install git+https://github.com/fzimmermann89/idi
+
+
 #cleanup
 wait
-conda clean -a
+conda clean -a -y
 pip cache purge
 rm -rf /root/.conda
 rm -rf /root/.npm
@@ -221,6 +229,8 @@ rm -rf /tmp/texlive*
 rm -rf /tmp/yarn*
 rm -rf /var/cache/*
 echo '####ALL DONE####'
+
+
 
 
 %labels

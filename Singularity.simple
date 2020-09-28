@@ -1,0 +1,56 @@
+Bootstrap: library
+From: fzimmermann89/idi/latest
+
+%post
+. /etc/profile.d/conda.sh
+conda activate
+pip install git+https://github.com/fzimmermann89/idi
+
+%labels
+    Maintainer zimmf
+    Version 0.1-200910
+        
+%runscript
+exec /opt/runscript.sh python "$@"
+
+%startscript
+exec /opt/runscript.sh jupyter lab "$@"
+
+%apprun jupyter
+exec /opt/runscript.sh jupyter "$@"
+
+%apprun ipython
+exec /opt/runscript.sh ipython "$@"
+
+%apprun pdftex
+exec pdftex "$@"
+
+
+%help
+Centos7 with conda python, jupyter, latex, cuda and mkl
+
+
+
+
+%environment
+CUDA_ROOT=/usr/local/cuda
+export CUDA_ROOT
+SINGULARITY_SHELL=/bin/zsh
+export SINGULARITY_SHELL
+MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl
+export MKLROOT
+TBBROOT=/opt/intel/compilers_and_libraries/linux/tbb
+export TBBROOT
+INTEL_LICENSE_FILE=/opt/intel/compilers_and_libraries/linux/licenses
+export INTEL_LICENSE_FILE
+LIBRARY_PATH=$LIBRARY_PATH:/opt/intel/compilers_and_libraries/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8
+export LIBRARY_PATH
+CPATH=$CPATH:/opt/intel/compilers_and_libraries/linux/mkl/include:/opt/intel/compilers_and_libraries/linux/tbb/include:/opt/intel/compilers_and_libraries/linux/tbb/include
+export CPATH
+PATH=$PATH:/opt/anaconda3/bin:/usr/local/texlive/bin/x86_64-linux:/usr/local/cuda/bin
+PATH=$PATH:/opt/intel/compilers_and_libraries/linux/bin/intel64:/opt/intel/compilers_and_libraries/linux/bin
+export PATH
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/compilers_and_libraries/linux/mkl/bin/pkgconfig
+export PKG_CONFIG_PATH
+LD_PRELOAD=/usr/local/lib64/mklpatch.so
+export LD_PRELOAD
