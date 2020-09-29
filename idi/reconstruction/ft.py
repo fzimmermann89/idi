@@ -42,7 +42,10 @@ def corr(input, z,verbose = False):
         wrapper for autocorrelate3, removes redundant slices in first dimension
         '''
         tmp = _prepare(input, z)
-        autocorrelate3.autocorrelate3(tmp)
+        err = autocorrelate3.autocorrelate3(tmp)
+        if err:
+            raise RuntimeError(f'cython autocorrelations failed with error code {err}')
+        _np.add(self.accum, self._tmp[:self.qlenz,...], out=self.accum)
         return tmp[:tmp.shape[0] // 2, ...]
     
     if input.ndim == 2:

@@ -28,14 +28,14 @@ cpdef int autocorrelate3(double[:, :, ::1] input):
     cdef bint error=False
     
     #r2c fft setup
-    if not error: error=mkl_dfti.DftiCreateDescriptor(&hand,mkl_dfti. DFTI_DOUBLE, mkl_dfti.DFTI_REAL, 3, N)
-    if not error: error= mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_CONJUGATE_EVEN_STORAGE, mkl_dfti.DFTI_COMPLEX_COMPLEX)
-    if not error: error= mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_INPUT_STRIDES, rs)
-    if not error: error= mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_OUTPUT_STRIDES, cs)
-    if not error: error= mkl_dfti.DftiCommitDescriptor(hand)
+    if not error: error = mkl_dfti.DftiCreateDescriptor(&hand,mkl_dfti. DFTI_DOUBLE, mkl_dfti.DFTI_REAL, 3, N)
+    if not error: error = mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_CONJUGATE_EVEN_STORAGE, mkl_dfti.DFTI_COMPLEX_COMPLEX)
+    if not error: error = mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_INPUT_STRIDES, rs)
+    if not error: error = mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_OUTPUT_STRIDES, cs)
+    if not error: error = mkl_dfti.DftiCommitDescriptor(hand)
 
     #fft
-    if not error: error= mkl_dfti.DftiComputeForward(hand, x)
+    if not error: error = mkl_dfti.DftiComputeForward(hand, x)
     if not error:
         #abs (inplace)
         #xc = <MKL_Complex16*>x
@@ -48,14 +48,17 @@ cpdef int autocorrelate3(double[:, :, ::1] input):
                 
         error=vmlGetErrStatus()
         
+    #ignore accuracy warning    
+    if error==1000: error =0
+        
     #c2r ifft setup
-    if not error: error= mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_INPUT_STRIDES, cs)
-    if not error: error= mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_OUTPUT_STRIDES, rs)
-    if not error: error= mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_BACKWARD_SCALE, scale)
-    if not error: error= mkl_dfti.DftiCommitDescriptor(hand)
+    if not error: error = mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_INPUT_STRIDES, cs)
+    if not error: error = mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_OUTPUT_STRIDES, rs)
+    if not error: error = mkl_dfti.DftiSetValue(hand, mkl_dfti.DFTI_BACKWARD_SCALE, scale)
+    if not error: error = mkl_dfti.DftiCommitDescriptor(hand)
 
     #ifft
-    if not error: error= mkl_dfti.DftiComputeBackward(hand, x)
+    if not error: error = mkl_dfti.DftiComputeBackward(hand, x)
     
     #cleanup
     if error:
