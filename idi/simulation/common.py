@@ -9,24 +9,5 @@ def rebin(arr, n):
     return arr.reshape(shape).mean(-1).mean(-2)
 
 
-# photon samling
-def _randomphotons(args):
-    def _randomphotons_unpacked(prob, Nphotons):
-        photons = _np.zeros_like(prob, dtype=_np.uint32)
-        hits = _np.random.choice(range(prob.size), size=Nphotons, p=prob.flatten())
-        _np.add.at(photons.ravel(), hits, 1)
-        return photons
-
-    return _randomphotons_unpacked(*args)
-
-
-def randomphotons(incoherent, Nphotons, pmax=8):
-    gesamt = _np.sum(incoherent, axis=(1, 2))
-    probs = incoherent / gesamt[:, None, None]
-    Ns = (Nphotons * gesamt / _np.mean(gesamt)).astype(int)
-    args = zip(probs, Ns)
-    pool = _mpPool(processes=pmax)
-    out = pool.map(_randomphotons, args)
-    pool.close()
-    pool.join()
-    return out
+def randomphotons(probs,Nphotons):
+    return _np.random.poisson((probs*(1/probs.sum(axis=(1,2)))[:,None,None])*Nphotons)
