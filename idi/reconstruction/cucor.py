@@ -108,7 +108,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
                 doutput[:, :, :] = 0
                 jkernel(dzd, dvals, doutput)
                 jassemble(doutput)
-                return doutput.copy_to_host(stream=stream)
+                return doutput.copy_to_host(stream=stream).astype(np.float64)
 
         yield corr
     finally:
