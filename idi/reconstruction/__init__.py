@@ -1,9 +1,9 @@
-__all__ = [ 'hitcor', 'hitcorrad', 'qcor', 'qcorrad', 'cucor', 'cucorrad', 'simple', 'ft']
+__all__ = [ 'hitcor', 'hitcorrad', 'qcor', 'qcorrad', 'cucor', 'cucorrad', 'simple','cusimple', 'ft']
 
 import mkl as _mkl
 _vml_threads=_mkl.domain_get_max_threads('vml')
 
-from . import hitcor, hitcorrad, qcor, qcorrad, cucor, cucorrad, simple, common
+from . import hitcor, hitcorrad, qcor, qcorrad, cucor, cucorrad, simple, common, cusimple
 
 try:
     from . import autocorrelate3
