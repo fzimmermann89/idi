@@ -32,15 +32,15 @@ def aslengen(fn=None):
         def __iter__(self):
             return self.gen
 
-try:
-    from pathos.multiprocessing import Pool
-except ImportError:
-    import warnings
-    warnings.warn('no pathos available, be careful with parallel decorator and pickling errors.')
-    from multiprocessing import Pool
 from collections import deque
 import time
 def parallel(fn=None):
+    try:
+        from pathos.multiprocessing import Pool
+    except ImportError:
+        import warnings
+        warnings.warn('no pathos available, be careful with parallel decorator and pickling errors.')
+        from multiprocessing import Pool
     def parallel_return(fn):
         @wraps(fn)
         def parallel_helper(arg,*args,**kw):            
