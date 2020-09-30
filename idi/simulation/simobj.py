@@ -7,7 +7,16 @@ import numba as _numba
 import math as _math
 import random as _random
 
+'''
+simulation objects
+'''
+
+
 class atoms:
+    '''
+    baseclass
+    '''
+
     def __init__(self, E, pos):
         self._N = len(pos)
         self._E = E  # _np.ones(self._N) * E
@@ -32,6 +41,10 @@ class atoms:
 
 
 class sphere(atoms):
+    '''
+    a sphere with random positions inside
+    '''
+
     def __init__(self, N, r, E):
         pos = self._rndSphere(r, N)
         atoms.__init__(self, E, pos)
@@ -58,7 +71,13 @@ class sphere(atoms):
 
 
 from ..util import poisson_disc_sample as _pds
+
+
 class multisphere(atoms):
+    '''
+    multiple, randomly positioned spheres
+    '''
+
     @staticmethod
     @_numba.njit()
     def _staggeredadd(pos1, pos2, n):
@@ -93,7 +112,7 @@ class multisphere(atoms):
         """
         calculate positin of atoms
         """
-        self._posspheres = _pds(1.2 * self.fwhmfocal, 2 * (self.rsphere + self.spacing),ndim=3, N=self._Nspheres)
+        self._posspheres = _pds(1.2 * self.fwhmfocal, 2 * (self.rsphere + self.spacing), ndim=3, N=self._Nspheres)
         r = _np.sqrt(_np.sum(self._posspheres ** 2, axis=1))
         p = _np.exp(-_np.square((r) / (0.4 * self.fwhmfocal)) / 2.0)
         n = _np.random.poisson(p / _np.sum(p) * self._N)
@@ -103,7 +122,7 @@ class multisphere(atoms):
         nc = _np.cumsum(n)
         posatoms = sphere._rndSphere(self.rsphere, int(self._N))
         multisphere._staggeredadd(self._posspheres, posatoms, nc)
-        self._debug = (len(self._posspheres),_np.min(n),_np.max(n),_np.mean(n))
+        self._debug = (len(self._posspheres), _np.min(n), _np.max(n), _np.mean(n))
         return posatoms
 
     def get(self):
@@ -111,13 +130,12 @@ class multisphere(atoms):
             self._pos = self._atompos()
         return atoms.get(self)
 
-    
-   
-    
-
-
 
 class xyzgrid(atoms):
+    '''
+    a crystal specified by an xyz file
+    '''
+
     def __init__(self, filename, atomname, rotangles, E):
         import re
 
@@ -135,6 +153,10 @@ class xyzgrid(atoms):
 
 
 class grid(atoms):
+    '''
+    a crystalline structure
+    '''
+
     def __init__(self, lconst, langle, unitcell, Ns, rotangles, E):
         pos = grid._lattice(lconst, langle, unitcell, Ns)
         if _np.any(rotangles):
@@ -149,16 +171,7 @@ class grid(atoms):
     def _lattice(lconst, langle, unitcell, repeats, sigma=0):
         cosa, cosb, cosc = _np.cos(_np.array(langle))
         sina, sinb, sinc = _np.sin(_np.array(langle))
-        basis = (
-            _np.array(
-                [
-                    [1, 0, 0],
-                    [cosc, sinc, 0],
-                    [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],
-                ]
-            )
-            * _np.expand_dims(lconst, 1)
-        )
+        basis = _np.array([[1, 0, 0], [cosc, sinc, 0], [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],]) * _np.expand_dims(lconst, 1)
         atoms = _np.dot(unitcell, basis)
         atoms += sigma * _np.random.rand(*atoms.shape)
 
@@ -191,40 +204,11 @@ class grid(atoms):
         cosa, cosb, cosg = _np.cos(_np.array((alpha, beta, gamma)))
         sina, sinb, sing = _np.sin(_np.array((alpha, beta, gamma)))
 
-        # # euler angles
-        # M = _np.array(
-        #     [
-        #         [
-        #             cosa * cosg - sina * cosb * sing,
-        #            sina * cosg + cosa * cosb * sing,
-        #             sinb * sing
-        #         ],
-        #         [
-        #             -cosa * sing - sina * cosb * cosg,
-        #             -sina * sing + cosa * cosb * cosg,
-        #             sinb*cosg
-        #         ],
-        #         [
-        #             sina * sinb,
-        #             -cosa * sinb,
-        #             cosb
-        #         ]
-        #     ]
-        # )
-
         # yaw pitch roll
         M = _np.array(
             [
-                [
-                    cosb * cosg,
-                    sina * sinb * cosg - cosa * sing,
-                    cosa * sinb * cosg + sina * sing,
-                ],
-                [
-                    cosb * sing,
-                    sina * sinb * sing + cosa * cosg,
-                    cosa * sinb * sing - sina * cosg,
-                ],
+                [cosb * cosg, sina * sinb * cosg - cosa * sing, cosa * sinb * cosg + sina * sing,],
+                [cosb * sing, sina * sinb * sing + cosa * cosg, cosa * sinb * sing - sina * cosg,],
                 [-sinb, sina * cosb, cosa * cosb],
             ]
         )
@@ -249,12 +233,11 @@ class grid(atoms):
         return atoms.get(self)
 
 
-#     @property
-#     def n(self):
-#         return self._n
-
-
 class gridsc(grid):
+    '''
+    a sc crystal
+    '''
+
     def __init__(self, N, a, E, rotangles):
         if (_np.array(N)).size == 1:
             N = int(_np.rint(N ** (1 / 3.0)))
@@ -266,6 +249,10 @@ class gridsc(grid):
 
 
 class gridfcc(grid):
+    '''
+    a fcc crystal
+    '''
+
     def __init__(self, N, a, E, rotangles):
         if (_np.array(N)).size == 1:
             N = int(_np.rint((N / 4.0) ** (1 / 3.0)))
@@ -277,6 +264,10 @@ class gridfcc(grid):
 
 
 class gridhcp(grid):
+    '''
+    a hcp crystal
+    '''
+
     def __init__(self, N, a, E, rotangles):
         if (_np.array(N)).size == 1:
             N = int(_np.rint((N / 2.0) ** (1 / 3.0)))
@@ -288,6 +279,10 @@ class gridhcp(grid):
 
 
 class gridcuso4(grid):
+    '''
+    cuso4 crsystal with fixed lattice constant
+    '''
+
     def __init__(self, N, E, rotangles):
         N = int(_np.rint((N / 2.0) ** (1 / 3.0)))
         # https://doi.org/10.1524%2Fzkri.1975.141.5-6.330
@@ -299,6 +294,10 @@ class gridcuso4(grid):
 
 
 class hcpspheres(atoms):
+    '''
+    densly hcp packed spheres
+    '''
+
     def __init__(self, Nhcp, Nsphere, a, r, E, rotangles, sigma=0):
         if (_np.array(Nhcp)).size == 1:
             Nhcp = int(_np.rint((Nhcp / 2.0) ** (1 / 3.0)))

@@ -8,9 +8,19 @@ from jinja2 import Template as _Template
 
 
 def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
+    '''
+    returns a cuda implementation of the wavefield, used internally
+    Natoms: Number of atoms
+    Ndet: detector pixels
+    pixelsize: detector pixelsize
+    detz: detector distance
+    k: angular wavenumber
+    returns a function with signature (ret float2[:], atompositionsandphases double4[:]) 
+        that will write the wavefield into ret (real,imag)
+    '''
     maxx, maxy = Ndet
     tpl = _Template(
-    """
+        """
     __global__ void wfkernel( float2* __restrict__ ret, const double4* __restrict__  atom)
     {
         int x = blockIdx.x*blockDim.x + threadIdx.x;
@@ -55,7 +65,17 @@ def wavefield_kernel(Natoms, Ndet, pixelsize, detz, k):
 
 
 def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True):
-    if _np.size(Ndet) == 1: 
+    '''
+    returns an array of simulated wavefields
+    parameters:
+    Nimg: number of wavefields to simulate
+    simobject: a simobject whose get() returns an Nx4 array with atoms in the first and (x,y,z,phase) of each atom in the last dimension
+    Ndet: pixels on the detector
+    pixelsize: size of one pixel in same unit as simobjects unit (usally um)
+    detz: detector distance in same unit as simobjects unit (usally um)
+    k: angular wavenumber
+    '''
+    if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=complex)
     threadsperblock = (16, 16, 1)
@@ -68,18 +88,31 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True):
     d_atoms1 = pycuda.driver.mem_alloc(32 * simobject.N)
 
     for n in range(0, Nimg):
-        if verbose: _print(n, end='', flush=True)
+        if verbose:
+            _print(n, end='', flush=True)
         h_atoms1 = simobject.get()
         pycuda.driver.memcpy_htod(d_atoms1, h_atoms1)
-        if verbose: _print('.', end='', flush=True)
+        if verbose:
+            _print('.', end='', flush=True)
         fwavefield(d_wf1, d_atoms1, block=threadsperblock, grid=blockspergrid)
         pycuda.driver.memcpy_dtoh(h_wf1, d_wf1)
         result[n, ...] = h_wf1.view(dtype=_np.complex64)[..., 0]
-        if verbose: _print('. ', end='', flush=True)
+        if verbose:
+            _print('. ', end='', flush=True)
     return result
 
-def simulate_gen(simobject,Ndet,pixelsize,detz,k):
-    if _np.size(Ndet) == 1: 
+
+def simulate_gen(simobject, Ndet, pixelsize, detz, k):
+    '''
+    returns a generator that yields simulated wavefields
+    parameters:
+    simobject: a simobject whose get() returns an Nx4 array with atoms in the first and (x,y,z,phase) of each atom in the last dimension
+    Ndet: pixels on the detector
+    pixelsize: size of one pixel in same unit as simobjects unit (usally um)
+    detz: detector distance in same unit as simobjects unit (usally um)
+    k: angular wavenumber
+    '''
+    if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     threadsperblock = (16, 16, 1)
     blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
