@@ -253,7 +253,7 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k):
     blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
     blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
     blockspergrid = (blockspergrid_x, blockspergrid_y)
-    h_wf1 = _np.empty((Ndet[0], Ndet[1], 2), dtype=_np.float32)
+    h_wf1 = _np.empty((Ndet[0], Ndet[1], 2), dtype=_np.float64)
     d_wf1 = pycuda.driver.mem_alloc(h_wf1.nbytes)
     fwavefield = wavefield_kernel(simobject.N, Ndet, pixelsize, detz, k)
     d_atoms1 = pycuda.driver.mem_alloc(32 * simobject.N)
@@ -264,5 +264,5 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k):
         fwavefield(d_wf1, d_atoms1, block=threadsperblock, grid=blockspergrid)
         h_atoms1 = simobject.get()
         pycuda.driver.memcpy_dtoh(h_wf1, d_wf1)
-        result = _np.copy(h_wf1.view(dtype=_np.complex64)[..., 0])
+        result = _np.copy(h_wf1.view(dtype=_np.complex128)[..., 0])
         yield result
