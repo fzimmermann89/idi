@@ -67,7 +67,8 @@ def _poisson_disc_sample_bridson(grid, r, d, ndim=3, k=10, fixd=False):
         norm = _np.sum(rand ** 2, axis=-1) ** (1 / 2)
         rs = _np.ones(k) * d if fixd else d * (1 + (2 ** ndim - 1) * _np.random.rand(k)) ** (1 / ndim)
         ps = rand * (rs / norm).reshape(-1, 1) + q
-        for p in ps:
+        for ip in range(len(ps)):
+            p=ps[ip,:]
             coord = ((p / cellsize)).astype(_np.int64)
             if not _fits_bridson(p, d, points, grid, coord):
                 continue
