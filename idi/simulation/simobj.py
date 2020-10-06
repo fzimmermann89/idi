@@ -14,7 +14,7 @@ simulation objects
 
 class atoms:
     '''
-    baseclass
+    baseclass - a bunch of atoms
     '''
 
     def __init__(self, E, pos):
@@ -45,7 +45,7 @@ class sphere(atoms):
     a sphere with random positions inside
     '''
 
-    def __init__(self, N, r, E):
+    def __init__(self, E, N, r):
         pos = self._rndSphere(r, N)
         atoms.__init__(self, E, pos)
         self._r = r
@@ -104,47 +104,97 @@ class multisphere(atoms):
         self.rsphere = rsphere
         self.fwhmfocal = fwhmfocal
         self.spacing = spacing
-        atoms.__init__(self, E, self._atompos())
         self.rndPos = True
         self._debug = None
+        atoms.__init__(self, E, self._atompos())
+
+    def _spherepos(self):
+        return _pds(1.2 * self.fwhmfocal, 2 * (self.rsphere + self.spacing), ndim=3, N=self._Nspheres)
 
     def _atompos(self):
         """
-        calculate positin of atoms
+        calculate position of atoms
         """
-        self._posspheres = _pds(1.2 * self.fwhmfocal, 2 * (self.rsphere + self.spacing), ndim=3, N=self._Nspheres)
-        r = _np.sqrt(_np.sum(self._posspheres ** 2, axis=1))
+        posspheres = self._spherepos()
+        r = _np.sqrt(_np.sum(posspheres ** 2, axis=1))
         p = _np.exp(-_np.square((r) / (0.4 * self.fwhmfocal)) / 2.0)
         n = _np.random.poisson(p / _np.sum(p) * self._N)
         missing = self._N - _np.sum(n)
-        if missing > 0:
-            n[_np.argsort(n)[: -int(missing) - 1 : -1]] += 1
+        while missing:
+            w = min(len(n) // 4, int(abs(missing)))
+            n[_np.argsort(n)[: -w - 1 : -1]] += int(_math.copysign(1, missing))
+            missing -= _math.copysign(w, missing)
         nc = _np.cumsum(n)
         posatoms = sphere._rndSphere(self.rsphere, int(self._N))
-        multisphere._staggeredadd(self._posspheres, posatoms, nc)
-        self._debug = (len(self._posspheres), _np.min(n), _np.max(n), _np.mean(n))
+        multisphere._staggeredadd(posspheres, posatoms, nc)
+        self._debug = (len(posspheres), _np.min(n), _np.max(n), _np.mean(n))
         return posatoms
 
     def get(self):
-        if self.rndPos:
+        if self.rndPos or self._pos is None:
             self._pos = self._atompos()
         return atoms.get(self)
 
+    def __setattr__(self, name, value):
+        # reset cached values if property changes
+        if any(name == n for n in ['rndPos', 'rsphere', 'fwhmfocal', 'spacing', '_Nspheres']):
+            self._pos = None
+        super(multisphere, self).__setattr__(name, value)
 
-class xyzgrid(atoms):
+
+class hcpsphere(multisphere):
     '''
-    a crystal specified by an xyz file
+    densly hcp packed spheres
     '''
 
-    def __init__(self, filename, atomname, rotangles, E):
+    def __init__(self, E, Natoms=1e6, rsphere=10, fwhmfocal=200, a=20, rotangles=None, sigma=0):
+        self.Nhcp = None
+        self.rndPos = False
+        self.rndOrientation = False
+        self._N, self.rsphere, self.fwhmfocal, self.a, self.sigma, self.rsphere = Natoms, rsphere, fwhmfocal, a, sigma, rsphere
+        self.rotangles = rotangles
+        atoms.__init__(self, E, self._atompos())
+
+    def __setattr__(self, name, value):
+        # reset cached values if property changes
+        if any(name == n for n in ['rndPos', 'rndOrientation', 'rsphere', 'fwhmfocal', 'a', 'sigma', 'rotangles']):
+            self._hcp = None
+            self._pos = None
+        if name == 'rotangles':
+            self._rotmatrix = None if value is None else crystal._rotation(*value)
+        super(hcpsphere, self).__setattr__(name, value)
+
+    def _spherepos(self):
+        if (self.sigma and self.rndPos) or self._hcp is None:
+            Nhcp = self.Nhcp or _np.ceil(5 * self.fwhmfocal / (self.a * _np.array([2.0, 0.86, 1.63]))).astype(int)
+            lconst = [self.a, self.a, 1.633 * self.a]
+            unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
+            langle = _np.array([90, 90, 120]) * pi / 180.0
+            hcp = crystal._lattice(lconst, langle, unitcell, Nhcp, self.sigma)
+            hcp -= _np.mean(hcp, axis=0)
+            self._hcp = hcp
+        if self.rndOrientation:
+            self._rotmatrix = crystal._random_rotation()
+        if self._rotmatrix:
+            return _np.matmul(self._hcp, self._rotmatrix)
+        else:
+            return self._hcp
+
+
+class xyz(atoms):
+    '''
+    atom positions specified by an xyz file
+    '''
+
+    def __init__(self, E, filename, atomname, rotangles, scale=1e-4):
         import re
 
         with open(filename, 'r') as file:
             data = file.read()
         lines = re.findall("^" + atomname + "\d*\s*[\d,\.]+\s+[\d,\.]+\s+[\d,\.]+", data, re.IGNORECASE | re.MULTILINE)
-        pos = _np.genfromtxt(lines)[:, 1:] * 1e-4
+        pos = _np.genfromtxt(lines)[:, 1:] * scale
         if _np.any(rotangles):
-            self._rotmatrix = grid._rotation(*rotangles)
+            self._rotmatrix = crystal._rotation(*rotangles)
             pos = _np.matmul(pos, self._rotmatrix)
         else:
             self._rotmatrix = None
@@ -152,15 +202,17 @@ class xyzgrid(atoms):
         atoms.__init__(self, E, pos)
 
 
-class grid(atoms):
+class crystal(atoms):
     '''
     a crystalline structure
     '''
 
-    def __init__(self, lconst, langle, unitcell, Ns, rotangles, E):
-        pos = grid._lattice(lconst, langle, unitcell, Ns)
+    def __init__(self, E, lconst, langle, unitcell, N, rotangles):
+        if _np.size(N) == 1:
+            N = 3 * [int(_np.rint((N / len(unitcell)) ** (1 / 3.0)))]
+        pos = crystal._lattice(lconst, langle, unitcell, N)
         if _np.any(rotangles):
-            self._rotmatrix = grid._rotation(*rotangles)
+            self._rotmatrix = crystal._rotation(*rotangles)
             pos = _np.matmul(pos, self._rotmatrix)
         else:
             self._rotmatrix = None
@@ -217,7 +269,6 @@ class grid(atoms):
     @staticmethod
     @_numba.njit
     def _random_rotation(amount=1):
-        deflection = 1
         # https://doc.lagout.org/Others/Game%20Development/Programming/Graphics%20Gems%203.pdf
         theta, phi, z = _np.random.rand(3) * _np.array((2.0 * _np.pi * amount, 2.0 * _np.pi, amount))
         V = (_np.cos(phi) * _np.sqrt(z), _np.sin(phi) * _np.sqrt(z), _np.sqrt(1.0 - z))
@@ -228,114 +279,55 @@ class grid(atoms):
 
     def get(self):
         if self.rndOrientation:
-            rotmatrix = grid._random_rotation()
+            rotmatrix = crystal._random_rotation()
             self._pos = _np.matmul(self._pos, rotmatrix)
         return atoms.get(self)
 
 
-class gridsc(grid):
+class sc(crystal):
     '''
     a sc crystal
     '''
 
-    def __init__(self, N, a, E, rotangles):
-        if (_np.array(N)).size == 1:
-            N = int(_np.rint(N ** (1 / 3.0)))
-            N = [N, N, N]
+    def __init__(self, E, N, a, rotangles):
         lconst = [a, a, a]
         unitcell = [[0, 0, 0]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
-        grid.__init__(self, lconst, langle, unitcell, N, rotangles, E)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, rotangles)
 
 
-class gridfcc(grid):
+class fcc(crystal):
     '''
     a fcc crystal
     '''
 
-    def __init__(self, N, a, E, rotangles):
-        if (_np.array(N)).size == 1:
-            N = int(_np.rint((N / 4.0) ** (1 / 3.0)))
-            N = [N, N, N]
+    def __init__(self, E, N, a, rotangles):
         lconst = [a, a, a]
         unitcell = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
-        grid.__init__(self, lconst, langle, unitcell, N, rotangles, E)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, rotangles)
 
 
-class gridhcp(grid):
+class hcp(crystal):
     '''
     a hcp crystal
     '''
 
-    def __init__(self, N, a, E, rotangles):
-        if (_np.array(N)).size == 1:
-            N = int(_np.rint((N / 2.0) ** (1 / 3.0)))
-            N = [N, N, N]
+    def __init__(self, E, N, a, rotangles):
         lconst = [a, a, 1.633 * a]
         unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
         langle = _np.array([90, 90, 120]) * pi / 180.0
-        grid.__init__(self, lconst, langle, unitcell, N, rotangles, E)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, rotangles)
 
 
-class gridcuso4(grid):
+class cuso4(crystal):
     '''
     cuso4 crsystal with fixed lattice constant
     '''
 
     def __init__(self, N, E, rotangles):
-        N = int(_np.rint((N / 2.0) ** (1 / 3.0)))
         # https://doi.org/10.1524%2Fzkri.1975.141.5-6.330
         unitcell = [[0, 0, 0], [0.5, 0.5, 0]]
         lconst = _np.array([6.141, 10.736, 5.986]) * 1e-4
         langle = _np.array([82.27, 107.43, 102.67]) * pi / 180.0
-        Ns = [N, N, N]
-        grid.__init__(self, lconst, langle, unitcell, Ns, rotangles, E)
-
-
-class hcpspheres(atoms):
-    '''
-    densly hcp packed spheres
-    '''
-
-    def __init__(self, Nhcp, Nsphere, a, r, E, rotangles, sigma=0):
-        if (_np.array(Nhcp)).size == 1:
-            Nhcp = int(_np.rint((Nhcp / 2.0) ** (1 / 3.0)))
-            Nhcp = [Nhcp, Nhcp, Nhcp]
-        lconst = [a, a, 1.633 * a]
-        unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
-        langle = _np.array([90, 90, 120]) * pi / 180.0
-        self._hcppos = grid._lattice(lconst, langle, unitcell, Nhcp, sigma)
-        if _np.any(rotangles):
-            self._rotmatrix = grid._rotation(*rotangles)
-            self._hcppos = _np.matmul(self._hcppos, self._rotmatrix)
-        else:
-            self._rotmatrix = None
-        import random
-
-        pos = []
-        for p in self._hcppos:
-            rr = random.gauss(r, 0.1 * r)
-            pos.append(sphere._rndSphere(rr, Nsphere) + p)
-        pos = _np.concatenate(pos)
-        atoms.__init__(self, E, pos)
-        self.rndPos = False
-        self.rndOrientation = False
-        self._Nhcp, self._Nsphere, self._r, self._a, self._sigma = Nhcp, Nsphere, r, a, sigma
-        self._lconst, self._langle, self._unitcell = lconst, langle, unitcell
-
-    def get(self):
-        if self._sigma != 0 and self.rndPos:
-            self._hcppos = grid._lattice(self._lconst, self._langle, self._unitcell, self._Nhcp, self._sigma)
-        if self.rndOrientation:
-            rotmatrix = grid._random_rotation()
-            self._hcppos = _np.matmul(self._hcppos, rotmatrix)
-        if self.rndOrientation or self.rndPos:
-            import random
-
-            pos = []
-            for p in self._hcppos:
-                rr = random.gauss(self._r, 0.2 * self._r)
-                pos.append(sphere._rndSphere(rr, self._Nsphere) + p)
-            self._pos = _np.concatenate(pos)
-        return atoms.get(self)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, rotangles)

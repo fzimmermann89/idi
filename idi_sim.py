@@ -8,7 +8,7 @@ import numpy as np
 from numpy import pi
 
 ##input parsing
-parser = OptionParser(usage="usage: %prog [options] sphere/gridsc/gridfcc/gridblocks")
+parser = OptionParser(usage="usage: %prog [options] sphere/sc/fcc/hcp/cuso4")
 parser.add_option('-d', '--Ndet', dest='Ndet', type='int', default=512,
                   help="Number of pixels on detector (default: 512)")
 parser.add_option('-r', dest='r', type='float', default=50,
@@ -34,11 +34,11 @@ def cb_Nunitcell(option, opt, value, parser):
 parser.add_option('--Nunitcells', type='string', action='callback', dest='Nunitcells', default=None, callback=cb_Nunitcell,
                   help="grid: nx,ny,nz Number of unitcells in x y and z direction, overrides Natoms (default: use Natoms)")
 parser.add_option('--anglex', type='float', dest='ax', default=0,
-                  help="grid: Rotation angle in degree (default: 0)")
+                  help="crystal: Rotation angle in degree (default: 0)")
 parser.add_option('--angley', type='float', dest='ay', default=0,
-                  help="grid: Rotation angle in degree (default: 0)")
+                  help="crystal: Rotation angle in degree (default: 0)")
 parser.add_option('--anglez', type='float', dest='az', default=0,
-                  help="grid: Rotation angle in degree (default: 0)")
+                  help="crystal: Rotation angle in degree (default: 0)")
 parser.add_option('-f', '--fixedpositions', action='store_false', dest='rndpos', default=True,
                   help="sphere: no randomly changing positions")
 parser.add_option('--nocuda', action='store_false', dest='cuda', default=True,
@@ -64,25 +64,25 @@ k = 2 * pi / (1.24 / E)  # in 1/um
 
 if simtype == 'sphere':
     r = options.r * 1e-3  # in um
-    simobject = sim.simobj.sphere(Natoms, r, E)
+    simobject = sim.simobj.sphere(E, Natoms, r)
     simobject.rndPhase = rndphase
     simobject.rndPos = rndpos
 else:
     a = options.a * 1e-4  # in um
     N = options.Nunitcells if options.Nunitcells is not None else Natoms
     print(N)
-    if simtype == 'gridsc':
-        simobject = sim.simobj.gridsc(N, a, E, rotangles)
-    elif simtype == 'gridfcc':
-        simobject = sim.simobj.gridfcc(N, a, E, rotangles)
-    elif simtype == 'gridcuso4':
-        simobject = sim.simobj.gridcuso4(N, E, rotangles)
-    elif simtype == 'gridhcp':
-        simobject = sim.simobj.gridhcp(N, a, E, rotangles)
+    if simtype == 'sc':
+        simobject = sim.simobj.sc(E, N, a, rotangles)
+    elif simtype == 'fcc':
+        simobject = sim.simobj.fcc(E, N, a, rotangles)
+    elif simtype == 'cuso4':
+        simobject = sim.simobj.cuso4(E, N, rotangles)
+    elif simtype == 'hcp':
+        simobject = sim.simobj.hcp(E, N, a, rotangles)
     else:
         raise NotImplementedError("unknown object to simulate")
     if rndpos:
-         raise NotImplementedError("rndpos for grids not implemented")
+         raise NotImplementedError("rndpos for crsyals not implemented")
     simobject.rndPhase = rndphase
 if options.cuda:
     result = sim.cuda.simulate(Nimg, simobject, Ndet, pixelsize, detz, k)
