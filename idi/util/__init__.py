@@ -229,3 +229,25 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
         if fastlen >= x:
             return fastlen
     return length
+
+
+def split(x,dx,v=None):
+    '''
+    splits an array x into parts dx appart
+    x: 1d array
+    dx: scalar
+    v (optional): splits v along first axis as x would be split
+    returns a list of parts of the array, with empty arrays for empty intervals
+    '''
+    sid=_np.argsort(x)
+    s=x[sid]
+    ids=[]
+    last=0
+    for upper in _np.arange(0,s[-1],dx):
+        last+=_np.argmax(s[last:]>upper)
+        ids.append(last)
+    ids.append(len(s))
+    if v is None:
+        return [s[start:stop] for start,stop in zip(ids[0:-1],ids[1:])]
+    else:
+        return [v[sid[start:stop],...] for start,stop in zip(ids[0:-1],ids[1:])]
