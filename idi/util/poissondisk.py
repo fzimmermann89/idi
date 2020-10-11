@@ -16,7 +16,7 @@ def poisson_disc_sample(r, d, N=_np.inf, ndim=3, k=10, method='auto'):
     method: string
         'darts': throw darts and check if darts fit
         'bridson' use bridson algorithm
-        'bridson_dense': use bridson algorithm with minum distance between sample canditates. will result in denser samples
+        'bridson_dense': use bridson algorithm with minimum distance between sample canditates. will result in denser samples
         'auto': will use darts for small N and bridson only for big N
     k: fidelity parameter, should be >10 for good results
     '''
@@ -25,8 +25,14 @@ def poisson_disc_sample(r, d, N=_np.inf, ndim=3, k=10, method='auto'):
         raise ValueError('ndim should be integer >=1')
     if r<0 or d<0:
         raise ValueError('r and d should be positive')
-    if ((N > 0.75*(1.33*r/d)**(ndim) or N>1e6) and method == 'auto') or (method == 'bridson' or method=='bridson_fix'):
-        fixd=method=='bridson_fix'
+    if d==0:
+        if 'bridson' in method:
+            raise ValueError('bridson needs d>0')
+        if not _np.isfinite(N):
+            raise ValueError('Zero distance would cause infinite number of spheres. Limit N or set distance >0')    
+        method='darts'
+    if (method == 'auto' and (N > 0.75*(1.33*r/d)**(ndim) or N>1e6)) or (method == 'bridson' or method=='bridson_dense'):
+        fixd=method=='bridson_dense'
         cellsize = d / _math.sqrt(ndim)
         grid_shape = int(_np.ceil((2 * r + 2 * d) / cellsize))
         grid = _np.zeros(ndim * [grid_shape], dtype=_np.int64)
@@ -116,7 +122,7 @@ def _poisson_disc_sample_darts(r, mindistance, N, d=3, m=None, k=10):
     """
     throwing darts and checking using ndtree
     """
-    N = _np.clip(N,1, (1.35*r/mindistance)**(d))
+    N = _np.clip(N,1, (1.35*r/mindistance)**(d)) if mindistance > 0 else N
     if m is None:
         m = max(1, N / 4)
     m = int(min(N, m))

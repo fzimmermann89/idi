@@ -122,7 +122,7 @@ class multisphere(atoms):
         n = _np.random.poisson(p / _np.sum(p) * self._N)
         missing = self._N - _np.sum(n)
         while missing:
-            ids=_np.random.choice(len(n),int(abs(missing)),replace=True,p=n/(_np.sum(n)))
+            ids=_np.random.choice(len(n),int(abs(missing)),replace=True,p=p/(_np.sum(p)))
             _np.add.at(n,ids,_np.sign(missing))
             n[n<0]=0
             missing = self._N - _np.sum(n)
