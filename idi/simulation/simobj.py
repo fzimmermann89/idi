@@ -93,19 +93,20 @@ class multisphere(atoms):
         """
         Multiple Spheres
         Parameters:
-        Natoms: total number of excited atoms
+        Natoms: total number of excited atoms, if negative: mean number per sphere
         rsphere: radius of each spehre
         fwhmfocal: the number of atoms per sphere scales gaussian with the distance from the center. this sets the fhwm of the gaussian.
         spacing: thickness of atom-free layer around each sphere
         Nspheres: max. total number of particles in volume
         """
-        self._N = Natoms
+       
         self._Nspheres = Nspheres
         self.rsphere = rsphere
         self.fwhmfocal = fwhmfocal
         self.spacing = spacing
         self.rndPos = True
         self._debug = None
+        self._N = int(-Natoms*_np.mean([len(self._spherepos()) for i in range(10)])) if Natoms<0 else Natoms
         atoms.__init__(self, E, self._atompos())
 
     def _spherepos(self):
@@ -116,16 +117,20 @@ class multisphere(atoms):
         calculate position of atoms
         """
         posspheres = self._spherepos()
-        r = _np.sqrt(_np.sum(posspheres ** 2, axis=1))
-        p = _np.exp(-_np.square((r) / (0.4 * self.fwhmfocal)) / 2.0)
+        r2 = (_np.sum(posspheres ** 2, axis=1))
+        p = _np.exp(-r2*(1/(0.4 * self.fwhmfocal))**2 / 2.0)
         n = _np.random.poisson(p / _np.sum(p) * self._N)
         missing = self._N - _np.sum(n)
         while missing:
-            w = min(len(n) // 4, int(abs(missing)))
-            n[_np.argsort(n)[: -w - 1 : -1]] += int(_math.copysign(1, missing))
-            missing -= _math.copysign(w, missing)
+            ids=_np.random.choice(len(n),int(abs(missing)),replace=True,p=n/(_np.sum(n)))
+            _np.add.at(n,ids,_np.sign(missing))
+            n[n<0]=0
+            missing = self._N - _np.sum(n)
         nc = _np.cumsum(n)
-        posatoms = sphere._rndSphere(self.rsphere, int(self._N))
+        if self.rsphere>0:
+            posatoms = sphere._rndSphere(self.rsphere, int(self._N))
+        else:
+            posatoms = _np.zeros((self._N,3))
         multisphere._staggeredadd(posspheres, posatoms, nc)
         self._debug = (len(posspheres), _np.min(n), _np.max(n), _np.mean(n))
         return posatoms
