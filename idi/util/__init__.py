@@ -82,7 +82,7 @@ def rebin(ndarray, n, operation='mean'):
     if not (_np.size(n)==1 or _np.size(n)==_np.ndim(ndarray)):
         raise ValueError("n should be scalar or of same length as ndarray has dimensions")
     newshape = _np.array(ndarray.shape)//n
-    return bin(ndarray[tuple((slice(None, s) for s in n*newshape))], newshape, operation)
+    return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n*newshape))]), newshape, operation)
 
 
 def centered_part(arr, newshape):
