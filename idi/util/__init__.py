@@ -45,14 +45,17 @@ def cutnan(array):
     return array[ind1, :][:, ind0]
 
 
-def rebin(arr, n):
-    #deprecated
-    shape = (arr.shape[0] // 2 ** n, 2 ** n, arr.shape[1] // 2 ** n, 2 ** n, arr.shape[2] // 2 ** n, 2 ** n)
-    return arr.reshape(shape).mean(-1).mean(1).mean(-2)
 
 
 # https://stackoverflow.com/a/29042041
 def bin(ndarray, new_shape, operation='sum'):
+    '''
+    bin an ndarray
+    ndarray: nd-array
+    new_shape: shape to bin to. shape of ndarray has to be integer multiple of new_shape along each dimension
+    operation: string. sum, mean, max, or min. operation to use
+    
+    '''
     ops = ['sum', 'mean', 'max', 'min']
     operation = operation.lower()
     if operation not in ops:
@@ -66,6 +69,20 @@ def bin(ndarray, new_shape, operation='sum'):
         op = getattr(ndarray, operation)
         ndarray = op(-1 * (i + 1))
     return ndarray
+
+def rebin(ndarray, n, operation='mean'):
+    '''
+    rebin an ndarray
+    parameters:
+    ndarray: nd-array
+    n: scalar or list, factor to bin with. if scalar, same factor along all dimensions
+    operation: string. sum, mean, max, or min. operation to use
+    if n doesnt divide arr along one dimensions, last elements of n will silently be dropped
+    '''
+    if not (_np.size(n)==1 or _np.size(n)==_np.ndim(ndarray)):
+        raise ValueError("n should be scalar or of same length as ndarray has dimensions")
+    newshape = _np.array(ndarray.shape)//n
+    return bin(ndarray[tuple((slice(None, s) for s in n*newshape))], newshape, operation)
 
 
 def centered_part(arr, newshape):
