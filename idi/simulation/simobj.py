@@ -69,7 +69,29 @@ class sphere(atoms):
             self._pos = self._rndSphere(self._r, self._N)
         return atoms.get(self)
 
+class gauss(atoms):
+    '''
+    a gaussian shaped volume with random positions inside
+    '''
 
+    def __init__(self, E, N, fwhm):
+        pos = self._rndGauss(fwhm, N)
+        atoms.__init__(self, E, pos)
+        self._fwhm = fwhm
+        self.rndPos = True
+
+    @staticmethod
+    def _rndGauss(fwhm, N):
+        return _np.random.randn(N,3)*fwhm
+
+    def get(self):
+        if self.rndPos:
+            self._pos = self._rndGauss(self._fwhm, self._N)
+        return atoms.get(self)
+
+    
+    
+    
 from ..util import poisson_disc_sample as _pds
 
 
