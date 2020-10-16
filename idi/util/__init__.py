@@ -18,7 +18,7 @@ def radial_profile(data, center=None, calcStd=False, os=1):
     os: oversample by a factor. With default 1 the stepsize will be 1 pixel, with 2 it will be .5 pixels etc. 
     '''
     if center is None:
-        center=_np.array(data.shape)//2
+        center = _np.array(data.shape) // 2
     if len(center) != data.ndim:
         raise TypeError('center should be of length data.ndim')
     center = _np.array(center)[tuple([slice(len(center))] + data.ndim * [None])]
@@ -29,7 +29,7 @@ def radial_profile(data, center=None, calcStd=False, os=1):
     radialprofile = databin / nr
     if not calcStd:
         return radialprofile
-    
+
     data2bin = _np.bincount(r.ravel(), (_np.nan_to_num(data ** 2)).ravel())
     radial2profile = data2bin / nr
     std = _np.sqrt(radial2profile - radialprofile ** 2)
@@ -43,8 +43,6 @@ def cutnan(array):
     ind0 = ~_np.all(_np.isnan(array), axis=0)
     ind1 = ~_np.all(_np.isnan(array), axis=1)
     return array[ind1, :][:, ind0]
-
-
 
 
 # https://stackoverflow.com/a/29042041
@@ -70,6 +68,7 @@ def bin(ndarray, new_shape, operation='sum'):
         ndarray = op(-1 * (i + 1))
     return ndarray
 
+
 def rebin(ndarray, n, operation='mean'):
     '''
     rebin an ndarray
@@ -79,10 +78,10 @@ def rebin(ndarray, n, operation='mean'):
     operation: string. sum, mean, max, or min. operation to use
     if n doesnt divide arr along one dimensions, last elements of n will silently be dropped
     '''
-    if not (_np.size(n)==1 or _np.size(n)==_np.ndim(ndarray)):
+    if not (_np.size(n) == 1 or _np.size(n) == _np.ndim(ndarray)):
         raise ValueError("n should be scalar or of same length as ndarray has dimensions")
-    newshape = _np.array(ndarray.shape)//n
-    return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n*newshape))]), newshape, operation)
+    newshape = _np.array(ndarray.shape) // n
+    return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n * newshape))]), newshape, operation)
 
 
 def centered_part(arr, newshape):
@@ -144,18 +143,17 @@ def fill(data, invalid=None):
     return data[tuple(ind)]
 
 
-def photons_localmax(img, E, thres=0.):
+def photons_localmax(img, E, thres=0.0):
     '''
     photonize image. First count whole photons. Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
     '''
-    data = (img * (img>0)) / E
-    photons = _np.floor(data) #whole photons
+    data = (img * (img > 0)) / E
+    photons = _np.floor(data)  # whole photons
     remainder = data - photons
-    remainder_ismax = _np.logical_and(remainder == _snd.filters.maximum_filter(remainder, 3), remainder>thres)
+    remainder_ismax = _np.logical_and(remainder == _snd.filters.maximum_filter(remainder, 3), remainder > thres)
     el = _snd.morphology.generate_binary_structure(2, 1)
-    photons += _np.rint(_snd.filters.convolve(remainder, el) * remainder_ismax) #sum over neighbours
+    photons += _np.rint(_snd.filters.convolve(remainder, el) * remainder_ismax)  # sum over neighbours
     return photons
-
 
 
 def photons_simple(img, E, ev_per_adu=3.65, bg=0):
@@ -166,23 +164,24 @@ def create_mask(img, lowthres=50, highthres=95, sigma=10):
     '''
     create mask by high/low threshold in blurred image. WIP
     '''
-    blured=_snd.gaussian_filter(img,sigma)
-    blured[img==0]=_np.nan
-    #blured[img<_np.nanpercentile(blured,5)]=_np.nan
-    low=blured<=_np.nanpercentile(blured,lowthres)
-    high=blured>=_np.nanpercentile(blured,highthres)
-    mask=_np.logical_or(high,low)
-    mask[img==0]=True
-    mask_cleaned=_snd.morphology.binary_dilation(mask,_snd.morphology.generate_binary_structure(2,1),2)
-    mask_cleaned=_snd.morphology.binary_closing(mask_cleaned,_snd.morphology.generate_binary_structure(2,1),20)
-    mask_cleaned=_snd.morphology.binary_dilation(mask_cleaned,_snd.morphology.generate_binary_structure(2,2),2)
-    mask=_np.logical_or(mask,mask_cleaned)
-    
-    #hotpixel
-    hotpixel=img>(_np.mean(img[~mask])+5*_np.std(img[~mask]))
-    hotpixel=_snd.morphology.binary_dilation(hotpixel,_snd.morphology.generate_binary_structure(2,2),2)
-    mask[hotpixel]=True
+    blured = _snd.gaussian_filter(img, sigma)
+    blured[img == 0] = _np.nan
+    # blured[img<_np.nanpercentile(blured,5)]=_np.nan
+    low = blured <= _np.nanpercentile(blured, lowthres)
+    high = blured >= _np.nanpercentile(blured, highthres)
+    mask = _np.logical_or(high, low)
+    mask[img == 0] = True
+    mask_cleaned = _snd.morphology.binary_dilation(mask, _snd.morphology.generate_binary_structure(2, 1), 2)
+    mask_cleaned = _snd.morphology.binary_closing(mask_cleaned, _snd.morphology.generate_binary_structure(2, 1), 20)
+    mask_cleaned = _snd.morphology.binary_dilation(mask_cleaned, _snd.morphology.generate_binary_structure(2, 2), 2)
+    mask = _np.logical_or(mask, mask_cleaned)
+
+    # hotpixel
+    hotpixel = img > (_np.mean(img[~mask]) + 5 * _np.std(img[~mask]))
+    hotpixel = _snd.morphology.binary_dilation(hotpixel, _snd.morphology.generate_binary_structure(2, 2), 2)
+    mask[hotpixel] = True
     return mask
+
 
 def diffdist(*args):
     '''
@@ -193,6 +192,7 @@ def diffdist(*args):
         accum += _np.diff(arg) ** 2
     return _np.sqrt(accum)
 
+
 def atleastnd(array, n):
     """
     adds dimensions of length 1 in front of array to get to n dimensions
@@ -201,10 +201,13 @@ def atleastnd(array, n):
 
 
 import itertools as _it
+
+
 def fastlen(x, factors=(2, 3, 5, 7, 11)):
     """
     return N>=x conisting only of the prime factors given as factors
-    """      
+    """
+   
     fastlens=(   
           1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,
          12,   14,   15,   16,   18,   20,   21,   22,   24,   25,   27,
@@ -240,7 +243,8 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
        3564, 3584, 3600, 3630, 3645, 3675, 3696, 3750, 3773, 3780, 3840,
        3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096
     )
-    if factors!=(2,3,5,7,11) or x>4235:
+    
+    if factors != (2, 3, 5, 7, 11) or x > 4235:
         fastlens = _np.unique([_np.product(_np.array(factors) ** _np.array(i)) for i in _it.product(*(range(int(1 + _np.log(x) / _np.log(k))) for k in factors))])
     for fastlen in fastlens:
         if fastlen >= x:
@@ -248,7 +252,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
     return length
 
 
-def split(x,dx,v=None):
+def split(x, dx, v=None):
     '''
     splits an array x into parts dx appart
     x: 1d array
@@ -256,15 +260,15 @@ def split(x,dx,v=None):
     v (optional): splits v along first axis as x would be split
     returns a list of parts of the array, with empty arrays for empty intervals
     '''
-    sid=_np.argsort(x)
-    s=x[sid]
-    ids=[]
-    last=0
-    for upper in _np.arange(0,s[-1],dx):
-        last+=_np.argmax(s[last:]>upper)
+    sid = _np.argsort(x)
+    s = x[sid]
+    ids = []
+    last = 0
+    for upper in _np.arange(0, s[-1], dx):
+        last += _np.argmax(s[last:] > upper)
         ids.append(last)
     ids.append(len(s))
     if v is None:
-        return [s[start:stop] for start,stop in zip(ids[0:-1],ids[1:])]
+        return [s[start:stop] for start, stop in zip(ids[0:-1], ids[1:])]
     else:
-        return [v[sid[start:stop],...] for start,stop in zip(ids[0:-1],ids[1:])]
+        return [v[sid[start:stop], ...] for start, stop in zip(ids[0:-1], ids[1:])]
