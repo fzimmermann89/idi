@@ -1,8 +1,9 @@
 __all__ = ['cpu', 'simobj', 'cuda', 'common']
-from . import cpu, simobj, common
+from . import cpu, simobj, common, time
 
 try:
     from . import cuda
+    from . import cutime
     auto = cuda
 except ImportError as _e:
     if "cuda" in _e.args[0] or "libcu" in _e.args[0]:

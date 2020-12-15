@@ -30,18 +30,20 @@ def _integral(amp, t0, tau):
     t0s = t0s[np.arange(t0s.shape[0])[:, None], idx]
     amps = np.atleast_2d(amp)
     amps = amps[np.arange(amps.shape[0])[:, None], idx]
-    i = ab2(decaysum(amps, t0s, tau))
+    i = _ab2(_decaysum(amps, t0s, tau))
     td = np.diff(t0s, axis=-1)
     return np.sum(-tau / 2 * i[:, :-1] * np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
 def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, verbose=True):
-    if _np.size(Ndet) == 1:
+    if np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     blocksize = 4
     dets = np.array(
         np.meshgrid(
-            pixelsize * np.arange(Ndet[0]) - (Ndet[0] / 2), pixelsize * (np.arange(Ndet[1]) - Ndet[1] / 2), detz
+            pixelsize * (np.arange(Ndet[0]) - (Ndet[0] / 2)), 
+            pixelsize * (np.arange(Ndet[1]) - (Ndet[1] / 2)), 
+            detz
         )
     ).T
     res = []
@@ -50,7 +52,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, verbose=True):
         d = np.linalg.norm((g[:, :3] - det[:, None, :]), axis=-1)  # distance
         e = 1 / d * np.exp(1j * k * d)  # complex e field
         d = c * d + g[:, -1]  # arrival time
-        d -= t.min(axis=-1)[:, None]
+        d -= d.min(axis=-1)[:, None]
         i = _integral(e, d, tau)
         res.append(i)
     res = np.array(res).reshape(Ndet[0], Ndet[1])
