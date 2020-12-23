@@ -3,7 +3,7 @@ from numba import cuda
 import math
 import cupy as cp
 import numpy as np
-
+import numexpr as ne
 
 @numba.njit(parallel=True)
 def _decaysum(a, t, tau):
@@ -35,7 +35,7 @@ def _integral(amp, t0, tau):
     return np.sum(-tau / 2 * i[:, :-1] * np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, verbose=True):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth):
     if np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     blocksize = 4
@@ -47,13 +47,17 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, verbose=True):
         )
     ).T
     res = []
-    g = simobject.get_time()
+    data = simobject.get()
+    times = np.random.randn(simobject.N)*(pulsewidth/2.35)-data[:,2]/c
+
     for det in dets.reshape(-1, blocksize, 3):
-        d = np.linalg.norm((g[:, :3] - det[:, None, :]), axis=-1)  # distance
-        e = 1 / d * np.exp(1j * k * d)  # complex e field
-        d = c * d + g[:, -1]  # arrival time
-        d -= d.min(axis=-1)[:, None]
-        i = _integral(e, d, tau)
+        detnorm = np.linalg.norm(det)
+        d = np.linalg.norm((data[:, :3] - det[:, None, :]), axis=-1)  # distance
+        phases=data[:, 3]
+        e = ne.evaluate('exp(1j * (k * (d - detnorm) + phases))/d')  # complex e field
+        t = d/c + times.T  # arrival time
+        t -= t.min(axis=-1)[:, None]
+        i = _integral(e, t, tau)
         res.append(i)
     res = np.array(res).reshape(Ndet[0], Ndet[1])
     return res
