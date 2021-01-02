@@ -3,7 +3,7 @@ import cupy as _cp
 from ..util import fastlen as _fastlen
 
 
-def corr(input, axes=(-1, -2), norm=False, returngpu=False):
+def corr(input, axes=(-1, -2), norm=False, returngpu=False, **kwargs):
     '''
     simple autocorrelation of input along axes (default: last two) using gpu
     axes: axes to correlate along, defaults to last two
