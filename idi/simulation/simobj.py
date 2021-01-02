@@ -310,8 +310,9 @@ class crystal(atoms):
     def get(self):
         missing = self.N
         idx = []
+        r = _np.random.default_rng(_np.random.randint(2**31)) #to be able to use np.seed() to seed this as well
         while missing:
-            new = _np.random.choice(len(self._allpos), min(missing, len(self._allpos)), replace=False)
+            new = r.choice(len(self._allpos), min(missing, len(self._allpos)), replace=False)
             idx.append(new)
             missing -= len(new)
         idx = _np.concatenate(idx)

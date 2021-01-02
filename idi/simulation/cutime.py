@@ -215,7 +215,7 @@ import numpy as np
 
 module=cupy.RawModule(code=code,backend='nvcc',options=('-dc','--std=c++11','--expt-relaxed-constexpr','-O3','--use_fast_math'))
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, precision='mixed'): 
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, precision='mixed', threads=None): 
     cupy.random.seed(np.random.randint(2**64-1,dtype=np.uint64))
     if precision == 'mixed':
         ftempsize=module.get_function("tempsizedf")
@@ -233,14 +233,15 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, precision=
         raise ValueError
     
     N=simobject.N
-    if N>1e8:
-        threads=1
-    elif N>1e7:
-        threads=2
-    elif N>1e6:
-        threads=4
-    else:
-        threads=8
+    if threads is None:
+        if N>1e8:
+            threads=1
+        elif N>1e7:
+            threads=2
+        elif N>1e6:
+            threads=4
+        else:
+            threads=8
               
     if np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
