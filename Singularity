@@ -127,8 +127,8 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 . /etc/profile.d/conda.sh
 echo "installing conda extensions"
 conda activate
-conda install -q -y "numpy>=1.17" hdf5 scipy numba numexpr mkl cython  "jupyterlab=2.1"  jupyter scikit-image appdirs mako scikit-learn "python>=3.7" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
-conda install -q -y -c  conda-forge -c plotly lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
+conda install -q -y conda "numpy>=1.17" hdf5 scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2.6"  jupyter scikit-image appdirs mako scikit-learn "python>=3.7" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
+conda install -q -y -c  conda-forge -c plotly lmfit "numexpr>=2.7.2" ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
 conda clean -a -y &
 
 
@@ -143,9 +143,9 @@ jupyter labextension install @jupyterlab/google-drive --no-build
 jupyter labextension install jupyterlab-plotly --no-build
 jupyter labextension install @jupyterlab/server-proxy --no-build
 
-pip install -q --upgrade jupyterlab-git jupyterlab_code_formatter  jupyterlab_latex jupyter-dash
+pip install -q --upgrade jupyterlab-git "jupyterlab_code_formatter<1.4"  jupyterlab_latex jupyter-dash
 jupyter labextension install @jupyterlab/latex --no-build
-jupyter labextension install @ryantam626/jupyterlab_code_formatter --no-build
+jupyter labextension install "@ryantam626/jupyterlab_code_formatter@<1.4" --no-build
 jupyter labextension install @jupyterlab/git --no-build
 jupyter labextension install @jupyterlab/debugger --no-build
 jupyter labextension install  jupyterlab-dash --no-build
@@ -154,8 +154,8 @@ jupyter serverextension enable --sys-prefix jupyterlab_latex
 jupyter serverextension enable --py jupyterlab_git --sys-prefix
 jupyter serverextension enable --py jupyter_server_proxy --sys-prefix
 jupyter serverextension enable --py nbdime --sys-prefix
-echo 'waiting'
 
+echo 'waiting'
 sleep 10
 wait #make sure not to run out of memory
 sleep 30
