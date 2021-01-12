@@ -254,29 +254,13 @@ class crystal(atoms):
         cosa, cosb, cosc = _np.cos(_np.array(langle))
         sina, sinb, sinc = _np.sin(_np.array(langle))
         basis = _np.array([[1, 0, 0], [cosc, sinc, 0], [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],]) * _np.expand_dims(lconst, 1)
+        
         atoms = _np.dot(unitcell, basis)
-        atoms += sigma * _np.random.rand(*atoms.shape)
+        if sigma!=0: atoms += sigma * _np.random.rand(*atoms.shape)
 
-        tmpatoms = []
-        for i in range(repeats[0]):
-            offset = basis[0] * i
-            tmpatoms.append(atoms + offset[_np.newaxis, :])
-        atoms = _np.concatenate(tmpatoms)
-        atoms += sigma * _np.random.rand(*atoms.shape)
-
-        tmpatoms = []
-        for j in range(repeats[1]):
-            offset = basis[1] * j
-            tmpatoms.append(atoms + offset[_np.newaxis, :])
-        atoms = _np.concatenate(tmpatoms)
-        atoms += sigma * _np.random.rand(*atoms.shape)
-
-        tmpatoms = []
-        for k in range(repeats[2]):
-            offset = basis[2] * k
-            tmpatoms.append(atoms + offset[_np.newaxis, :])
-        atoms = _np.concatenate(tmpatoms)
-        atoms += sigma * _np.random.rand(*atoms.shape)
+        for j in range(3):
+            atoms = _np.concatenate([atoms + (basis[j] * k)[_np.newaxis, :] for k in range(repeats[j])])
+            if sigma!=0: atoms += sigma * _np.random.rand(*atoms.shape)
 
         return atoms - _np.max(atoms, axis=0) / 2.0
 
