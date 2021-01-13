@@ -45,7 +45,6 @@ def corr(input, z,verbose = False):
         err = autocorrelate3.autocorrelate3(tmp)
         if err:
             raise RuntimeError(f'cython autocorrelations failed with error code {err}')
-        _np.add(self.accum, self._tmp[:self.qlenz,...], out=self.accum)
         return tmp[:tmp.shape[0] // 2, ...]
     
     if input.ndim == 2:
