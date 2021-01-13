@@ -234,7 +234,7 @@ class crystal(atoms):
     a crystalline structure
     '''
 
-    def __init__(self, E, lconst, langle, unitcell, N, repeats = None, rotangles = [0,0,0]):
+    def __init__(self, E, lconst, langle, unitcell, N, repeats = None, rotangles = [0,0,0], fwhm = None):
         if repeats is None :
             repeats = 3 * [int(_np.rint((N / len(unitcell)) ** (1 / 3.0)))]
         pos = crystal._lattice(lconst, langle, unitcell, repeats)
@@ -248,6 +248,11 @@ class crystal(atoms):
         self._pos = None
         self.rndOrientation = False
         self._N = int(N)
+        if fwhm is not None:
+            self._p = _np.exp(-_np.sum((pos**2)/(2*(fwhm/2.35)**2),-1))
+            self._p /= _np.sum(self._p)
+        else:
+            self._p = None
         
     @staticmethod
     def _lattice(lconst, langle, unitcell, repeats, sigma=0):
@@ -255,12 +260,12 @@ class crystal(atoms):
         sina, sinb, sinc = _np.sin(_np.array(langle))
         basis = _np.array([[1, 0, 0], [cosc, sinc, 0], [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],]) * _np.expand_dims(lconst, 1)
         
-        atoms = _np.dot(unitcell, basis)
-        if sigma!=0: atoms += sigma * _np.random.rand(*atoms.shape)
+        atoms = _np.dot(unitcell, basis).astype(_np.float32)
+        if sigma!=0: atoms += (sigma * _np.random.rand(*atoms.shape)).astype(_np.float32)
 
         for j in range(3):
-            atoms = _np.concatenate([atoms + (basis[j] * k)[_np.newaxis, :] for k in range(repeats[j])])
-            if sigma!=0: atoms += sigma * _np.random.rand(*atoms.shape)
+            atoms = _np.concatenate([atoms + (basis[j] * k).astype(_np.float32)[_np.newaxis, :] for k in range(repeats[j])])
+            if sigma!=0: atoms += sigma * _np.random.rand(*atoms.shape).astype(_np.float32)
 
         return atoms - _np.max(atoms, axis=0) / 2.0
 
@@ -292,19 +297,26 @@ class crystal(atoms):
         return M
 
     def get(self):
+
+        if self.rndOrientation:
+            rotmatrix = crystal._random_rotation()
+            p = _np.matmul(p, rotmatrix.T)
+        else:
+            p = self._p
+                
         missing = self.N
         idx = []
         r = _np.random.default_rng(_np.random.randint(2**31)) #to be able to use np.seed() to seed this as well
         while missing:
-            new = r.choice(len(self._allpos), min(missing, len(self._allpos)), replace=False)
+            new = r.choice(len(self._allpos), min(missing, len(self._allpos)), replace=False, p=p)
             idx.append(new)
             missing -= len(new)
         idx = _np.concatenate(idx)
         self._pos = self._allpos[idx]
-
+        
         if self.rndOrientation:
-            rotmatrix = crystal._random_rotation()
             self._pos = _np.matmul(self._pos, rotmatrix)
+
         return atoms.get(self)
 
 
@@ -314,11 +326,11 @@ class sc(crystal):
     a sc crystal
     '''
 
-    def __init__(self, E, N, a, repeats=None, rotangles=[0,0,0]):
+    def __init__(self, E, N, a, repeats=None, rotangles=[0,0,0], fwhm=None):
         lconst = [a, a, a]
         unitcell = [[0, 0, 0]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
-        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles, fwhm)
 
 
 class fcc(crystal):
@@ -326,11 +338,11 @@ class fcc(crystal):
     a fcc crystal
     '''
 
-    def __init__(self, E, N, a, repeats=None, rotangles=[0,0,0]):
+    def __init__(self, E, N, a, repeats=None, rotangles=[0,0,0], fwhm=None):
         lconst = [a, a, a]
         unitcell = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
-        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles, fwhm)
 
 
 class hcp(crystal):
@@ -338,11 +350,11 @@ class hcp(crystal):
     a hcp crystal
     '''
 
-    def __init__(self, E, N, a, repeats=None, rotangles=[0,0,0]):
+    def __init__(self, E, N, a, repeats=None, rotangles=[0,0,0], fwhm=None):
         lconst = [a, a, 1.633 * a]
         unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
         langle = _np.array([90, 90, 120]) * pi / 180.0
-        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles, fwhm)
 
 
 class cuso4(crystal):
@@ -350,9 +362,9 @@ class cuso4(crystal):
     cuso4 crsystal with fixed lattice constant
     '''
 
-    def __init__(self, N, E, repeats=None, rotangles=[0,0,0]):
+    def __init__(self, N, E, repeats=None, rotangles=[0,0,0], fwhm=None):
         # https://doi.org/10.1524%2Fzkri.1975.141.5-6.330
         unitcell = [[0, 0, 0], [0.5, 0.5, 0]]
         lconst = _np.array([6.141, 10.736, 5.986]) * 1e-4
         langle = _np.array([82.27, 107.43, 102.67]) * pi / 180.0
-        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles)
+        crystal.__init__(self, E, lconst, langle, unitcell, N, repeats, rotangles, fwhm)
