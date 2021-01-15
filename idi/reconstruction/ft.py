@@ -69,10 +69,10 @@ def unwrap(img):
 
 
 
-class correlator:
+class correlator_tiles:
     def __init__(self, qs, maskout, meandata):
         """
-        3d fft correlator
+        3d fft correlator for tiled data
         qs: q vectors of data points, array of shape (T,P,3) with T: non overlapping tiles, P: pixels per tile
         maskout: points on detector that will not be used, array of shape (T,P)
         meandata: mean of data values used for normalisation, array of shape (T,P)
@@ -96,25 +96,36 @@ class correlator:
         self.qlenz = _np.max(q[~mask][:,0])+1 #unpadded
         self.q = q
         self.mask = _np.copy(mask)
-        tmp = _np.zeros((qlen[0], qlen[1], qlen[2] + 2))
-        _np.subtract(tmp, 0, out=tmp) #force allocation
-        self._tmp = tmp
-        accum = _np.zeros((self.qlenz,qlen[1], qlen[2] + 2))
-        _np.subtract(accum, 0, out=accum) #force allocation
-        self.accum = accum
+        self.accum = None
+        self._tmp = None
         assemblenorm = correlator._getnorm(q, mask)
         with _np.errstate(divide='ignore'):
             self.invmean = 1 / (mean * assemblenorm)
         self.invmean[~_np.isfinite(self.invmean)] = 0
         self._N = 0
         self.finished = False
+        self._qlen = qlen
 
     def suspend(self):
         """
         free tmp buffer
         """
         self._tmp = None
-
+        
+    def __exit__(self, *args):
+        self.suspend()
+        
+    def __enter__(self):
+        if self._tmp is None:
+            tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+            _np.subtract(tmp, 0, out=tmp) #force allocation
+            self._tmp = tmp
+        if self.accum is None:
+            accum = _np.zeros((self.qlenz,self._qlen[1], self._qlen[2] + 2))
+            _np.subtract(accum, 0, out=accum) #force allocation
+            self.accum = accum
+        return self
+    
     def add(self, data):
         """
         does correlation of data and adds to internal accumulator
@@ -127,9 +138,15 @@ class correlator:
         if self.finished:
             raise GeneratorExit('already finished')
         if self._tmp is None:
-            self._tmp = _np.zeros_like(self.accum)
-        # zero(self.data)
-        _zero(self._tmp)
+            tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+            _np.subtract(tmp, 0, out=tmp) #force allocation
+            self._tmp = tmp
+        else:
+            _zero(self._tmp)
+        if self.accum is None:
+            accum = _np.zeros((self.qlenz,self._qlen[1], self._qlen[2] + 2))
+            _np.subtract(accum, 0, out=accum) #force allocation
+            self.accum = accum
         d = d * self.invmean
         d[self.mask] = 0
         _addat(self._tmp, self.q, d)
@@ -144,6 +161,9 @@ class correlator:
         returns result of accumulated correlations
         finish: free accumulator and buffer.
         """
+        if self.accum is None:
+            return None
+        
         _zero(self._tmp)
         assemblenorm = _getnorm(self.q, self.mask)
         _addat(self._tmp, self.q, _np.sqrt(self.N) * _np.array(~self.mask, dtype=_np.float64) / assemblenorm)
@@ -210,6 +230,64 @@ def _zero(array):
         a[i] = 0
     return True
 
+
+class correlator:
+    def __init__(self, mask, z):
+        '''
+        3d fft correlator
+        mask: points on detector that will not be used, shape should be same as images to correlate
+        resolution is fixed at dq=1
+        '''
+        y, x = _np.meshgrid(_np.arange(mask.shape[1], dtype=_np.float64), _np.arange(mask.shape[0], dtype=_np.float64))
+        x -= mask.shape[0] / 2.0
+        y -= mask.shape[1] / 2.0
+        d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        qs = np.array([(k / d * z) for k in (z, y, x)])
+        qs = _np.rint(qs - _np.min(qs, (-1, -2), keepdims=True)).astype(int, copy=False)
+        qlen = [fastlen(k) for k in 2 * (_np.max(qs, (-1, -2)) + 1)]
+        maxq = _np.max(qs, (-1, -2))
+        hist = _np.histogramdd(qs.reshape(3, -1).T, bins=maxq + 1, range=[[-0.5, mq + 0.5] for mq in maxq], weights=~mask.ravel())[0]
+        count = hist[qs[0].ravel(), qs[1].ravel(), qs[2].ravel()].reshape(mask.shape)
+        count[mask] = 1
+        self._count = count
+        self._mask = mask
+        self._qlen = qlen
+        self._qs = qs
+        self._tmp = None
+
+    def corr(self, input, maxqz=_np.inf):
+        '''
+        correlate one or multiple images
+        return view that will be destroyed on next call, should be copied!
+        '''
+        if self._tmp is None:
+            self._tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+        if isinstance(input, _np.ndarray) and input.ndim == 2:
+            input = (input,)
+        for image in input:
+            _zero(self._tmp)
+            _np.add.at(self._tmp, (*self._qs,), image / self._count)
+            err = autocorrelate3.autocorrelate3(self._tmp)
+            if err:
+                raise RuntimeError(f"cython autocorrelations failed with error code {err}")
+            yield self._tmp[: min(self._tmp.shape[0] // 2, maxqz), ...]
+
+    def __enter__(self):
+        if self._tmp is None:
+            self._tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+        return self
+
+    def __exit__(self, *args):
+        self.suspend()
+
+    def suspend(self):
+        self._tmp = None
+
+    def unwrap(self, img):
+        """
+        unwraps a single correlation result
+        """
+        return _np.roll(img[..., :-2], shift=(img.shape[1] // 2, (img.shape[2] - 2) // 2), axis=(1, 2))
 
 
 
