@@ -4,7 +4,7 @@ from .accum import *
 from .filters import *
 from .funchelper import *
 from .poissondisk import *
-
+from . import h5util
 import numba as _numba
 import numpy as _np
 import scipy.ndimage as _snd
