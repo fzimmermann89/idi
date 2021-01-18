@@ -1,5 +1,5 @@
-from __future__ import division as _future_division, print_function as _future_print
-from six import print_ as _print
+#from __future__ import division as _future_division, print_function as _future_print
+#from six import print_ as _print
 import numpy as _np
 from . import autocorrelate3
 import numba as _numba
@@ -48,13 +48,13 @@ def corr(input, z,verbose = False):
         return tmp[:tmp.shape[0] // 2, ...]
     
     if input.ndim == 2:
-        if verbose:  _print('.', end=' ', flush=True)
+        if verbose:  print('.', end=' ', flush=True)
         return _corr(input, z)
     elif input.ndim == 3:
         s = _prepare(_np.zeros_like(input[0, ...]), z).shape
         res = _np.zeros((s[0] // 2, s[1], s[2]))
         for n, inp in enumerate(input):
-            if verbose: _print(n, end=' ', flush=True)
+            if verbose: print(n, end=' ', flush=True)
             _np.add(res, _corr(inp, z), out=res)
         return res
     else:
@@ -242,7 +242,7 @@ class correlator:
         x -= mask.shape[0] / 2.0
         y -= mask.shape[1] / 2.0
         d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
-        qs = np.array([(k / d * z) for k in (z, y, x)])
+        qs = _np.array([(k / d * z) for k in (z, y, x)])
         qs = _np.rint(qs - _np.min(qs, (-1, -2), keepdims=True)).astype(int, copy=False)
         qlen = [fastlen(k) for k in 2 * (_np.max(qs, (-1, -2)) + 1)]
         maxq = _np.max(qs, (-1, -2))
@@ -254,16 +254,8 @@ class correlator:
         self._qlen = qlen
         self._qs = qs
         self._tmp = None
-
-    def corr(self, input, maxqz=_np.inf):
-        '''
-        correlate one or multiple images
-        return view that will be destroyed on next call, should be copied!
-        '''
-        if self._tmp is None:
-            self._tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
-        if isinstance(input, _np.ndarray) and input.ndim == 2:
-            input = (input,)
+    
+    def _corr(self, input, maxqz):
         for image in input:
             _zero(self._tmp)
             _np.add.at(self._tmp, (*self._qs,), image / self._count)
@@ -271,6 +263,19 @@ class correlator:
             if err:
                 raise RuntimeError(f"cython autocorrelations failed with error code {err}")
             yield self._tmp[: min(self._tmp.shape[0] // 2, maxqz), ...]
+            
+    def corr(self, input, maxqz=_np.inf):
+        '''
+        correlate one or multiple images
+        return view that will be destroyed on next call, should be copied!
+        '''       
+        if self._tmp is None:
+            self._tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+        if isinstance(input, _np.ndarray) : 
+            return next(self._corr((input,), maxqz))
+        else:
+            return self._corr(input, maxqz)
+            
 
     def __enter__(self):
         if self._tmp is None:
