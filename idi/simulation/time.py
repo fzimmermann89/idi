@@ -1,7 +1,6 @@
 import numba
 from numba import cuda
 import math
-import cupy as cp
 import numpy as np
 import numexpr as ne
 
