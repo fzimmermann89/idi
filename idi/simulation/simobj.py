@@ -203,7 +203,7 @@ class hcpsphere(multisphere):
         if self.rndOrientation:
             self._rotmatrix = crystal._random_rotation()
         if self._rotmatrix:
-            return _np.matmul(self._hcp, self._rotmatrix)
+            return _np.matmul(self._rotmatrix, self._hcp.T, order='F').T
         else:
             return self._hcp
 
@@ -222,7 +222,7 @@ class xyz(atoms):
         pos = _np.genfromtxt(lines)[:, 1:] * scale
         if _np.any(rotangles):
             self._rotmatrix = crystal._rotation(*rotangles)
-            pos = _np.matmul(pos, self._rotmatrix)
+            pos = _np.matmul(self._rotmatrix, pos.T, order='F').T
         else:
             self._rotmatrix = None
         pos = pos - (_np.max(pos, axis=0) / 2.0)
@@ -240,7 +240,7 @@ class crystal(atoms):
         pos = crystal._lattice(lconst, langle, unitcell, repeats)
         if _np.any(rotangles):
             self._rotmatrix = crystal._rotation(*rotangles)
-            pos = _np.matmul(pos, self._rotmatrix)
+            pos = _np.matmul(self._rotmatrix, pos.T, order='F').T
         else:
             self._rotmatrix = None
         atoms.__init__(self, E, pos)
@@ -248,11 +248,8 @@ class crystal(atoms):
         self._pos = None
         self.rndOrientation = False
         self._N = int(N)
-        if fwhm is not None:
-            self._p = _np.exp(-_np.sum((pos**2)/(2*(fwhm/2.35)**2),-1))
-            self._p /= _np.sum(self._p)
-        else:
-            self._p = None
+        self._fwhm = fwhm
+        self._p = None
         
     @staticmethod
     def _lattice(lconst, langle, unitcell, repeats, sigma=0):
@@ -289,21 +286,42 @@ class crystal(atoms):
     @_numba.njit
     def _random_rotation(amount=1):
         # https://doc.lagout.org/Others/Game%20Development/Programming/Graphics%20Gems%203.pdf
-        theta, phi, z = _np.random.rand(3) * _np.array((2.0 * _np.pi * amount, 2.0 * _np.pi, amount))
+        theta, phi, z = _np.random.rand(3) * _np.array((2.0 * pi * amount, 2.0 * pi, amount))
         V = (_np.cos(phi) * _np.sqrt(z), _np.sin(phi) * _np.sqrt(z), _np.sqrt(1.0 - z))
         sint, cost = _np.sin(theta), _np.cos(theta)
         R = _np.array(((cost, sint, 0), (-sint, cost, 0), (0, 0, 1)))
         M = _np.dot(2 * _np.outer(V, V) - _np.eye(3), R)
         return M
+    
+    @staticmethod
+    @_numba.njit
+    def _axisrotation(axis, theta):
+        u = axis / _np.linalg.norm(axis.astype(_np.float64))
+        return (
+            _np.cos(theta) * _np.identity(3)
+            + _np.sin(theta) * _np.cross(_np.identity(3), u)
+            + (1 - _np.cos(theta)) * _np.outer(u, u)
+        )
+
 
     def get(self):
-
-        if self.rndOrientation:
-            rotmatrix = crystal._random_rotation()
-            p = _np.matmul(p, rotmatrix.T)
+        pos = self._allpos
+        if _np.any(self.rndOrientation):
+            if _np.size(self.rndOrientation) == 3:
+                rotmatrix = crystal._axisrotation(_np.array(self.rndOrientation, dtype=_np.float64), _random.random() * 2 * pi)
+            else:
+                rotmatrix = crystal._random_rotation()
+            pos = _np.matmul(rotmatrix, pos.T, order='F').T
+            self.p = None   
+        if self._fwhm is not None and self._p is None:
+            p= _np.exp(_ne.evaluate('sum(-pos**2 / (2*sigma**2), axis=1)',
+                                    local_dict={'sigma': self._fwhm/2.35, 'pos': pos}
+                                   )
+                      )
+            p /= _np.sum(p)
+            if not _np.any(self.rndOrientation): self._p = p
         else:
-            p = self._p
-                
+            p = self._p       
         missing = self.N
         idx = []
         r = _np.random.default_rng(_np.random.randint(2**31)) #to be able to use np.seed() to seed this as well
@@ -312,11 +330,7 @@ class crystal(atoms):
             idx.append(new)
             missing -= len(new)
         idx = _np.concatenate(idx)
-        self._pos = self._allpos[idx]
-        
-        if self.rndOrientation:
-            self._pos = _np.matmul(self._pos, rotmatrix)
-
+        self._pos = pos[idx]
         return atoms.get(self)
 
 
