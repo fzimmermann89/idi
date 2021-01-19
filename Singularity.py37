@@ -116,7 +116,7 @@ wget -q -O /tmp/install-tl-unx.tar.gz http://ftp.acc.umu.se/mirror/CTAN/systems/
 
 #miniconda
 echo "installing miniconda"
-wget -q -O /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py38_4.9.2-Linux-x86_64.sh
+wget -q -O /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh
 cd /tmp/&& bash /tmp/Miniconda3.sh -b -p /opt/anaconda3
 rm /tmp/Miniconda3.sh
 ln -s /opt/anaconda3/etc/profile.d/conda.sh /etc/profile.d/conda.sh
@@ -127,8 +127,8 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 . /etc/profile.d/conda.sh
 echo "installing conda extensions"
 conda activate
-conda install -q -y conda "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
-conda install -q -y -c  conda-forge -c plotly "h5py>3" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
+conda install -q -y conda "numpy>=1.17" "numexpr>=2.7.2" hdf5 h5py scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python=3.7" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
+conda install -q -y -c  conda-forge -c plotly lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
 conda clean -a -y &
 
 
