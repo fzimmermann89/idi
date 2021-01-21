@@ -4,6 +4,7 @@ CAVE: Hic sunt dracones
 
 IDI - INCOHERENT DIFFRACTION IMAGING
 
+[![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/4824)
 
 content    
 ------------
