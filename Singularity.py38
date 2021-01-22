@@ -32,6 +32,8 @@ PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/compilers_and_libraries/linux/mkl/bi
 export PKG_CONFIG_PATH
 LD_PRELOAD=/usr/local/lib64/mklpatch.so
 export LD_PRELOAD
+SHELL=/usr/bin/zsh
+export SHELL
 
 
 
@@ -42,7 +44,7 @@ yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.re
 yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm && yum update -y && yum upgrade -y
 yum install -y aria2 bsdtar curl git224 gzip lz4 p7zip p7zip-plugins perl-Digest-MD5 perl-File-Fetch perl-LWP-Protocol-https perl-Mozilla-CA perl-libwww-perl rsync unzip wget xz zip
 #intel-mkl-64bit-2020.3-111.x86_64 intel-mkl-gnu-2020.3-279.x86_64 intel-mkl-tbb-rt-2020.3-279.x86_64 
-yum install -y axel binutils cmake curl diffutils elfutils environment-modules gcc gcc-c++ gdb gettext ghostscript htop less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh && yum clean all && rm -rf /var/cache/yum &
+yum install -y axel binutils cmake curl diffutils elfutils environment-modules file gcc gcc-c++ gdb gettext ghostscript htop less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh  openssl openssl-devel pam-devel numactl numactl-devel hwloc hwloc-devel lua lua-devel readline-devel rrdtool-devel ncurses-devel man2html libibmad libibumad munge-libs && yum clean all && rm -rf /var/cache/yum &
 
 
 ##texlive
@@ -128,8 +130,8 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 echo "installing conda extensions"
 conda activate
 conda install -q -y -c conda-forge mamba conda
-mamba install -q -y "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
-mamba install -q -y -c  conda-forge -c plotly "h5py>3" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
+mamba install -q -y simplejson colorama   protobuf requests "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
+mamba install -q -y -c anaconda -c  conda-forge -c plotly gpustat colorful "h5py>3" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
 conda clean -a -y &
 
 
@@ -144,17 +146,20 @@ jupyter labextension install @jupyterlab/google-drive --no-build
 jupyter labextension install jupyterlab-plotly --no-build
 jupyter labextension install @jupyterlab/server-proxy --no-build
 
-pip install -q --upgrade jupyterlab-git "jupyterlab_code_formatter<1.4"  jupyterlab_latex jupyter-dash
+pip install -q --upgrade jupyterlab-git "jupyterlab_code_formatter<1.4"  jupyterlab_latex jupyter-dash "jupyterlab<3" jupyterlab_hdf
 jupyter labextension install @jupyterlab/latex --no-build
 jupyter labextension install "@ryantam626/jupyterlab_code_formatter@<1.4" --no-build
 jupyter labextension install @jupyterlab/git --no-build
 jupyter labextension install @jupyterlab/debugger --no-build
 jupyter labextension install  jupyterlab-dash --no-build
+jupyter labextension install jupyterlab-tabular-data-editor
+jupyter labextension install @jupyterlab/hdf5
 jupyter serverextension enable --py jupyterlab_code_formatter --sys-prefix
 jupyter serverextension enable --sys-prefix jupyterlab_latex
 jupyter serverextension enable --py jupyterlab_git --sys-prefix
 jupyter serverextension enable --py jupyter_server_proxy --sys-prefix
 jupyter serverextension enable --py nbdime --sys-prefix
+jupyter serverextension enable --py jupyterlab_hdf --sys-prefix
 
 echo 'waiting'
 sleep 10
@@ -170,6 +175,7 @@ cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
   "NotebookApp": {
     "nbserver_extensions": {
       "jupyterlab_git": true,
+      "jupyterlab_hdf": true,
       "jupyterlab": true,
       "jupyterlab_latex": true,
       "nbdime": true,
@@ -234,7 +240,8 @@ rm -rf /tmp/yarn*
 rm -rf /var/cache/*
 echo '####ALL DONE####'
 
-
+#slurm user
+useradd -r --shell /usr/sbin/nologin slurm
 
 
 %labels
