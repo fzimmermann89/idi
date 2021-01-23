@@ -131,7 +131,7 @@ echo "installing conda extensions"
 conda activate
 conda install -q -y -c conda-forge mamba conda
 mamba install -q -y simplejson colorama   protobuf requests "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
-mamba install -q -y -c anaconda -c  conda-forge -c plotly gpustat colorful "h5py>3" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl
+mamba install -q -y -c anaconda -c  conda-forge -c plotly gpustat colorful "h5py>3" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume jupyter-server-proxy six openssl "jedi<0.18"
 conda clean -a -y &
 
 
@@ -146,7 +146,7 @@ jupyter labextension install @jupyterlab/google-drive --no-build
 jupyter labextension install jupyterlab-plotly --no-build
 jupyter labextension install @jupyterlab/server-proxy --no-build
 
-pip install -q --upgrade jupyterlab-git "jupyterlab_code_formatter<1.4"  jupyterlab_latex jupyter-dash "jupyterlab<3" jupyterlab_hdf
+pip install -q --upgrade jupyterlab-git "jupyterlab_code_formatter<1.4"  jupyterlab_latex jupyter-dash "jupyterlab<3" jupyterlab_hdf "jedi<0.18"
 jupyter labextension install @jupyterlab/latex --no-build
 jupyter labextension install "@ryantam626/jupyterlab_code_formatter@<1.4" --no-build
 jupyter labextension install @jupyterlab/git --no-build
