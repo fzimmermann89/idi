@@ -9,12 +9,14 @@ import os
 IPython magic to submit jobs
 '''
 
+
 @magics_class
 class submit_magics(Magics):
+    defaultline = ''
+
     @classmethod
-    def _run(cls, defaultcmd, key, vs, line, cell):
+    def _run(cls, defaultcmd, key, mapping, vs, line, cell, defaultline=''):
         parser = argparse.ArgumentParser(description='Submit a job', prog=defaultcmd)
-        parser.add_argument('batch_cmd', type=str, default=defaultcmd, nargs='*', help='batch command')
         parser.add_argument('-c', dest='c', default='4', type=str, help='n cpu per task (4)')
         parser.add_argument('-m', dest='m', default='4G', type=str, help='ram (4G)')
         parser.add_argument('-t', dest='t', default='06:00:00', type=str, help='time (6h)')
@@ -22,12 +24,15 @@ class submit_magics(Magics):
         parser.add_argument('-o', dest='o', default='~/joblog_%j.log', type=lambda x: os.path.expanduser(x), help="output (~/joblog_%%j.log)")
         parser.add_argument('-g', dest='g', default=None, type=str, help='gpus (None)')
         parser.add_argument('-a', dest='a', default=None, type=str, help='array')
-        parser.add_argument('-i', dest='i', default='python', type=str, help='interpreter (python)')
+        parser.add_argument('--interpreter', default='python', type=str, help='interpreter (python)')
+        parser.add_argument('--batch_cmd', metavar='cmd', type=str, default=defaultcmd, nargs='*', help='batch command')
         parser.add_argument('--dryrun', action='store_true', help="don't submit")
         parser.add_argument('--debug', action='store_true', help="print debug info")
         parser.add_argument('--no-replace', dest='replace', action='store_false', help="don't replace scheduler variables with values")
+        parser.epilog = f'defaults can be set with %submitdefault line magic. {"currently set:" if defaultline else ""} {defaultline}'
+
         try:
-            args, u = parser.parse_known_args(shlex.split(line))
+            args, u = parser.parse_known_args(shlex.split(' '.join([line, defaultline])))
         except SystemExit:
             return
 
@@ -45,10 +50,11 @@ class submit_magics(Magics):
             ['#!/bin/sh']
             + [f'{key} {mapping[k]}={v}' for k, v in vars(args).items() if (v is not None and k in mapping)]
             + [f'{key} {v}' for v in unknown]
-            + [f'{prepcmd} << "EOF_PYTHONFILE" | {args.i}', '', cell, '', 'EOF_PYTHONFILE']
+            + (['', 'hostname', 'env', 'pwd', 'ls -haltr /scratch/', 'mount'] if args.debug else [])
+            + [f'{prepcmd} << "EOF_PYTHONFILE" | {args.interpreter}', '', cell, '', 'EOF_PYTHONFILE']
         )
         if args.debug or args.dryrun:
-            print(args.sbatch_cmd)
+            print(args.batch_cmd)
             print(cmd)
         if not args.dryrun:
             try:
@@ -60,6 +66,19 @@ class submit_magics(Magics):
                     print(p.stderr.decode('utf-8'))
                 print(p.stdout.decode('utf-8'))
             return p.returncode
+
+    @line_magic
+    def submitdefault(self, line):
+        if line:
+            self.defaultline = self.defaultline + ' ' + line
+        else:
+            print(
+                f'''
+usage: %submitdefault -argument val
+use reload_ext to reset.
+currently set: 
+{self.defaultline}'''
+            )
 
     @cell_magic
     def slurm(self, line, cell=None):
@@ -110,7 +129,7 @@ class submit_magics(Magics):
             'SLURM_JOB_CPUS_PER_NODE',
             'SLURM_MEM_PER_NODE',
         ]
-        return submit_magics._run(defaultcmd, key, vs, line, cell)
+        return submit_magics._run(defaultcmd, key, mapping, vs, line, cell, self.defaultline)
 
     @cell_magic
     def pbs(self, line, cell=None):
