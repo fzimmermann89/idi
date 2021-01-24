@@ -12,15 +12,15 @@ import numexpr as _ne
 
 
 def radial_profile(data, center=None, calcStd=False, os=1):
-    '''
+    """
     calculates a ND radial profile of data around center. will ignore nans
     calStd: calculate standard deviation, return tuple of (profile, std)
     os: oversample by a factor. With default 1 the stepsize will be 1 pixel, with 2 it will be .5 pixels etc. 
-    '''
+    """
     if center is None:
         center = _np.array(data.shape) // 2
     if len(center) != data.ndim:
-        raise TypeError('center should be of length data.ndim')
+        raise TypeError("center should be of length data.ndim")
     center = _np.array(center)[tuple([slice(len(center))] + data.ndim * [None])]
     ind = _np.indices((data.shape))
     r = (_np.rint(os * _np.sqrt(((ind - center) ** 2).sum(axis=0)))).astype(int)
@@ -37,24 +37,24 @@ def radial_profile(data, center=None, calcStd=False, os=1):
 
 
 def cutnan(array):
-    '''
+    """
     remove full-nan rows and columns of 2d array
-    '''
+    """
     ind0 = ~_np.all(_np.isnan(array), axis=0)
     ind1 = ~_np.all(_np.isnan(array), axis=1)
     return array[ind1, :][:, ind0]
 
 
 # https://stackoverflow.com/a/29042041
-def bin(ndarray, new_shape, operation='sum'):
-    '''
+def bin(ndarray, new_shape, operation="sum"):
+    """
     bin an ndarray
     ndarray: nd-array
     new_shape: shape to bin to. shape of ndarray has to be integer multiple of new_shape along each dimension
     operation: string. sum, mean, max, or min. operation to use
     
-    '''
-    ops = ['sum', 'mean', 'max', 'min']
+    """
+    ops = ["sum", "mean", "max", "min"]
     operation = operation.lower()
     if operation not in ops:
         raise ValueError("Operation not supported.")
@@ -69,25 +69,25 @@ def bin(ndarray, new_shape, operation='sum'):
     return ndarray
 
 
-def rebin(ndarray, n, operation='mean'):
-    '''
+def rebin(ndarray, n, operation="mean"):
+    """
     rebin an ndarray
     parameters:
     ndarray: nd-array
     n: scalar or list, factor to bin with. if scalar, same factor along all dimensions
     operation: string. sum, mean, max, or min. operation to use
     if n doesnt divide arr along one dimensions, last elements of n will silently be dropped
-    '''
+    """
     if not (_np.size(n) == 1 or _np.size(n) == _np.ndim(ndarray)):
         raise ValueError("n should be scalar or of same length as ndarray has dimensions")
     newshape = _np.array(ndarray.shape) // n
-    return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n * newshape))]), newshape, operation)
+    return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n * newshape))]), newshape, operation,)
 
 
 def centered_part(arr, newshape):
-    '''
+    """
     Return the center newshape portion of the array.
-    '''
+    """
     newshape = _np.asarray(newshape)
     currshape = _np.array(arr.shape)
     startind = (currshape - newshape) // 2
@@ -97,8 +97,8 @@ def centered_part(arr, newshape):
 
 
 @_numba.jit()
-def find_center(img, msk, x0=0, y0=0, maxr=500, d=60):
-    id = _find_center_jit(img, msk.astype(bool), int(x0), int(y0), int(maxr), int(d))
+def find_center(img, mask, x0=0, y0=0, maxr=500, d=60):
+    id = _find_center_jit(img, mask.astype(bool), int(x0), int(y0), int(maxr), int(d))
     return _np.unravel_index(id, (2 * d + 1, 2 * d + 1)) - _np.array([d, d])
 
 
@@ -123,20 +123,24 @@ def _find_center_jit(img, msk, x0, y0, maxr, d):
     return out.argmin()
 
 
-@_numba.vectorize([_numba.float64(_numba.complex128), _numba.float32(_numba.complex64)], target='parallel')
+@_numba.vectorize(
+    [_numba.float64(_numba.complex128), _numba.float32(_numba.complex64)], target="parallel",
+)
 def abs2(x):
     return x.real * x.real + x.imag * x.imag
 
 
-@_numba.vectorize([_numba.complex128(_numba.complex128), _numba.complex64(_numba.complex64)], target='parallel')
+@_numba.vectorize(
+    [_numba.complex128(_numba.complex128), _numba.complex64(_numba.complex64)], target="parallel",
+)
 def abs2c(x):
     return x.real * x.real + x.imag * x.imag + 0j
 
 
 def fill(data, invalid=None):
-    '''
+    """
     fill invalid values by closest valid value. invalid: mask of invalid values, default: np.isnan(data)
-    '''
+    """
     if invalid is None:
         invalid = _np.isnan(data)
     ind = _snd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
@@ -144,9 +148,9 @@ def fill(data, invalid=None):
 
 
 def photons_localmax(img, E, thres=0.0):
-    '''
+    """
     photonize image. First count whole photons. Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
-    '''
+    """
     data = (img * (img > 0)) / E
     photons = _np.floor(data)  # whole photons
     remainder = data - photons
@@ -160,33 +164,33 @@ def photons_simple(img, E, ev_per_adu=3.65, bg=0):
     return _np.rint(((_np.squeeze(_np.array(img)) * ev_per_adu) - bg) / E)
 
 
-def create_mask(img, lowthres=50, highthres=95, sigma=10):
-    '''
-    create mask by high/low threshold in blurred image. WIP
-    '''
+def create_mask(img, lowthres=5, highthres=95, sigma=10, hotpixelstd=5):
+    """
+    create mask by high/low threshold (in percentile) in gaussian (with sigma) blurred image and morphologically cleaning. 
+    if hotpixelstd is not None, pixels higher then hotpixelstd times the standard deviation over masked mean will be ignored.
+    """
     blured = _snd.gaussian_filter(img, sigma)
-    blured[img == 0] = _np.nan
-    # blured[img<_np.nanpercentile(blured,5)]=_np.nan
-    low = blured <= _np.nanpercentile(blured, lowthres)
-    high = blured >= _np.nanpercentile(blured, highthres)
-    mask = _np.logical_or(high, low)
-    mask[img == 0] = True
-    mask_cleaned = _snd.morphology.binary_dilation(mask, _snd.morphology.generate_binary_structure(2, 1), 2)
-    mask_cleaned = _snd.morphology.binary_closing(mask_cleaned, _snd.morphology.generate_binary_structure(2, 1), 20)
-    mask_cleaned = _snd.morphology.binary_dilation(mask_cleaned, _snd.morphology.generate_binary_structure(2, 2), 2)
+    mask = _np.logical_or.reduce(
+        (blured < _np.nanpercentile(blured, lowthres), blured > _np.nanpercentile(blured, highthres), _np.isnan(img),)
+    )
+    sel21 = _snd.morphology.generate_binary_structure(2, 1)
+    mask_cleaned = _snd.morphology.binary_dilation(mask, sel21, 2)
+    mask_cleaned = _snd.morphology.binary_closing(mask_cleaned, sel21, 20)
+    sel22 = _snd.morphology.generate_binary_structure(2, 2)
+    mask_cleaned = _snd.morphology.binary_dilation(mask_cleaned, sel22, 2)
     mask = _np.logical_or(mask, mask_cleaned)
 
-    # hotpixel
-    hotpixel = img > (_np.mean(img[~mask]) + 5 * _np.std(img[~mask]))
-    hotpixel = _snd.morphology.binary_dilation(hotpixel, _snd.morphology.generate_binary_structure(2, 2), 2)
-    mask[hotpixel] = True
+    if hotpixelstd is not None:
+        hotpixel = img > (_np.mean(img[~mask]) + hotpixelstd * _np.std(img[~mask]))
+        hotpixel = _snd.morphology.binary_dilation(hotpixel, sel22, 2)
+        mask[hotpixel] = True
     return mask
 
 
 def diffdist(*args):
-    '''
+    """
     returns Euclidean norm next neighbour difference of n coordinates: |diffdist(x,y,z)=diff(x),diff(y),diff(z)|
-    '''
+    """
     accum = 0
     for arg in args:
         accum += _np.diff(arg) ** 2
@@ -207,7 +211,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
     """
     return N>=x conisting only of the prime factors given as factors
     """
-   
+    # fmt: off
     fastlens=(   
           1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,
          12,   14,   15,   16,   18,   20,   21,   22,   24,   25,   27,
@@ -243,23 +247,28 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
        3564, 3584, 3600, 3630, 3645, 3675, 3696, 3750, 3773, 3780, 3840,
        3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096
     )
-    
+    # fmt: on
     if factors != (2, 3, 5, 7, 11) or x > 4235:
-        fastlens = _np.unique([_np.product(_np.array(factors) ** _np.array(i)) for i in _it.product(*(range(int(1 + _np.log(x) / _np.log(k))) for k in factors))])
+        fastlens = _np.unique(
+            [
+                _np.product(_np.array(factors) ** _np.array(i))
+                for i in _it.product(*(range(int(1 + _np.log(x) / _np.log(k))) for k in factors))
+            ]
+        )
     for fastlen in fastlens:
         if fastlen >= x:
             return fastlen
-    return length
+    return x
 
 
 def split(x, dx, v=None):
-    '''
+    """
     splits an array x into parts dx appart
     x: 1d array
     dx: scalar
     v (optional): splits v along first axis as x would be split
     returns a list of parts of the array, with empty arrays for empty intervals
-    '''
+    """
     sid = _np.argsort(x)
     s = x[sid]
     ids = []
@@ -272,3 +281,14 @@ def split(x, dx, v=None):
         return [s[start:stop] for start, stop in zip(ids[0:-1], ids[1:])]
     else:
         return [v[sid[start:stop], ...] for start, stop in zip(ids[0:-1], ids[1:])]
+
+
+def rndgennorm(mu, fwhm, rho, N):
+    """
+    samples from the generalised random normal distribution with given shape parameter rho, mean mu and fwhm.
+    for rho=2 this is a normal distribution, for higher rho it approaches a uniform distribution between -fwhm/2 and fwhm/2.
+    mu, rho, fwhm must be broadcastable to the number of samples N.
+    """
+    # https://sccn.ucsd.edu/wiki/Generalized_Gaussian_Probability_Density_Function
+    # https://en.wikipedia.org/wiki/Generalized_normal_distribution
+    return mu + fwhm / 2 * (_np.random.gamma(1 / rho, 1, N) / _np.log(2)) ** (1 / rho) * _np.random.choice((-1, 1), N)
