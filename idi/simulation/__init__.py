@@ -5,18 +5,25 @@ try:
     from . import cuda
     auto = cuda
 except ImportError as _e:
-    if "cuda" in _e.args[0] or "libcu" in _e.args[0]:
+    if any(x in str(_e.args[0]).lower() for x in ["cuda", "libcu", "cupy"]):
         import warnings as _w
-        _w.warn('cuda error. cuda simulation not imported. is cuda available and paths set?')
+
+        _w.warn(f'cuda error. cuda time dependent simulation not imported. is cuda available and paths set? ({_e.args[0]})')
         auto = cpu
     else:
-        raise _e
+        print(_e)
+except Exception as _e:
+    print(_e)
 try:
     from . import cutime
     autotime = cutime
-except (AttributeError,ImportError) as _e:
-      if "cuda" in _e.args[0] or "libcu" in _e.args[0] or "split" in _e.args[0]:
+except (AttributeError, ImportError) as _e:
+    if any(x in str(_e.args[0]).lower() for x in ["cuda", "libcu", "split", "cupy"]):
         import warnings as _w
-        _w.warn('cuda error. cuda time dependent simulation not imported. is cuda available and paths set?')
+
+        _w.warn(f'cuda error. cuda time dependent simulation not imported. is cuda available and paths set? ({_e.args[0]})')
         autotime = time
-  
+    else:
+        print(_e)
+except Exception as _e:
+    print(_e)
