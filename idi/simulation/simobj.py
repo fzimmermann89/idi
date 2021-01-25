@@ -1,11 +1,12 @@
 from __future__ import division as _future_div, print_function as _future_printf
 import numpy as _np
 import numexpr as _ne
-from six import print_ as _print
 from numpy import pi
 import numba as _numba
 import math as _math
 import random as _random
+from ..util import poisson_disc_sample as _pds, rndgennorm as _rndgennorm
+
 
 '''
 simulation objects
@@ -69,31 +70,38 @@ class sphere(atoms):
             self._pos = self._rndSphere(self._r, self._N)
         return atoms.get(self)
 
-class gauss(atoms):
+
+class gnorm(atoms):
     '''
-    a gaussian shaped volume with random positions inside
+    a generalised normal shaped volume with random positions inside
     '''
 
-    def __init__(self, E, N, fwhm):
-        pos = self._rndGauss(fwhm, N)
+    def __init__(self, E, N, fwhm, rho=2):
+        self._fwhm = _np.array(fwhm)
+        self._rho = _np.array(rho)
+        pos = self._rndGNorm(self._fwhm, self._rho, N)
         atoms.__init__(self, E, pos)
-        self._fwhm = fwhm
         self.rndPos = True
 
     @staticmethod
-    def _rndGauss(fwhm, N):
-        return _np.random.randn(N,3)*fwhm
+    def _rndGNorm(fwhm, rho, N):
+        if _np.all(rho==2):
+            return _np.random.randn(int(N),3)*(fwhm/2.355)
+        return _rndgennorm(0, fwhm, rho, (int(N),3))
 
     def get(self):
         if self.rndPos:
-            self._pos = self._rndGauss(self._fwhm, self._N)
+            self._pos = self._rndGNorm(self._fwhm, self._rho, self.N)
         return atoms.get(self)
 
     
-    
-    
-from ..util import poisson_disc_sample as _pds
-
+class gauss(gnorm):
+    '''
+    a gaussian shaped volume with random positions inside
+    '''
+    def __init__(self, E, N, fwhm):
+        gnorm.__init__(self, E, N, fwhm, 2)
+        
 
 class multisphere(atoms):
     '''
