@@ -51,11 +51,11 @@ if not _cuda:
     qcorrad = cpucorrad
 
 
-simple.__doc__ = f"""Simple FT Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
-Currently using {'GPU' if _cuda else 'CPU'}"""
-qcor.__doc__ = f"""q corrected Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
-Currently using {'GPU' if _cuda else 'CPU'}"""
-qcorrad.__doc__ = f"""Radial q-corrected Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
-Currently using {'GPU' if _cuda else 'CPU'}"""
+# simple.__doc__ = f"""Simple FT Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
+# Currently using {'GPU' if _cuda else 'CPU'}"""
+# qcor.__doc__ = f"""q corrected Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
+# Currently using {'GPU' if _cuda else 'CPU'}"""
+# qcorrad.__doc__ = f"""Radial q-corrected Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
+# Currently using {'GPU' if _cuda else 'CPU'}"""
 
 _mkl.domain_set_num_threads(_vml_threads, 'vml')  # numexpr messes with vml thread number
