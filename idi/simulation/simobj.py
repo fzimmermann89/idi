@@ -35,8 +35,13 @@ class atoms:
     def get(self):
         k = 2 * pi / (1.24 / self._E)  # in 1/um
         z = self._pos[..., 2]
-        rnd = _np.random.rand(self._N) if self.rndPhase else 0
-        phase = _ne.evaluate('(k*z+rnd*2*pi)%(2*pi)')
+        elif self.rndPhase:
+            phase = _np.random.rand(self._N)*(2*pi)
+        else:
+            phase=_np.zeros(self._N)
+            
+            
+            
         ret = _np.concatenate((self._pos, phase[:, _np.newaxis]), axis=1)
         return ret
 
