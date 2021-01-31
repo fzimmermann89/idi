@@ -35,7 +35,7 @@ class atoms:
     def get(self):
         k = 2 * pi / (1.24 / self._E)  # in 1/um
         z = self._pos[..., 2]
-        elif self.rndPhase:
+        if self.rndPhase:
             phase = _np.random.rand(self._N)*(2*pi)
         else:
             phase=_np.zeros(self._N)

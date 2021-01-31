@@ -1,4 +1,4 @@
-import _numba
+import numba as _numba
 import numpy as _np
 import numexpr as _ne
 
@@ -25,15 +25,15 @@ def _integral(amp, t0, tau):
 
     idx = _np.argsort(t0, axis=-1)
     t0s = _np.atleast_2d(t0)
-    t0s = t0s[_np.arange(t0s.shape[0])[:, No_ne], idx]
+    t0s = t0s[_np.arange(t0s.shape[0])[:, None], idx]
     amps = _np.atleast_2d(amp)
-    amps = amps[_np.arange(amps.shape[0])[:, No_ne], idx]
+    amps = amps[_np.arange(amps.shape[0])[:, None], idx]
     i = _ab2(_decaysum(amps, t0s, tau))
     td = _np.diff(t0s, axis=-1)
     return _np.sum(-tau / 2 * i[:, :-1] * _np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings=''):
     '''
     Time dependent simulation with decaying amplitudes (cpu version).
     simobject: simobject to use for simulation (in lengthunit)
@@ -47,33 +47,33 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings):
         scale - do 1/r intensity scaling
     '''
     
-    if np.size(Ndet) == 1:
+    if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     if 'scale' in settings: 
         eq='exp(-1j*(s*k-phases))/d'
     else:
         eq='exp(-1j*(s*k-phases))'
-    n = np.prod(Ndet)
+    n = _np.prod(Ndet)
     blocksize = min(4,(n & (~(n - 1)))) #do highest power of two of n <=4 pixels at once. tradeoff between memory allocations and call overhead.
     
-    dets = np.array(
-        np.meshgrid(
-            pixelsize * (np.arange(Ndet[0]) - (Ndet[0] / 2)), 
-            pixelsize * (np.arange(Ndet[1]) - (Ndet[1] / 2)), 
+    dets = _np.array(
+        _np.meshgrid(
+            pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), 
+            pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), 
             detz
         )
     ).T
-    res = np.zeros(Ndet[0]*Ndet[1]).reshape(-1,blocksize)
+    res = _np.zeros(Ndet[0]*Ndet[1]).reshape(-1,blocksize)
     data = simobject.get()
-    times = np.random.randn(simobject.N)*(pulsewidth/2.35)
+    times = _np.random.randn(simobject.N)*(pulsewidth/2.35)
 
     for j,det in enumerate(dets.reshape(-1, blocksize, 3)):
-        d = np.linalg.norm(det,axis=-1)[:,None]
+        d = _np.linalg.norm(det,axis=-1)[:,None]
         q=(det/d)
         q[...,-1]-=1
         phases=data[:, 3]
-        s=np.inner(q,data[:,:3]) #path difference
-        e = ne.evaluate(eq) # complex e field
+        s = _np.inner(q,data[:,:3]) #path difference
+        e = _ne.evaluate(eq) # complex e field
         t = -s/c+times.T  # arrival time
         res[j]= _integral(e, t, tau)
     res = res.reshape(Ndet[0], Ndet[1])
