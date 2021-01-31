@@ -1,194 +1,235 @@
-from __future__ import division as _future_div, print_function as _future_print
-from six import print_ as _print
-import numpy as _np
-import pycuda.driver
-import pycuda.autoinit
-from pycuda.compiler import SourceModule as _SrcMod, DEFAULT_NVCC_FLAGS
-from jinja2 import Template as _Template
+code = """
+/*
+*This should be 10 lines of thrust code, but it's not. 
+*Partially because it started as pycuda, partially because it had to run on an old gpu. 
+*Can run as double or single precision with e^iqr (Fraunhofer) approximation (scattering direction constant within sample), second order in x,y (Fresnel)
+*or in double precision with e^ik(R-r) for the phase (correct for incoming plane wave)
+*/
+#include <math.h>
+#include <stdbool.h>
 
+#define posx (threadIdx.x + blockDim.x * blockIdx.x)
+#define posy (threadIdx.y + blockDim.y * blockIdx.y)
 
-templates = {
-    'double':"""
-                __global__ void wfkernel( double2* __restrict__ ret, const double4* __restrict__  atoms)
-                {
-                    int x = blockIdx.x*blockDim.x + threadIdx.x;
-                    int y = blockIdx.y*blockDim.y + threadIdx.y;  
-                    int reti = x*{{ maxy }} + y;
-                    //const double TWOPI = 6.283185307179586476925287;
-                    if ((x < {{ maxx }}) && (y < {{ maxy }}))
-                    {
-                        double detx = (x-{{ maxx }}/2)*{{ pixelsize }};
-                        double dety = (y-{{ maxy }}/2)*{{ pixelsize }};
-                        double2 wf = make_double2(0.,0.);
-                        for (int i = 0; i < {{ Natoms }}; i++)
-                        {
-                            double4 atom = atoms[i];
-                            double dist = norm3d(
-                                (detx-atom.x),
-                                (dety-atom.y),
-                                ({{ detz }}-atom.z)
-                                );
-                            double phase = dist*{{ k }}+atom.w;
-                            double real, imag;
-                            sincos(phase, &imag, &real);
-                            {% if not nodist %}
-                                double rdist = 1/dist;
-                                wf.x += real*rdist;
-                                wf.y += imag*rdist;
-                            {% else %}
-                                wf.x += real;
-                                wf.y += imag;
-                            {% endif %}
+#ifndef nodist
+    #define nodist 0
+#endif
+#ifndef secondorder
+    #define secondorder 0
+#endif
+#ifndef usenf
+    #define phaseop phaseff
+#else
+    #define phaseop phasenf
+#endif
 
-                        }
-                        ret[reti]  = wf;
-                    }
-                }
-        """,
-    'batch' :"""
-                const double TWOPI = 6.283185307179586476925287;
-                const double k = {{k}};
-                const double detz = {{detz}};
+template <typename T, int cn> struct Vec;
+template <> struct Vec<float, 2> {typedef float2 type; static __device__ __host__ __forceinline__ type make(float a, float b) {return make_float2(a,b);}};
+template <> struct Vec<double, 2> {typedef double2 type; static __device__ __host__ __forceinline__ type make(double a, double b) {return make_double2(a,b);}};
+template <> struct Vec<float, 3> {typedef float3 type; static __device__ __host__ __forceinline__ type make(float a, float b, float c) {return make_float3(a,b,c);}};
+template <> struct Vec<double, 3> {typedef double3 type; static __device__ __host__ __forceinline__ type make(double a, double b, double c) {return make_double3(a,b,c);}};
+template <> struct Vec<float, 4> {typedef float4 type; static __device__ __host__ __forceinline__ type make(float a, float b, float c, float d) {return make_float4(a,b,c,d);}};
+template <> struct Vec<double, 4> {typedef double4 type; static __device__ __host__ __forceinline__ type make(double a, double b, double c, double d) {return make_double4(a,b,c,d);}};
 
-                __device__ __forceinline__ float2 single(double4 atom, double detx, double dety)
-                {
-                    double dist = norm3d(
-                                        ((double) detx - atom.x),
-                                        ((double) dety - atom.y),
-                                        (detz - atom.z)
-                                        );
-                    float phase = __double2float_rn(fmod(dist * k + atom.w, TWOPI));
-                    float real, imag;
-                    __sincosf(phase, &imag, &real);
-
-                    {% if not nodist %}
-                        float rdist = 1 / __double2float_rn(dist);
-                        float2 wf = make_float2(real * rdist, imag * rdist);
-                    {% else %}
-                        float2 wf = make_float2(real, imag);
-                    {% endif %}
-                    return wf;
-                }
-
-                __global__ void wfkernel(double2 * __restrict__ ret, const double4 * __restrict__ atoms)
-                {
-                    int x = blockIdx.x * blockDim.x + threadIdx.x;
-                    int y = blockIdx.y * blockDim.y + threadIdx.y;
-                    int reti = x*{{ maxy }} + y;
-                    if ((x < {{maxx}}) && (y < {{maxy}}))
-                    {
-                        double detx = (x - {{maxx}}/2) * {{pixelsize}};
-                        double dety = (y - {{maxy}}/2) * {{pixelsize}};
-                        double2 wf = make_double2(0., 0.);
-                        int i = 0;
-                        for (int i_batches = 0; i_batches < {{Natoms//2048}}; i_batches++)
-                        {
-                            float2 batch_wf = make_float2(0.f, 0.f);
-                            for (int i_inbatch = 0; i_inbatch < 2048; i_inbatch++)
-                            {
-                                float2 cwf = single(atoms[i++], detx, dety);
-                                batch_wf.x += cwf.x;
-                                batch_wf.y += cwf.y;
-                            }
-                            wf.x += (double) batch_wf.x;
-                            wf.y += (double) batch_wf.y;
-                        }
-                        float2 batch_wf = make_float2(0.f, 0.f);
-                        while (i < {{Natoms}})
-                        {
-                            float2 cwf = single(atoms[i++], detx, dety);
-                            batch_wf.x += cwf.x;
-                            batch_wf.y += cwf.y;
-                        }
-                        wf.x += (double) batch_wf.x;
-                        wf.y += (double) batch_wf.y;
-                        ret[reti] = wf;
-                        }
-                }
-        """,
-    'old'   :"""
-                __global__ void wfkernel( double2* __restrict__ ret, const double4* __restrict__  atom)
-                {
-                    int x = blockIdx.x*blockDim.x + threadIdx.x;
-                    int y = blockIdx.y*blockDim.y + threadIdx.y;
-                    int reti = x*{{ maxy }} + y;
-                    if ((x < {{ maxx }}) && (y < {{ maxy }}))
-                    {
-                        const double PI = 3.141592653589793238463;
-                        int detx = (x-{{ maxx }}/2)*{{ pixelsize }};
-                        int dety = (y-{{ maxy }}/2)*{{ pixelsize }};
-                        float2 wf;
-                        wf.x = 0;
-                        wf.y = 0;
-                        for (int i = 0; i < {{ Natoms }}; i++)
-                        {
-                            double dist = norm3d((
-                                (double)detx-atom[i].x),
-                                ((double)dety-atom[i].y),
-                                ({{ detz }}-atom[i].z)
-                                );
-                                
-                            //float phase = __double2float_rn((dist-(int)dist)*{{ k }}+atom[i].w);
-                            float phase = __double2float_rn(fmod(dist*{{ k }},2*PI)+atom[i].w);
-                            float real;
-                            float imag;
-                            __sincosf(phase, &imag, &real);
-                            {% if not nodist %}
-                                float rdist = 1/__double2float_rn(dist);
-                                wf.x += real*rdist;
-                                wf.y += imag*rdist;
-                            {% else %}
-                                wf.x += real;
-                                wf.y += imag;
-                            {% endif %}
-                           
-                        }
-                        ret[reti].x = (double) wf.x;
-                        ret[reti].y = (double) wf.y;
-                    }
-                }
-        """,
+__device__ __forceinline__ void sc(float x, float * sptr, float * cptr) {
+    __sincosf(x, sptr, cptr);
 }
+
+__device__ __forceinline__ void sc(double x, double * sptr, double * cptr) {
+    sincos(x, sptr, cptr);
+}
+
+template < typename Ti, typename To >
+struct phasenf {
+    double detx, dety, detz, k;
+    typedef typename Vec < To, 2 > ::type To2;
+    typedef typename Vec < Ti, 4 > ::type Ti4;
+
+    __device__ __forceinline__ phasenf(double _detx, double _dety, double _detz, double _k) {
+        detx = _detx;
+        dety = _dety;
+        detz = _detz;
+        k = _k;
+    }
+    __device__ To2 operator()(const Ti4 & atom) const {
+        double dist = norm3d(
+            (detx - (double) atom.x),
+            (dety - (double) atom.y),
+            (detz - (double) atom.z)
+        );
+
+        double phase = (dist - detz + atom.z) * k + atom.w;
+        double real, imag;
+        sc(phase, & imag, & real);
+        if (nodist) return Vec < To, 2 > ::make((To)(real), (To)(imag));
+        To rdist = 1 / ((To) dist);
+        return Vec < To, 2 > ::make(((To) real) * rdist, ((To) imag) * rdist);
+    }
+};
+
+template < typename Ti, typename To >
+struct phaseff {
+    To qx, qy, qz, c, rdist;
+    typedef typename Vec < To, 2 > ::type To2;
+    typedef typename Vec < Ti, 4 > ::type Ti4;
     
-    
-    
+    __device__ __forceinline__ phaseff(double _detx, double _dety, double _detz, double _k) {
+        double rdistd = rnorm3d(_detx, _dety, _detz);
+        qz = (To)(_k * (_detz * rdistd - 1));
+        double kinvd = _k * rdistd;
+        qx = (To)(_detx * kinvd);
+        qy = (To)(_dety * kinvd);
+        c = (To)(kinvd / 2);
+        rdist = (To) rdistd;
+    }
+    __device__ __forceinline__ To2 operator()(const Ti4 & atom) const {
+        To phase = -(atom.x * qx + atom.y * qy + atom.z * qz) + atom.w;
+        if (secondorder) phase += c * (atom.x * atom.x + atom.y * atom.y); /* this is the second order in x and y, still first in detz*/
+        To real, imag;
+        sc(phase, & imag, & real);
+        if (nodist) return Vec < To, 2 > ::make(real, imag);
+        return Vec < To, 2 > ::make(rdist * real, rdist * imag);
 
-def wavefield_kernel(name, Natoms, Ndet, pixelsize, detz, k):
-        '''
-        returns a cuda implementation of the wavefield, used internally
-        kernel: name of kernel
-        Natoms: Number of atoms
-        Ndet: detector pixels
-        pixelsize: detector pixelsize
-        detz: detector distance
-        k: angular wavenumber
-        if name=='double':
-            returns a function with signature (ret double2[:], atompositionsandphases double4[:]) 
-            that will write the wavefield into ret (real,imag). Uses lots of double precision math internally
-        if name=='batches':
-            returns a function with signature (ret float2[:], atompositionsandphases double4[:]) 
-            that will write the wavefield into ret (real,imag) that uses double precision for accumulation and phases.
-        if name=='old:
-            eturns a function with signature (ret float2[:], atompositionsandphases double4[:]) 
-            that will write the wavefield into ret (real,imag) that uses doubl precision for phases
-        if _nodist is appended to a name, no 1/r intensity scaling is performed
-        if _nofast ist appended to a name, no fastmath is allowed
+    }
+};
 
-        '''
-        maxx, maxy = Ndet
-        nodist = '_nodist' in name
-        options = DEFAULT_NVCC_FLAGS
-        if not '_nofast' in name:
-            options.append('--use_fast_math')
-        key = name.replace('_nodist','').replace('_nofast','')
-        src = _Template(templates[key]).render(maxx=maxx, maxy=maxy, pixelsize=pixelsize, Natoms=int(Natoms), detz=detz, k=k, nodist=nodist)
-        mod = _SrcMod(src, options=options)
-        wfkernel = mod.get_function('wfkernel')
-        return wfkernel
+__device__ __forceinline__ double4 __ldg(const double4 * d4) {
+    return *d4;
+}
+
+template < typename Ti, typename To >
+struct wfkernel {
+    typedef typename Vec < To, 2 > ::type To2;
+    typedef typename Vec < Ti, 4 > ::type Ti4;
+    __device__ __forceinline__ void operator()(To2 __restrict__ * ret, Ti4 const __restrict__ * atoms, double detz, double pixelsize, double k, int maxx, int maxy, int Natoms) const {
+        int x = posx, y = posy;
+        if ((x < maxx) && (y < maxy)) {
+            double detx = (x - maxx / 2) * pixelsize;
+            double dety = (y - maxy / 2) * pixelsize;
+            To accumx = 0, accumy = 0, cx = 0, cy = 0;
+            auto op = phaseop < Ti, To > (detx, dety, detz, k);
+            for (int i = 0; i < Natoms; i++) {
+                Ti4 atom = __ldg( & atoms[i]);
+               
+                auto phase = op(atom);
+                /* kahan summation to give meaningful result for Natoms>1e4 in single precision */
+                auto yx = phase.x - cx;
+                auto yy = phase.y - cy;
+                auto tx = accumx + yx;
+                auto ty = accumy + yy;
+                cx = (tx - accumx) - yx;
+                cy = (ty - accumy) - yy;
+                accumx = tx;
+                accumy = ty;
+            }
+            ret[x * maxy + y] = Vec < To, 2 > ::make((To) accumx, (To) accumy);
+        }
+    };
+};
+
+extern "C"
+__global__ void wfkernelf(float2 * __restrict__ ret, const float4 * __restrict__ atoms, double detz, double pixelsize, double k, int maxx, int maxy, int Natoms) {
+    wfkernel < float, float > ()(ret, atoms, detz, pixelsize, k, maxx, maxy, Natoms);
+};
+
+extern "C"
+__global__ void wfkerneld(double2 * __restrict__ ret, const double4 * __restrict__ atoms, double detz, double pixelsize, double k, int maxx, int maxy, int Natoms) {
+    wfkernel < double, double > ()(ret, atoms, detz, pixelsize, k, maxx, maxy, Natoms);
+};
+
+"""
+
+import numpy as _np
+import cupy as _cp
 
 
-def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True, kernel='batch'):
-    '''
+def _pinned(shape, dtype):
+    size = _np.prod(shape)
+    mem = _cp.cuda.alloc_pinned_memory(size * _np.dtype(dtype).itemsize)
+    ret = _np.frombuffer(mem, dtype, size).reshape(shape)
+    return ret
+
+
+def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings="double", init=True, maximg=_np.inf, *args, **kwargs):
+    """
+    returns an array of simulated wavefields
+    parameters:
+    simobject: a simobject whose get() returns an Nx4 array with atoms in the first and (x,y,z,phase) of each atom in the last dimension
+    Ndet: pixels on the detector
+    pixelsize: size of one pixel in same unit as simobjects unit (usally um)
+    detz: detector distance in same unit as simobjects unit (usally um)
+    k: angular wavenumber
+    settings: string, default: double_ff_nodist can contain
+        single: use single precision
+        nf:     use near field
+        scale: apply 1/r intensity scaling
+        secondorder: use second order in far field approximation (Fresnel)
+        nofast: no fast math
+        unknown options will be silently ignored.
+    init: do full initialisation and asynch start of first calculation on generator creation
+    maximg: generate StopIteration after maximg images.
+    """
+
+    if "single" in settings:
+        intype, outtype, kernelname = _np.float32, _np.complex64, "wfkernelf"
+    else:
+        intype, outtype, kernelname = _np.float64, _np.complex128, "wfkerneld"
+    options = []
+    if not "scale" in settings:
+        options += ["-Dnodist"]
+    if "nf" in settings:
+        options += ["-Dusenf"]
+    if "secondorder" in settings:
+        options += ["-Dsecondorder"]
+    if not "nofast" in settings:
+        options += ["--use_fast_math"]
+
+    if _np.size(Ndet) == 1:
+        Ndet = [Ndet, Ndet]
+    maxx, maxy = Ndet
+    threadsperblock = (16, 16, 1)
+    blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
+    blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
+    blockspergrid = (blockspergrid_x, blockspergrid_y)
+    module = _cp.RawModule(code=code, backend="nvcc", options=tuple(["--std=c++11", "-O3", "--restrict"] + options))
+    kernel = module.get_function(kernelname)
+    streams = [_cp.cuda.stream.Stream() for i in range(2)]
+    d_wf = [_cp.zeros((Ndet[0], Ndet[1]), dtype=outtype) for i in range(len(streams))]
+    h_atoms = [_pinned((simobject.N, 4), intype) for i in range(len(streams))]
+    d_atoms = [_cp.zeros((simobject.N, 4), intype) for i in range(len(streams))]
+
+    def _init():
+        streams[0].use()
+        h_atoms[0][:] = simobject.get().astype(intype)
+        d_atoms[0].set(h_atoms[0], stream=streams[0])
+        kernel(blockspergrid, threadsperblock, (d_wf[0], d_atoms[0], float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
+
+    if init:
+        _init()
+
+    def _gen():
+        if not init:
+            _init()
+        current, other, count = 0, 1, 1
+        while True:
+            if count == maximg: 
+                yield d_wf[current].get(stream=streams[current])
+            elif count > maximg:
+                return
+            else:
+                h_atoms[other][:] = simobject.get().astype(intype)
+                streams[other].use()
+                d_atoms[other].set(h_atoms[other], stream=streams[other])
+                kernel(blockspergrid, threadsperblock, (d_wf[other], d_atoms[other], float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
+                yield d_wf[current].get(stream=streams[current])
+            count += 1
+            current, other = other, current
+
+    return _gen()
+
+
+def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings="double", verbose=True, *args, **kwargs):
+    """
     returns an array of simulated wavefields
     parameters:
     Nimg: number of wavefields to simulate
@@ -197,65 +238,25 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, verbose=True, kernel='ba
     pixelsize: size of one pixel in same unit as simobjects unit (usally um)
     detz: detector distance in same unit as simobjects unit (usally um)
     k: angular wavenumber
-    kernel (in descending accuracy and ascending performance): 
-        'double': Uses double precision math internally
-        'batches': Uses double precision for accumulation and phases.
-        'old': Uses double precision for phases
-        if _nodist is appended to a name, no 1/r intensity scaling is performed
-    '''
+    settings: string, default: double_ff_nodist can contain
+        single: use single precision
+        nf:     use near field
+        scale: apply 1/r intensity scaling
+        secondorder: use second order in far field approximation (Fresnel)
+        nofast: no fast math
+        unknown options will be silently ignored.
+    """
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
-    result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=complex)
-    threadsperblock = (16, 16, 1)
-    blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
-    blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
-    blockspergrid = (blockspergrid_x, blockspergrid_y)
-    h_wf1 = _np.empty((Ndet[0], Ndet[1], 2), dtype=_np.float64)
-    d_wf1 = pycuda.driver.mem_alloc(h_wf1.nbytes)
-    fwavefield = wavefield_kernel(kernel,simobject.N, Ndet, pixelsize, detz, k)
-    d_atoms1 = pycuda.driver.mem_alloc(32 * simobject.N)
-
-    for n in range(0, Nimg):
+    gen=simulate_gen(simobject, Ndet, pixelsize, detz, k, settings=settings, init=True, maximg=Nimg)
+    result = _np.empty((Nimg, Ndet[0], Ndet[1]), _np.complex128)
+    try:
+        for i,img in enumerate(gen):
+            if verbose: 
+                print(i, end='. ', flush=True)
+            result[i,...]=img
+        return result
+    except KeyboardInterrupt:
         if verbose:
-            _print(n, end='', flush=True)
-        h_atoms1 = simobject.get()
-        pycuda.driver.memcpy_htod(d_atoms1, h_atoms1)
-        if verbose:
-            _print('.', end='', flush=True)
-        fwavefield(d_wf1, d_atoms1, block=threadsperblock, grid=blockspergrid)
-        pycuda.driver.memcpy_dtoh(h_wf1, d_wf1)
-        result[n, ...] = h_wf1.view(dtype=_np.complex128)[..., 0]
-        if verbose:
-            _print('. ', end='', flush=True)
-    return result
-
-
-def simulate_gen(simobject, Ndet, pixelsize, detz, k, kernel='batch'):
-    '''
-    returns a generator that yields simulated wavefields
-    parameters:
-    simobject: a simobject whose get() returns an Nx4 array with atoms in the first and (x,y,z,phase) of each atom in the last dimension
-    Ndet: pixels on the detector
-    pixelsize: size of one pixel in same unit as simobjects unit (usally um)
-    detz: detector distance in same unit as simobjects unit (usally um)
-    k: angular wavenumber
-    '''
-    if _np.size(Ndet) == 1:
-        Ndet = [Ndet, Ndet]
-    threadsperblock = (16, 16, 1)
-    blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
-    blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
-    blockspergrid = (blockspergrid_x, blockspergrid_y)
-    h_wf1 = _np.empty((Ndet[0], Ndet[1], 2), dtype=_np.float64)
-    d_wf1 = pycuda.driver.mem_alloc(h_wf1.nbytes)
-    fwavefield = wavefield_kernel(kernel, simobject.N, Ndet, pixelsize, detz, k)
-    d_atoms1 = pycuda.driver.mem_alloc(32 * simobject.N)
-    h_atoms1 = simobject.get()
-
-    while True:
-        pycuda.driver.memcpy_htod(d_atoms1, h_atoms1)
-        fwavefield(d_wf1, d_atoms1, block=threadsperblock, grid=blockspergrid)
-        h_atoms1 = simobject.get()
-        pycuda.driver.memcpy_dtoh(h_wf1, d_wf1)
-        result = _np.copy(h_wf1.view(dtype=_np.complex128)[..., 0])
-        yield result
+            print('Interrupted')
+        return result[:i]
