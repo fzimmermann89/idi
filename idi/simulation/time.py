@@ -1,16 +1,15 @@
-import numba
-from numba import cuda
-import math
-import numpy as np
-import numexpr as ne
+import _numba
+import numpy as _np
+import numexpr as _ne
 
-@numba.njit(parallel=True)
+
+@_numba.njit(parallel=True)
 def _decaysum(a, t, tau):
-    x = np.zeros_like(a)
-    for j in numba.prange(x.shape[0]):
+    x = _np.zeros_like(a)
+    for j in _numba.prange(x.shape[0]):
         x[j, 0] = a[j, 0]
         for i in range(1, x.shape[1]):
-            decay = np.exp(-(t[j, i] - t[j, i - 1]) / tau)
+            decay = _np.exp(-(t[j, i] - t[j, i - 1]) / tau)
             x[j, i] = a[j, i] + decay * x[j, i - 1]
     return x
 
@@ -24,20 +23,39 @@ def _integral(amp, t0, tau):
     integrates the exponential decay of |x|^2 with supports t0 and decay tau
     """
 
-    idx = np.argsort(t0, axis=-1)
-    t0s = np.atleast_2d(t0)
-    t0s = t0s[np.arange(t0s.shape[0])[:, None], idx]
-    amps = np.atleast_2d(amp)
-    amps = amps[np.arange(amps.shape[0])[:, None], idx]
+    idx = _np.argsort(t0, axis=-1)
+    t0s = _np.atleast_2d(t0)
+    t0s = t0s[_np.arange(t0s.shape[0])[:, No_ne], idx]
+    amps = _np.atleast_2d(amp)
+    amps = amps[_np.arange(amps.shape[0])[:, No_ne], idx]
     i = _ab2(_decaysum(amps, t0s, tau))
-    td = np.diff(t0s, axis=-1)
-    return np.sum(-tau / 2 * i[:, :-1] * np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
+    td = _np.diff(t0s, axis=-1)
+    return _np.sum(-tau / 2 * i[:, :-1] * _np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings):
+    '''
+    Time dependent simulation with decaying amplitudes (cpu version).
+    simobject: simobject to use for simulation (in lengthunit)
+    pixelsize: pixelsize (in lengthunit)
+    detz: Detector-sample distance
+    k: angular wave number (in 1/lengthunit)
+    c: speed of light in (lengthunit/timeunit)
+    tau: decay time (in timeunit)
+    pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
+    settings: string, can contain 
+        scale - do 1/r intensity scaling
+    '''
+    
     if np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
-    blocksize = 4
+    if 'scale' in settings: 
+        eq='exp(-1j*(s*k-phases))/d'
+    else:
+        eq='exp(-1j*(s*k-phases))'
+    n = np.prod(Ndet)
+    blocksize = min(4,(n & (~(n - 1)))) #do highest power of two of n <=4 pixels at once. tradeoff between memory allocations and call overhead.
+    
     dets = np.array(
         np.meshgrid(
             pixelsize * (np.arange(Ndet[0]) - (Ndet[0] / 2)), 
@@ -45,18 +63,18 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth):
             detz
         )
     ).T
-    res = []
+    res = np.zeros(Ndet[0]*Ndet[1]).reshape(-1,blocksize)
     data = simobject.get()
-    times = np.random.randn(simobject.N)*(pulsewidth/2.35)-data[:,2]/c
+    times = np.random.randn(simobject.N)*(pulsewidth/2.35)
 
-    for det in dets.reshape(-1, blocksize, 3):
-        detnorm = np.linalg.norm(det)
-        d = np.linalg.norm((data[:, :3] - det[:, None, :]), axis=-1)  # distance
+    for j,det in enumerate(dets.reshape(-1, blocksize, 3)):
+        d = np.linalg.norm(det,axis=-1)[:,None]
+        q=(det/d)
+        q[...,-1]-=1
         phases=data[:, 3]
-        e = ne.evaluate('exp(1j * (k * (d - detnorm) + phases))/d')  # complex e field
-        t = d/c + times.T  # arrival time
-        t -= t.min(axis=-1)[:, None]
-        i = _integral(e, t, tau)
-        res.append(i)
-    res = np.array(res).reshape(Ndet[0], Ndet[1])
+        s=np.inner(q,data[:,:3]) #path difference
+        e = ne.evaluate(eq) # complex e field
+        t = -s/c+times.T  # arrival time
+        res[j]= _integral(e, t, tau)
+    res = res.reshape(Ndet[0], Ndet[1])
     return res

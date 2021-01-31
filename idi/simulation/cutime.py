@@ -6,6 +6,18 @@ code = """
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <stdbool.h>
+
+#ifndef usenf
+    #define trans1 trans1ff
+#else
+    #define trans1 trans1nf
+#endif
+#ifdef nodist
+    const bool scale=false;
+#else
+    const bool scale=true;
+#endif
 
 template <typename T, int cn> struct Vec;
 template <> struct Vec<float, 2> {typedef float2 type; static __device__ __host__ __forceinline__ type make(float a, float b) {return make_float2(a,b);}};
@@ -35,7 +47,7 @@ __device__ __forceinline__ void sc(double  x, double* sptr, double* cptr) {
   sincos(x, sptr, cptr);
 }
 
-template <typename T,typename Tt> struct trans1 {
+template <typename T,typename Tt> struct trans1nf {
   typedef typename Vec<T, 2>::type T2;
   typedef typename Vec<T, 3>::type T3;
   typedef typename Vec<T, 4>::type T4;
@@ -43,10 +55,10 @@ template <typename T,typename Tt> struct trans1 {
   double distoff;
   T invc;
   T k;
-  __device__ __forceinline__ trans1(T3 _det, T _k, T _c) {
+  __device__ __forceinline__ trans1nf(T3 _det, T _k, T _c) {
     det = _det;
     distoff = norm3d(_det.x, _det.y, _det.z);
-    invc = 1. / _c;
+    invc = 1 / _c;
     k = _k;
   }
   __device__ __forceinline__ thrust::tuple<Tt, T2>
@@ -54,14 +66,56 @@ template <typename T,typename Tt> struct trans1 {
     auto atom = thrust::get<0>(tup);
     auto time = thrust::get<1>(tup);
     double d = norm3d((double)atom.x - (double) det.x, (double) atom.y - (double) det.y, (double) atom.z - (double) det.z);
-    Tt t = static_cast<Tt>(d - distoff) * invc + time;
-    T phase = (d - distoff) * k + atom.w;
+    double s = d-distoff+atom.z;
+    Tt t = static_cast<Tt>(s  * invc + time);
+    T phase = s  * k + atom.w;
     T real, imag;
     sc(phase, &imag, &real);
-    auto amplitude = Vec<T, 2>::make((T) real / d, (T) imag / d);
+    if (scale) 
+    {
+        T invd=1/((T) d);
+        real=real*invd;
+        imag=imag*invd;
+     }
+    auto amplitude = Vec<T, 2>::make(real, imag);
     return thrust::make_tuple(t, amplitude);
   }
 };
+
+template <typename T,typename Tt> struct trans1ff {
+  typedef typename Vec<T, 2>::type T2;
+  typedef typename Vec<T, 3>::type T3;
+  typedef typename Vec<T, 4>::type T4;
+  T invkc, rdist;
+  T3 q;
+  
+  __device__ __forceinline__ trans1ff(T3 _det, T _k, T _c) {
+    double rdistd = rnorm3d(_det.x, _det.y, _det.z);
+    double kinvd = _k * rdistd;
+    q = Vec<T,3>::make(_det.x * kinvd, _det.y * kinvd, _k * (_det.z * rdistd - 1));
+    rdist =  rdistd;
+    invkc =  1. / (_c*_k);
+  }
+  __device__ __forceinline__ thrust::tuple<Tt, T2>
+  operator()(thrust::tuple<T4, T> tup) {
+    auto atom = thrust::get<0>(tup);
+    auto time = thrust::get<1>(tup);
+    T s = atom.x*q.x+atom.y*q.y+atom.z*q.z;
+    Tt t = -s*invkc+time;
+    T phase = -s+atom.w;
+    T real, imag;
+    sc(phase, &imag, &real);
+    if (scale)
+    {
+        imag=imag*rdist;
+        real=real*rdist;
+    }
+    auto amplitude = Vec<T, 2>::make(real, imag);
+    return thrust::make_tuple(t, amplitude);
+  }
+};
+
+
 
 template <typename T, typename Tt> struct trans2 {
   typedef typename Vec<T, 2>::type T2;
@@ -209,73 +263,106 @@ simulatedf(const double4 *__restrict__ pos, const double *__restrict__ times, co
           _simulate<double,float>(pos, times, dets, tau, c, k, n, threads, ts, as, temp_storage_bytes, d_temp_storages, results);
           }
 """
-import math
-import cupy
-import numpy as np
 
-module=cupy.RawModule(code=code,backend='nvcc',options=('-dc','--std=c++11','--expt-relaxed-constexpr','-O3','--use_fast_math'))
+import cupy as _cp
+import numpy as _np
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, precision='mixed', threads=None): 
-    cupy.random.seed(np.random.randint(2**64-1,dtype=np.uint64))
-    if precision == 'mixed':
-        ftempsize=module.get_function("tempsizedf")
-        fsimulate=module.get_function("simulatedf")
-        ttype, atype, inouttype = np.float32, np.complex128, np.float64
-    elif precision == 'double':
-        ftempsize=module.get_function("tempsized")
-        fsimulate=module.get_function("simulated")
-        ttype, atype, inouttype = np.float64, np.complex128, np.float64
-    elif precision == 'single':
-        ftempsize=module.get_function("tempsizef")
-        fsimulate=module.get_function("simulatef") 
-        ttype, atype, inouttype = np.float32, np.complex64, np.float32
-    else: 
-        raise ValueError
-    
-    N=simobject.N
+
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='mixed', threads=None):
+    '''
+    Time dependent simulation with decaying amplitudes.
+    simobject: simobject to use for simulation (in lengthunit)
+    pixelsize: pixelsize (in lengthunit)
+    detz: Detector-sample distance
+    k: angular wave number (in 1/lengthunit)
+    c: speed of light in (lengthunit/timeunit)
+    tau: decay time (in timeunit)
+    pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
+    settings: string, can contain 
+        double,single,mixed - precision 
+        nf - for nearfield form 
+        scale - do 1/r intensity scaling
+    first call with new settings might recompile and take a few seconds
+    '''
+
+    if 'double' in settings:
+        nametmp, namesim = "tempsized", "simulated"
+        ttype, atype, inouttype = _np.float64, _np.complex128, _np.float64
+    elif 'single' in settings:
+        nametmp, namesim = "tempsizef", "simulatef"
+        ttype, atype, inouttype = _np.float32, _np.complex64, _np.float32
+    else:  # mixed
+        nametmp, namesim = "tempsizedf", "simulatedf"
+        ttype, atype, inouttype = _np.float32, _np.complex128, _np.float64
+    options = []
+    if 'nf' in settings:
+        options += ['-Dusenf']
+    if not 'scale' in settings:
+        options += ['-Dnodist']
+    options += ['-dc', '--std=c++11', '--expt-relaxed-constexpr', '-O3', '--use_fast_math']
+
+    module = _cp.RawModule(code=code, backend='nvcc', options=tuple(options))
+    ftempsize = module.get_function(nametmp)
+    fsimulate = module.get_function(namesim)
+    N = simobject.N
     if threads is None:
-        if N>1e8:
-            threads=1
-        elif N>1e7:
-            threads=2
-        elif N>1e6:
-            threads=4
+        if N > 1e8:
+            threads = 1
+        elif N > 1e7:
+            threads = 2
+        elif N > 1e6:
+            threads = 4
         else:
-            threads=8
-              
-    if np.size(Ndet) == 1:
-        Ndet = [Ndet, Ndet]
-    
-    
-    det = cupy.array(np.array(np.meshgrid(
-        pixelsize * (np.arange(Ndet[0]) - (Ndet[0] / 2)), 
-        pixelsize * (np.arange(Ndet[1]) - (Ndet[1] / 2)), 
-        detz
-    )).T.reshape(-1,3), inouttype)
-    pdet = cupy.array([i.data.ptr for i in det],np.uint64)
-    
-    
-  
-    tmpout=cupy.zeros(1,np.int64)
-    ftempsize(grid=(1,),block=(1,),args=(N,tmpout))
-    tempsize=int(tmpout.get()[0])
-    temp = [cupy.zeros(tempsize//8+1, np.int64) for i in range(threads)]
-    ptemp = cupy.array([i.data.ptr for i in temp], np.uint64)
+            threads = 8
 
-    t = [cupy.zeros(N,ttype) for i in range(2*threads)]
-    a = [cupy.zeros(N,atype) for i in range(2*threads)]
-    pt = cupy.array([i.data.ptr for i in t], np.uint64)
-    pa = cupy.array([i.data.ptr for i in a], np.uint64)
-    data = cupy.array(simobject.get(),inouttype)
-    times = (cupy.random.randn(N,dtype=np.float64)*((pulsewidth/2.35)-data[:,2]/c)).astype(inouttype) #cave: this uses different seed as numpy
-    output = cupy.zeros(len(det),inouttype)
-    poutput = cupy.array([i.data.ptr for i in output],np.uint64)
-    cupy.cuda.get_current_stream().synchronize()
-    for start in range(0,len(pdet),threads):
-        cthreads=int(min(len(pdet)-start,threads))
-        end=start+cthreads
-        fsimulate(grid=(1,),block=(cthreads,),
-                args=(data, times, pdet[start:end],float(tau),float(c),float(k),int(N),int(cthreads),pt,pa,tempsize,ptemp,poutput[start:end])
+    if _np.size(Ndet) == 1:
+        Ndet = [Ndet, Ndet]
+
+    det = _cp.array(_np.array(_np.meshgrid(
+        pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), 
+        pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), 
+        detz
+    )).T.reshape(-1, 3),inouttype,)
+    pdet = _cp.array([i.data.ptr for i in det], _np.uint64)
+
+    tmpout = _cp.zeros(1, _np.int64)
+    ftempsize(grid=(1,), block=(1,), args=(N, tmpout))
+    tempsize = int(tmpout.get()[0])
+    temp = [_cp.zeros(tempsize // 8 + 1, _np.int64) for i in range(threads)]
+    ptemp = _cp.array([i.data.ptr for i in temp], _np.uint64)
+
+    t = [_cp.zeros(N, ttype) for i in range(2 * threads)]
+    a = [_cp.zeros(N, atype) for i in range(2 * threads)]
+    pt = _cp.array([i.data.ptr for i in t], _np.uint64)
+    pa = _cp.array([i.data.ptr for i in a], _np.uint64)
+    data = _cp.array(simobject.get(), inouttype)
+    times = _cp.array(_np.random.randn(simobject.N) * (pulsewidth / 2.35), inouttype)
+    # _cp.random.seed(_np.random.randint(2**64-1,dtype=_np.uint64))
+    # times = (_cp.random.randn(N,dtype=_np.float64)*(pulsewidth/2.35)).astype(inouttype) #cave: this uses different seed as numpy
+    output = _cp.zeros(len(det), inouttype)
+    poutput = _cp.array([i.data.ptr for i in output], _np.uint64)
+    _cp.cuda.get_current_stream().synchronize()
+    for start in range(0, len(pdet), threads):
+        cthreads = int(min(len(pdet) - start, threads))
+        end = start + cthreads
+        fsimulate(
+            grid=(1,),
+            block=(cthreads,),
+            args=(
+                data,
+                times,
+                pdet[start:end],
+                float(tau),
+                float(c),
+                float(k),
+                int(N),
+                int(cthreads),
+                pt,
+                pa,
+                tempsize,
+                ptemp,
+                poutput[start:end],
+            ),
         )
-    cupy.cuda.get_current_stream().synchronize()  
+    _cp.cuda.get_current_stream().synchronize()
     return output.get().reshape(Ndet)
