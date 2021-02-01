@@ -292,3 +292,18 @@ def rndgennorm(mu, fwhm, rho, N):
     # https://sccn.ucsd.edu/wiki/Generalized_Gaussian_Probability_Density_Function
     # https://en.wikipedia.org/wiki/Generalized_normal_distribution
     return mu + fwhm / 2 * (_np.random.gamma(1 / rho, 1, N) / _np.log(2)) ** (1 / rho) * _np.random.choice((-1, 1), N)
+
+
+def rndstr(N):
+    '''
+    random string of N lower case ascii letters and numbers
+    '''
+    import random, string
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=N))
+
+def shortsci(number):
+    '''
+    scientific representation of number with 1 digit precision and no plus or leading zero in exponent as string 
+    '''
+    exponent = int(_np.log10(number))
+    return f'{int(number/10**exponent)}e{exponent}'
