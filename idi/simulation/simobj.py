@@ -5,7 +5,7 @@ from numpy import pi
 import numba as _numba
 import math as _math
 import random as _random
-from ..util import poisson_disc_sample as _pds, rndgennorm as _rndgennorm
+from ..util import poisson_disc_sample as _pds, rndgennorm as _rndgennorm, fastlen as _fastlen
 
 
 '''
@@ -31,20 +31,29 @@ class atoms:
     @property
     def E(self):
         return self._E
+    
+    @property
+    def k(self):
+        return 2 * pi / (1.24 / self._E)
 
-    def get(self):
-        k = 2 * pi / (1.24 / self._E)  # in 1/um
-        z = self._pos[..., 2]
+    def get(self): 
         if self.rndPhase:
             phase = _np.random.rand(self._N)*(2*pi)
         else:
             phase=_np.zeros(self._N)
-            
-            
-            
+                        
         ret = _np.concatenate((self._pos, phase[:, _np.newaxis]), axis=1)
         return ret
-
+    
+    def getImg(self, dx, ndim=2):  
+        pos = self.get()
+        ind = _np.rint((pos[:, :ndim] - _np.min(pos[:, :ndim], axis=0, keepdims=True)) / dx).astype(int)
+        s = _np.array(ind.max(0)) + 1
+        pads = _np.array([_fastlen(i) for i in s])
+        ind += (pads - s) // 2
+        img = _np.zeros(pads, _np.complex128)
+        _np.add.at(img, tuple(ind.T), _np.exp(1j * pos[:, -1]))
+        return img
 
 class sphere(atoms):
     '''
