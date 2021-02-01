@@ -301,9 +301,13 @@ def rndstr(N):
     import random, string
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=N))
 
-def shortsci(number):
+def shortsci(number, decimals=0):
     '''
-    scientific representation of number with 1 digit precision and no plus or leading zero in exponent as string 
+    scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string 
     '''
-    exponent = int(_np.log10(number))
-    return f'{int(number/10**exponent)}e{exponent}'
+    exponent = _np.floor(_np.log10(abs(number)))
+    base=round(number/(10**exponent),decimals)
+    if abs(base)>=10:
+        base=round(base/10,decimals)
+        exponent+=1
+    return f'{base:.{digit}f}e{exponent}'
