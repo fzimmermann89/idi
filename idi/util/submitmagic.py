@@ -3,7 +3,10 @@ import argparse
 import shlex
 import subprocess
 import os
-
+import time
+import subprocess
+import getpass
+import IPython.display
 
 '''
 IPython magic to submit jobs
@@ -138,6 +141,31 @@ currently set:
     @cell_magic
     def lsf(self, line, cell=None):
         raise NotImplementedError('lsf not implmented')
+        
+        
+    @line_magic
+    def queue(self, line=None):
+        cmd=shlex.split(line) or ['/opt/slurm/bin/squeue','-u', getpass.getuser()]
+        try:
+            display=IPython.display.display({'text/plain':'getting data..'},raw=True,display_id=True);
+            while True:
+                p=subprocess.run(cmd,capture_output=True,timeout=5)
+                if not p.returncode:
+                    output=p.stdout.decode('ascii')
+                    html = (
+                        "<table><tr><td>"
+                        + "</tr><tr><td>".join(
+                            ("</td><td>".join(line.split()) for line in output.split("\n") if line)
+                        )
+                        + "</td></tr></table>"
+                    )
+                    display.update({'text/html':html+f'<i>Live</i>'},raw=True)
+                    time.sleep(1)
+
+                else: 
+                    break
+        except KeyboardInterrupt:
+             display.update({'text/html':html+f'<i>Last Updated at {time.asctime(time.localtime())}</i>'},raw=True)
 
 
 def load_ipython_extension(ipython):
