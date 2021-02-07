@@ -303,11 +303,17 @@ def rndstr(N):
 
 def shortsci(number, decimals=0):
     '''
-    scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string 
+    short scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string
     '''
-    exponent = _np.floor(_np.log10(abs(number)))
-    base=round(number/(10**exponent),decimals)
-    if abs(base)>=10:
-        base=round(base/10,decimals)
-        exponent+=1
-    return f'{base:.{digit}f}e{exponent}'
+    if number == 0:
+        return '0e0'
+    elif not _np.isfinite(number):
+        return str(number)
+    else:
+        exponent = _np.floor(_np.log10(abs(number)))
+        base = round(number / (10 ** exponent), decimals)
+        if abs(base) >= 10:
+            base = round(base / 10, decimals)
+            exponent += 1
+        return f'{base:.{decimals}f}e{int(exponent)}'
+
