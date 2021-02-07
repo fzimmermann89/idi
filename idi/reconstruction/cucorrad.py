@@ -44,33 +44,53 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             doutput = numba.cuda.device_array((saveblocks, qmax + 1), np.float64, stream=stream)
         
         del x, y, d, qx, qy, qz
-
+        #shared memory size is limited, don't cache if rows are to large
+        #instead, we could load them blockwise..
+        shareval=shape[1]<=4096
+        sharerefq=shape[1]<=2048
+        sharetq=shape[1]<=1024
         def kernel(qx, qy, qz, val, out):
             refr = numba.cuda.blockIdx.y
             offsetr = numba.cuda.blockIdx.z
 
-            saveblock = numba.int32(numba.cuda.threadIdx.x % saveblocks)
-            refq0, refq1, refq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
-            refv = numba.cuda.shared.array((Nc), np.float32)
-            tq0, tq1, tq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
-            tv = numba.cuda.shared.array((Nc), np.float32)
+            saveblock = numba.int32(numba.cuda.threadIdx.x % saveblocks) 
             tr = numba.int32(refr + offsetr)
+            
             if not (0 <= tr < Nr and 0 <= refr < Nr):
                 return
+            
+            if sharerefq:
+                refq0, refq1, refq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
+            else:
+                refq0, refq1, refq2 = qx[refr, :],qy[refr, :],qz[refr, :]
+            if sharetq:
+                tq0, tq1, tq2 = numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32), numba.cuda.shared.array((Nc), np.float32)
+            else:
+                tq0,tq1,tq2= qx[tr, :],qy[tr, :],qz[tr, :]
+            if shareval:    
+                refv = numba.cuda.shared.array((Nc), np.float32)
+                tv = numba.cuda.shared.array((Nc), np.float32)
+            else:
+                refv = val[refr, :]
+                tv = val[tr, :]
             loadid = numba.cuda.threadIdx.x
             numba.cuda.syncthreads()
-            while loadid < numba.int32(Nc):
-                refq0[loadid] = qx[refr, loadid]
-                refq1[loadid] = qy[refr, loadid]
-                refq2[loadid] = qz[refr, loadid]
-                refv[loadid] = val[refr, loadid]
-                tq0[loadid] = qx[tr, loadid]
-                tq1[loadid] = qy[tr, loadid]
-                tq2[loadid] = qz[tr, loadid]
-                tv[loadid] = val[tr, loadid]
-                loadid += numba.cuda.blockDim.x
+            if shareval or sharetq or sharerefq:
+                while loadid < numba.int32(Nc):
+                    if sharerefq:
+                        refq0[loadid] = qx[refr, loadid]
+                        refq1[loadid] = qy[refr, loadid]
+                        refq2[loadid] = qz[refr, loadid]
+                    if sharetq:
+                        tq0[loadid] = qx[tr, loadid]
+                        tq1[loadid] = qy[tr, loadid]
+                        tq2[loadid] = qz[tr, loadid]
+                    if shareval:
+                        refv[loadid] = val[refr, loadid]
+                        tv[loadid] = val[tr, loadid]
+                    loadid += numba.cuda.blockDim.x
             numba.cuda.syncthreads()
-
+            
             offsetc = numba.int32(numba.cuda.threadIdx.x - qmax)
             val = numba.float32(0)
             dqold = numba.cuda.threadIdx.x // 2
