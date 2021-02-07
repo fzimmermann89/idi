@@ -64,10 +64,9 @@ class submit_magics(Magics):
                 p = subprocess.run(args.batch_cmd, input=cmd.encode('utf-8'), capture_output=True)
             except FileNotFoundError:
                 return 'Submit Command not found'
-                return False
-                if p.returncode:
+            if p.returncode or args.debug:
                     print(p.stderr.decode('utf-8'))
-                print(p.stdout.decode('utf-8'))
+                    print(p.stdout.decode('utf-8'))
             return p.returncode
 
     @line_magic
