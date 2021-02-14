@@ -4,6 +4,7 @@ from .accum import *
 from .filters import *
 from .funchelper import *
 from .poissondisk import *
+from .random import *
 from . import h5util
 import numba as _numba
 import numpy as _np
@@ -283,24 +284,6 @@ def split(x, dx, v=None):
         return [v[sid[start:stop], ...] for start, stop in zip(ids[0:-1], ids[1:])]
 
 
-def rndgennorm(mu, fwhm, rho, N):
-    """
-    samples from the generalised random normal distribution with given shape parameter rho, mean mu and fwhm.
-    for rho=2 this is a normal distribution, for higher rho it approaches a uniform distribution between -fwhm/2 and fwhm/2.
-    mu, rho, fwhm must be broadcastable to the number of samples N.
-    """
-    # https://sccn.ucsd.edu/wiki/Generalized_Gaussian_Probability_Density_Function
-    # https://en.wikipedia.org/wiki/Generalized_normal_distribution
-    return mu + fwhm / 2 * (_np.random.gamma(1 / rho, 1, N) / _np.log(2)) ** (1 / rho) * _np.random.choice((-1, 1), N)
-
-
-def rndstr(N):
-    '''
-    random string of N lower case ascii letters and numbers
-    '''
-    import random, string
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=N))
-
 def shortsci(number, decimals=0):
     '''
     short scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string
@@ -317,3 +300,27 @@ def shortsci(number, decimals=0):
             exponent += 1
         return f'{base:.{decimals}f}e{int(exponent)}'
 
+
+@_numba.njit
+def axisrotation(axis, theta):
+    u = axis / _np.linalg.norm(axis.astype(_np.float64))
+    return _np.cos(theta) * _np.identity(3) + _np.sin(theta) * _np.cross(_np.identity(3), u) + (1 - _np.cos(theta)) * _np.outer(u, u)
+
+
+@_numba.njit
+def rotation(alpha, beta, gamma):
+    cosa, cosb, cosg = _np.cos(_np.array((alpha, beta, gamma)))
+    sina, sinb, sing = _np.sin(_np.array((alpha, beta, gamma)))
+
+    # yaw pitch roll
+    M = _np.array(
+        [
+            [cosb * cosg, sina * sinb * cosg - cosa * sing, cosa * sinb * cosg + sina * sing,],
+            [cosb * sing, sina * sinb * sing + cosa * cosg, cosa * sinb * sing - sina * cosg,],
+            [-sinb, sina * cosb, cosa * cosb],
+        ]
+    )
+    return M
+
+def angles(rotmatrix):
+    return (_np.arctan2(rotmatrix[2,1],rotmatrix[2,2]),-_np.arcsin(rotmatrix[2,0]),_np.arctan2(rotmatrix[1,0],rotmatrix[0,0]))
