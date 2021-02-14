@@ -143,28 +143,29 @@ currently set:
         
         
     @line_magic
-    def queue(self, line=None):
-        cmd=shlex.split(line) or ['/opt/slurm/bin/squeue','-u', getpass.getuser()]
-        try:
-            display=IPython.display.display({'text/plain':'getting data..'},raw=True,display_id=True);
-            while True:
-                p=subprocess.run(cmd,capture_output=True,timeout=5)
-                if not p.returncode:
-                    output=p.stdout.decode('ascii')
-                    html = (
-                        "<table><tr><td>"
-                        + "</tr><tr><td>".join(
-                            ("</td><td>".join(line.split()) for line in output.split("\n") if line)
-                        )
-                        + "</td></tr></table>"
-                    )
-                    display.update({'text/html':html+f'<i>Live</i>'},raw=True)
-                    time.sleep(1)
+    def queue(self, line=None, display=None):
+        cmd=shlex.split(line) or ['/opt/slurm/bin/squeue','-u', getpass.getuser(),'-O','JobArrayID:80,JobID:80,name:80,state:80,ReasonList:80,MINCPUS:80,tres-per-job:80,MinMemory:80,SubmitTime:80,TimeUsed:80,TimeLeft:80']
+        display=display or IPython.display.display({'text/plain':'getting data..'},raw=True,display_id=True);
+        p=subprocess.run(cmd,capture_output=True,timeout=5)
+        if not p.returncode:
+            output=p.stdout.decode('ascii').split("\n")
+            rows=[f'<th>{"</th><th>".join(output[0].split())}</th>'] + [f'<td>{"</td><td>".join(line.split())}</td>' for line in output[1:-1]] 
+            html ="<table><tr>" + '</tr>\n<tr>'.join(rows) + '</tr><table>' 
+            display.update({'text/html':html+f'<i>Last Updated at {time.asctime(time.localtime())}</i>'},raw=True)
+            time.sleep(1)
+        else: 
+            return p.returncode
 
-                else: 
-                    break
+                
+    @line_magic
+    def monitor(self, line=None):
+        display=IPython.display.display({'text/plain':'getting data..'},raw=True,display_id=True)
+        try:
+            while True:
+                if self.queue(line,display): break
         except KeyboardInterrupt:
-             display.update({'text/html':html+f'<i>Last Updated at {time.asctime(time.localtime())}</i>'},raw=True)
+            IPython.display.display({'text/plain':'Stopped'})
+            
 
 
 def load_ipython_extension(ipython):
