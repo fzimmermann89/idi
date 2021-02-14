@@ -32,7 +32,7 @@ template <> struct Vec<float, 4> {typedef float4 type; static __device__ __host_
 template <> struct Vec<double, 4> {typedef double4 type; static __device__ __host__ __forceinline__ type make(double a, double b, double c, double d) {return make_double4(a,b,c,d);}};
 
 __device__ __forceinline__ void sc(float x, float * sptr, float * cptr) {
-    __sincosf(x, sptr, cptr);
+    sincosf(x, sptr, cptr);
 }
 
 __device__ __forceinline__ void sc(double x, double * sptr, double * cptr) {
@@ -141,7 +141,7 @@ __global__ void wfkerneld(double2 * __restrict__ ret, const double4 * __restrict
 
 import numpy as _np
 import cupy as _cp
-
+from time import sleep as _sleep
 
 def _pinned(shape, dtype):
     size = _np.prod(shape)
@@ -193,37 +193,27 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings="double", init=Tr
     blockspergrid = (blockspergrid_x, blockspergrid_y)
     module = _cp.RawModule(code=code, backend="nvcc", options=tuple(["--std=c++11", "-O3", "--restrict"] + options))
     kernel = module.get_function(kernelname)
-    streams = [_cp.cuda.stream.Stream() for i in range(2)]
-    d_wf = [_cp.zeros((Ndet[0], Ndet[1]), dtype=outtype) for i in range(len(streams))]
-    h_atoms = [_pinned((simobject.N, 4), intype) for i in range(len(streams))]
-    d_atoms = [_cp.zeros((simobject.N, 4), intype) for i in range(len(streams))]
-
-    def _init():
-        streams[0].use()
-        h_atoms[0][:] = simobject.get().astype(intype)
-        d_atoms[0].set(h_atoms[0], stream=streams[0])
-        kernel(blockspergrid, threadsperblock, (d_wf[0], d_atoms[0], float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
-
-    if init:
-        _init()
-
+    
+    d_wf = _cp.zeros((Ndet[0], Ndet[1]), dtype=outtype)
+    d_atoms = _cp.zeros((simobject.N, 4), intype)
+    h_atoms = _pinned((simobject.N, 4), intype)
     def _gen():
-        if not init:
-            _init()
-        current, other, count = 0, 1, 1
+        h_atoms[:,:3], h_atoms[:,3:] = simobject.get2()
+        d_atoms.set(h_atoms)    
+        kernel(blockspergrid, threadsperblock, (d_wf, d_atoms, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
+        count = 1
         while True:
             if count == maximg: 
-                yield d_wf[current].get(stream=streams[current])
+                yield d_wf.get()
             elif count > maximg:
                 return
             else:
-                h_atoms[other][:] = simobject.get().astype(intype)
-                streams[other].use()
-                d_atoms[other].set(h_atoms[other], stream=streams[other])
-                kernel(blockspergrid, threadsperblock, (d_wf[other], d_atoms[other], float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
-                yield d_wf[current].get(stream=streams[current])
+                h_atoms[:,:3], h_atoms[:,3:] = simobject.get2()
+                d_atoms.set(h_atoms)    
+                ret=d_wf.get()
+                kernel(blockspergrid, threadsperblock, (d_wf, d_atoms, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
+                yield ret
             count += 1
-            current, other = other, current
 
     return _gen()
 
