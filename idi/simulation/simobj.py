@@ -14,6 +14,7 @@ from ..util import rndSphere as _rndSphere
 from ..util import rotation as _rotation
 from numpy import pi
 from gc import collect as _gc
+
 '''
 simulation objects
 '''
@@ -103,7 +104,7 @@ class simobj(_abc.ABC):
         # reset cached values if property changes
         if any(name == n for n in self._resetproperties):
             self._pos = None
-           # _gc()
+        # _gc()
         super().__setattr__(name, value)
 
     def _rotate(self, rotmatrix):
@@ -158,7 +159,7 @@ class gnorm(simobj):
 
     def updatePos(self):
         _gc()
-        
+
         if _np.all(self.rho == 2):
             self.pos = self.rng.normal(self.N, 3) * (self.fwhm / 2.355)
         else:
@@ -207,7 +208,7 @@ class multisphere(simobj):
         Nspheres: max. total number of particles in volume
         """
 
-        self._Nspheres,self.rsphere,self.spacing  = Nspheres, rsphere, spacing
+        self._Nspheres, self.rsphere, self.spacing = Nspheres, rsphere, spacing
         self.fwhm, self.rho = _np.array(fwhm), _np.array(rho)
         self.rndPos = True
         self._debug = None
@@ -225,7 +226,7 @@ class multisphere(simobj):
         posspheres = self._spherepos()
         p = _np.exp(
             _ne.evaluate(
-                'sum(-pos**rho*s, axis=1)', local_dict={'s': np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': posspheres, 'rho': self.rho}
+                'sum(-pos**rho*s, axis=1)', local_dict={'s': _np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': posspheres, 'rho': self.rho}
             )
         )
         n = self.rng.poisson(p * (self._N / _np.sum(p)))
@@ -326,8 +327,21 @@ class crystal(simobj):
     '''
 
     def __init__(self, E, lconst, langle, unitcell, N, repeats=None, rotangles=[0, 0, 0], fwhm=None, rho=2):
+        if fwhm is not None:
+            cosa, cosb, cosc = _np.cos(_np.array(langle))
+            sina, sinb, sinc = _np.sin(_np.array(langle))
+            neededrepeats = _np.ceil(
+                2 * fwhm / (_np.array([1, sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)]) * _np.array(lconst))
+            ).astype(int)
+            if repeats is not None:
+                if _np.any(neededrepeats > repeats):
+                    _warn('Number of repeats small for choosen fwhm')
+            else:
+                repeats = neededrepeats
         if repeats is None:
             repeats = 3 * [int(_np.rint((N / len(unitcell)) ** (1 / 3.0)))]
+        if _np.prod(repeats) * len(unitcell) < N:
+            _warn('Number of atoms high for atoms in focus')
         allpos = crystal._lattice(lconst, langle, unitcell, repeats)
 
         if _np.any(rotangles):
@@ -381,10 +395,11 @@ class crystal(simobj):
         if self.fwhm is not None and self._p is None:
             p = _np.exp(
                 _ne.evaluate(
-                    'sum(-pos**rho*s, axis=1)', local_dict={'s': np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': pos, 'rho': self.rho}
+                    'sum(-pos**rho*s, axis=1)', local_dict={'s': _np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': pos, 'rho': self.rho}
                 )
             )
             p /= _np.sum(p)
+            self._p = p
         else:
             p = self._p
         missing = self.N
