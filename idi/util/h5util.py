@@ -33,15 +33,21 @@ def list2array(l):
 
 def copymasked(src, dst, mask):
     def func(name, obj):
-        print('  ', name)
         if isinstance(obj, h5py._hl.dataset.Dataset):
             dst[name] = obj[mask, ...]
 
     if isinstance(src, h5py._hl.dataset.Dataset):
         name = src.name.split('/')[-1]
-        print('  ', name)
         dst[name] = src[mask]
     elif isinstance(src, h5py._hl.group.Group) or isinstance(h5py._hl.files.File):
         src.visititems(func)
     else:
         raise TypeError
+
+def chunkediter(dataset, sel=slice(None), readsize=16, outsize=1):
+    r = range(*sel.indices(len(dataset)))
+    for i in range(0, len(r), readsize):
+        ids = r[i : i + readsize]
+        tmp = _np.array(dataset[ids.start : ids.stop : ids.step])
+        for j in range(0, len(tmp), outsize):
+            yield _np.squeeze(tmp[j : j + outsize])
