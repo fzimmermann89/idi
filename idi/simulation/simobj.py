@@ -47,7 +47,7 @@ class simobj(_abc.ABC):
     def get2(self):
         if self.rndPos or self._pos is None:
             self._pos = None
-            _gc()
+            # _gc()
             self.updatePos()
 
         if self.rndPhase:
@@ -469,3 +469,32 @@ class cuso4(crystal):
         lconst = _np.array([6.141, 10.736, 5.986]) * 1e-4
         langle = _np.array([82.27, 107.43, 102.67]) * pi / 180.0
         super().__init__(E, lconst, langle, unitcell, N, repeats, rotangles, fwhm, rho)
+
+
+class grating(simobj):
+    def __init__(self, N, linewidth, spacingwidth, fwhm, rho=2, rholine=2):
+        self.linewidth = linewidth
+        self.spacingwidth = spacingwidth
+        self.fwhm = fwhm
+        self.rho = rho
+        self.rholine = rholine
+        self.__resetproperties = ['linewidth', 'spacingwidth', 'fwhm', 'rho', 'rholine']
+        super().__init__(E, int(N))
+
+    def updatePos(self):
+        def _lines(x, a, b, rho):
+            s = np.log(2) * (2 / a) ** rho
+            return _ne.evaluate('exp(-abs((x%(a+b))-(a+b)/2)**rho*s)')
+
+        if self._pos is None:
+            rhofocusx = self.rho if _np.isscalar(self.rho) else self.rho[0]
+            self._x = np.arange(
+                -(0.5 + 2 / rhofocusx) * self.fwhm, (0.5 + 2 / rhofocusx) * self.fwhm, min(self.linewidth, self.spacingwidth) / 10
+            )
+            p = _lines(self._x, self.linewidth, self.spacingwidth, self.rholine) * gnorm(self._x, self.fwhm, rhofocusx)
+            self._c = _np.cumsum(p)
+            self._c = self._c / self._c[-1]
+        rhofocusyz = self.rho if _np.isscalar(self.rho) else self.rho[1:]
+        self._pos = _np.zeros((self.N, 3))
+        self._pos[:, 0] = np.interp(self.rng.uniform(size=self.N), self._c, self._x)
+        self._pos[:, 1:] = _rndgennorm(0, self.fwhm, rhofocusyz, (self.N, 2), self.rng)
