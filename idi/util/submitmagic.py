@@ -53,15 +53,31 @@ class submit_magics(Magics):
             ['#!/bin/sh']
             + [f'{key} {mapping[k]}={v}' for k, v in vars(args).items() if (v is not None and k in mapping)]
             + [f'{key} {v}' for v in unknown]
-            + (['', 'hostname', 'env', 'pwd', 'ls -haltr /scratch/', 'mount'] if args.debug else [])
-            + [f'{prepcmd} << "EOF_PYTHONFILE" | {args.interpreter}', '', cell, '', 'EOF_PYTHONFILE']
+            + (['', 'hostname', 'env', 'pwd', 'mount'] if args.debug else [])
+            + ['''       
+_term() { 
+    echo "Got SIGTERM signal!" 
+    kill -TERM "$pid" 
+}
+_usr1() { 
+    echo "Got USR1 signal!" 
+    kill -USR1 "$pid" 
+}
+trap _term TERM
+trap _usr1 USR1
+            ''']
+            + [f'{prepcmd} << "EOF_PYTHONFILE" | {args.interpreter} &', '', cell, '', 'EOF_PYTHONFILE']
+            + ['export pid=$!']
+            + (['echo "$pid"'] if args.debug else [])
+            + ['wait']
         )
+        bcmd=[inner for outer in [shlex.split(i) for i in args.batch_cmd] for inner in outer]
         if args.debug or args.dryrun:
-            print(args.batch_cmd)
+            print(args.batch_cmd,bcmd)
             print(cmd)
         if not args.dryrun:
             try:
-                p = subprocess.run(args.batch_cmd, input=cmd.encode('utf-8'), capture_output=True)
+                p = subprocess.run(bcmd, input=cmd.encode('utf-8'), capture_output=True)
             except FileNotFoundError:
                 return 'Submit Command not found'
             if p.returncode or args.debug:
@@ -164,7 +180,7 @@ currently set:
             while True:
                 if self.queue(line,display): break
         except KeyboardInterrupt:
-            IPython.display.display({'text/plain':'Stopped'})
+            IPython.display.display({'text/plain':'Stopped'}, raw=True)
             
 
 
