@@ -213,7 +213,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
     return N>=x conisting only of the prime factors given as factors
     """
     # fmt: off
-    fastlens=(   
+    fastlens = _np.array((   
           1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,
          12,   14,   15,   16,   18,   20,   21,   22,   24,   25,   27,
          28,   30,   32,   33,   35,   36,   40,   42,   44,   45,   48,
@@ -246,20 +246,19 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
        3072, 3080, 3087, 3125, 3136, 3150, 3168, 3200, 3234, 3240, 3267,
        3300, 3360, 3375, 3388, 3402, 3430, 3456, 3465, 3500, 3520, 3528,
        3564, 3584, 3600, 3630, 3645, 3675, 3696, 3750, 3773, 3780, 3840,
-       3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096
-    )
+       3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096,
+       4116, 4125, 4158, 4200, 4224, 4235, 4312, 4320, 4356, 4374, 4375
+    ))
     # fmt: on
-    if factors != (2, 3, 5, 7, 11) or x > 4235:
+    if factors != (2, 3, 5, 7, 11) or _np.any(x > 4375):
+        # slow fallback
         fastlens = _np.unique(
             [
-                _np.product(_np.array(factors) ** _np.array(i))
-                for i in _it.product(*(range(int(1 + _np.log(x) / _np.log(k))) for k in factors))
+                _np.product(_np.array(factors) ** _np.array(i).astype(float))
+                for i in _it.product(*(range(int(2 + _np.log(_np.max(x)) / _np.log(k))) for k in factors))
             ]
         )
-    for fastlen in fastlens:
-        if fastlen >= x:
-            return fastlen
-    return x
+    return fastlens[_np.searchsorted(fastlens, x)].astype(int)
 
 
 def split(x, dx, v=None):
@@ -303,12 +302,18 @@ def shortsci(number, decimals=0):
 
 @_numba.njit
 def axisrotation(axis, theta):
+    '''
+    axis and angle to rotation matrix
+    '''
     u = axis / _np.linalg.norm(axis.astype(_np.float64))
     return _np.cos(theta) * _np.identity(3) + _np.sin(theta) * _np.cross(_np.identity(3), u) + (1 - _np.cos(theta)) * _np.outer(u, u)
 
 
 @_numba.njit
 def rotation(alpha, beta, gamma):
+    '''
+    angles to rotation matrix
+    '''
     cosa, cosb, cosg = _np.cos(_np.array((alpha, beta, gamma)))
     sina, sinb, sing = _np.sin(_np.array((alpha, beta, gamma)))
 
@@ -322,5 +327,20 @@ def rotation(alpha, beta, gamma):
     )
     return M
 
+
 def angles(rotmatrix):
-    return (_np.arctan2(rotmatrix[2,1],rotmatrix[2,2]),-_np.arcsin(rotmatrix[2,0]),_np.arctan2(rotmatrix[1,0],rotmatrix[0,0]))
+    '''
+    rotation matrix to angles
+    '''
+    return (_np.arctan2(rotmatrix[2, 1], rotmatrix[2, 2]), -_np.arcsin(rotmatrix[2, 0]), _np.arctan2(rotmatrix[1, 0], rotmatrix[0, 0]))
+
+
+def gnorm(x, fwhm, rho, axis=None):
+    '''
+    generalised normal distribution
+    '''
+    s = _np.log(2) * (2 / fwhm) ** rho
+    if axis is not None:
+        return np.exp(_ne.evaluate(f'sum(-abs(x)**rho*s), axis={axis})'))
+    else:
+        return _ne.evaluate(f'exp(-abs(x)**rho*s)')
