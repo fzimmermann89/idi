@@ -12,6 +12,8 @@ from ..util import rndgennorm as _rndgennorm
 from ..util import rndIcosahedron as _rndIcosahedron
 from ..util import rndSphere as _rndSphere
 from ..util import rotation as _rotation
+from ..util import gnorm as _gnorm
+
 from numpy import pi
 from gc import collect as _gc
 
@@ -472,29 +474,41 @@ class cuso4(crystal):
 
 
 class grating(simobj):
-    def __init__(self, N, linewidth, spacingwidth, fwhm, rho=2, rholine=2):
+    def __init__(self, E, N, linewidth, spacingwidth, fwhm, rho=2, rholine=10, rotangles=[0,0,0]):
         self.linewidth = linewidth
         self.spacingwidth = spacingwidth
         self.fwhm = fwhm
         self.rho = rho
         self.rholine = rholine
         self.__resetproperties = ['linewidth', 'spacingwidth', 'fwhm', 'rho', 'rholine']
+        if _np.any(rotangles):
+            self._rotmatrix = _rotation(*rotangles)
+        else:
+            self._rotmatrix = False
         super().__init__(E, int(N))
 
     def updatePos(self):
         def _lines(x, a, b, rho):
-            s = np.log(2) * (2 / a) ** rho
+            s = _np.log(2) * (2 / a) ** rho
             return _ne.evaluate('exp(-abs((x%(a+b))-(a+b)/2)**rho*s)')
 
         if self._pos is None:
             rhofocusx = self.rho if _np.isscalar(self.rho) else self.rho[0]
-            self._x = np.arange(
-                -(0.5 + 2 / rhofocusx) * self.fwhm, (0.5 + 2 / rhofocusx) * self.fwhm, min(self.linewidth, self.spacingwidth) / 10
+            fwhmx = self.fwhm if _np.isscalar(self.fwhm) else self.fwhm[0]
+            self._x = _np.arange(
+                -(0.5 + 2 / rhofocusx) * fwhmx, (0.5 + 2 / rhofocusx) * fwhmx, min(self.linewidth, self.spacingwidth) / 10
             )
-            p = _lines(self._x, self.linewidth, self.spacingwidth, self.rholine) * gnorm(self._x, self.fwhm, rhofocusx)
+            p = _lines(self._x, self.linewidth, self.spacingwidth, self.rholine) * _gnorm(self._x, fwhmx, rhofocusx)
             self._c = _np.cumsum(p)
             self._c = self._c / self._c[-1]
         rhofocusyz = self.rho if _np.isscalar(self.rho) else self.rho[1:]
+        fwhmyz = self.fwhm if _np.isscalar(self.fwhm) else self.fwhm[1:]
         self._pos = _np.zeros((self.N, 3))
-        self._pos[:, 0] = np.interp(self.rng.uniform(size=self.N), self._c, self._x)
-        self._pos[:, 1:] = _rndgennorm(0, self.fwhm, rhofocusyz, (self.N, 2), self.rng)
+        self._pos[:, 0] = _np.interp(self.rng.uniform(size=self.N), self._c, self._x)
+        self._pos[:, 1:] = _rndgennorm(0, fwhmyz, rhofocusyz, (self.N, 2), self.rng)
+        
+        if self._rotmatrix is not False:
+            self._rotate(self._rotmatrix)
+        
+    def _rotate(self, rotmatrix):
+        self._pos = _np.matmul(rotmatrix, self._pos.T, order='F').T
