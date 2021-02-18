@@ -20,6 +20,8 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
     xcenter (scalar): position of center in x direction, defaults to shape[0]/2
     ycenter (scalar): position of center in x direction, defaults to shape[1]/2
     returns a function with signature float[:,:,:](float[:,:] image) that does the correlation
+    and returns val(dqz,dqy,dqx)=sum_qx,qy image(qx,qy)*image(qx+dqx,qy+dqy)
+    
     """
     
     stream = None
@@ -82,7 +84,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
                         dqx = qmax + numba.int32(round(tr2 * tzd[tc] - refr2 * refzd[refc]))
                         dqy = qmax + numba.int32(round((numba.float32(tc) - ycenter) * tzd[tc] - (numba.float32(refc) - ycenter) * refzd[refc]))
                         dqz = maxdqz + numba.int32(round(cz * (refzd[refc] - tzd[tc])))
-                        numba.cuda.atomic.add(out, (dqz, dqx, dqy), refv[refc] * tv[tc])
+                        numba.cuda.atomic.add(out, (dqz, dqy, dqx), refv[refc] * tv[tc])
                 offsetc += numba.int32(numba.cuda.blockDim.x)
 
         def assemble(vals):
