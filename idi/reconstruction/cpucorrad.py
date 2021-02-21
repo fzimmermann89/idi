@@ -1,6 +1,6 @@
 import math
-import numpy as np
-import numba, functools
+import numpy as _np
+import numba as _numba
 import contextlib
 
 
@@ -20,16 +20,16 @@ def corrfunction(shape, z, qmax, xcenter=None, ycenter=None):
     """
     xcenter = xcenter or shape[0] / 2.0
     ycenter = ycenter or shape[1] / 2.0
-    y, x = np.meshgrid(np.arange(shape[1], dtype=np.float64), np.arange(shape[0], dtype=np.float64))
+    y, x = _np.meshgrid(_np.arange(shape[1], dtype=_np.float64), _np.arange(shape[0], dtype=_np.float64))
     x -= xcenter
     y -= ycenter
-    d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     qx, qy, qz = [(k / d * z) for k in (x, y, z)]
     del x, y, d
 
     def inner(input, qx, qy, qz):
-        out = np.zeros((shape[0] + 10, qmax), dtype=np.float64)
-        for refx in numba.prange(shape[0]):
+        out = _np.zeros((shape[0] + 10, qmax), dtype=_np.float64)
+        for refx in _numba.prange(shape[0]):
             for refy in range(shape[1]):
                 qxr = qx[refx, refy]
                 qyr = qy[refx, refy]
@@ -52,7 +52,7 @@ def corrfunction(shape, z, qmax, xcenter=None, ycenter=None):
                         x += -1 + 2 * direction
         return out
 
-    finner = numba.njit(inner, parallel=True, fastmath=True).compile("float64[:,:](float64[:,:],float64[:,:],float64[:,:],float64[:,:])")
+    finner = _numba.njit(inner, parallel=True, fastmath=True).compile("float64[:,:](float64[:,:],float64[:,:],float64[:,:],float64[:,:])")
 
     def corr(input):
         """
@@ -60,10 +60,10 @@ def corrfunction(shape, z, qmax, xcenter=None, ycenter=None):
         """
         if finner is None:
             raise ValueError("already closed, use within with statement")
-        input = np.asarray(input).astype(np.float64, copy=False)
+        input = _np.asarray(input).astype(_np.float64, copy=False)
         if not all(i == s for (i, s) in zip(input.shape, shape)):
             raise ValueError("not the same shape")
-        return np.sum(finner(input, qx, qy, qz), axis=0)
+        return _np.sum(finner(input, qx, qy, qz), axis=0)
 
     yield corr
     qx = qy = qz = finner = shape = None

@@ -29,8 +29,8 @@ def _radcorr(input, z, qmax=None):
     Nhits = len(xi)
     qmax = qmax or int(_np.ceil(2 * max(input.shape[-2:])))
     tmp = _np.zeros(qmax, dtype=_np.float64)
-    x = (xi).astype(_numba.float64) - Nx / 2.0
-    y = (yi).astype(_numba.float64) - Ny / 2.0
+    x = xi.astype(_numba.float64) - Nx / 2.0
+    y = yi.astype(_numba.float64) - Ny / 2.0
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = (x / d) * z
     ky = (y / d) * z
@@ -42,7 +42,7 @@ def _radcorr(input, z, qmax=None):
             qx = kx[n] - kx[m]
             qy = ky[n] - ky[m]
             q = int(round(_math.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-            if 0<= q < qmax:
+            if 0 <= q < qmax:
                 tmp[q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
     return tmp
 
@@ -56,8 +56,8 @@ def _pradcorr(input, z, qmax=None):
     pmax = 16
     Nx, Ny = input.shape
     xi, yi = _np.where(input)
-    x = (xi).astype(_numba.float64) - Nx / 2.0
-    y = (yi).astype(_numba.float64) - Ny / 2.0
+    x = xi.astype(_numba.float64) - Nx / 2.0
+    y = yi.astype(_numba.float64) - Ny / 2.0
     Nhits = len(xi)
     qmax = qmax or int(_np.ceil(2 * max(input.shape[-2:])))
     tmp = _np.zeros((pmax, qmax), dtype=_numba.float64)
@@ -74,7 +74,7 @@ def _pradcorr(input, z, qmax=None):
                 qx = kx[n] - kx[m]
                 qy = ky[n] - ky[m]
                 q = int(round(_math.sqrt(qx ** 2 + qy ** 2 + qz ** 2)))
-                if 0<= q < qmax:
+                if 0 <= q < qmax:
                     tmp[p, q] += input[xi[n], yi[n]] * input[xi[m], yi[m]]
     out = _np.zeros(qmax)
     for n in range(pmax):
@@ -92,7 +92,7 @@ def _pradcorrs(input, z, qmax=None):
     out = _np.zeros((input.shape[0], qmax), dtype=_numba.float64)
     print(out.shape)
     for n in _numba.prange(input.shape[0]):
-        print('start',n)
-        out[n] = _radcorr(input[n, ...], z,qmax)
-        print('end',n)
+        print('start', n)
+        out[n] = _radcorr(input[n, ...], z, qmax)
+        print('end', n)
     return out

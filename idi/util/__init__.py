@@ -279,6 +279,18 @@ def split(x, dx, v=None):
         return [v[sid[start:stop], ...] for start, stop in zip(ids[0:-1], ids[1:])]
 
 
+def splits(N, sections, return_lists=False):
+    """
+    split N in sections ranges
+    """
+    each, remainder = divmod(N, sections)
+    splits = _np.array(([0] + remainder * [each + 1] + (sections - remainder) * [each])).cumsum()
+    ranges = [range(splits[i], splits[i + 1]) for i in range(sections)]
+    if return_lists:
+        return [list(i) for i in ranges]
+    else:
+        return ranges
+
 def shortsci(number, decimals=0):
     """
     short scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string

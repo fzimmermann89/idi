@@ -6,9 +6,9 @@ import warnings as _w
 
 _vml_threads = _mkl.domain_get_max_threads('vml')
 
-from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common
+from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common  # noqa
 
-##mkl fft
+# mkl fft
 try:
     from . import autocorrelate3
 except ImportError as e:
@@ -31,7 +31,7 @@ if _local:
 else:
     from . import ft
 
-##cuda
+# cuda
 _cuda = _nbcuda.is_available()
 if _cuda:
     try:
@@ -50,12 +50,5 @@ if not _cuda:
     qcor = cpucor
     qcorrad = cpucorrad
 
-
-# simple.__doc__ = f"""Simple FT Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
-# Currently using {'GPU' if _cuda else 'CPU'}"""
-# qcor.__doc__ = f"""q corrected Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
-# Currently using {'GPU' if _cuda else 'CPU'}"""
-# qcorrad.__doc__ = f"""Radial q-corrected Autocorrelation, automatically choosing CUDA/CPU dependening on availability.
-# Currently using {'GPU' if _cuda else 'CPU'}"""
 
 _mkl.domain_set_num_threads(_vml_threads, 'vml')  # numexpr messes with vml thread number

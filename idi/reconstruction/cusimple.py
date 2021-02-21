@@ -4,13 +4,13 @@ from ..util import fastlen as _fastlen
 
 
 def corr(input, axes=(-1, -2), norm=False, returngpu=False, **kwargs):
-    '''
+    """
     simple autocorrelation of input along axes (default: last two) using gpu
     axes: axes to correlate along, defaults to last two
     norm: do normalisation along non correlation axes and normalise for pair count
     returngpu: retrun a cupy array
     
-    '''
+    """
 
     axes = sorted([input.ndim + a if a < 0 else a for a in axes])
     fftshape = [_fastlen(2 * input.shape[ax]) for ax in axes]

@@ -11,11 +11,11 @@ from ..util import fastlen as _fastlen
 
 
 def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.irfftn), **kwargs):
-    '''
+    """
     simple autocorrelation of input along axes (default: last two)
     axes: axes to correlate along, defaults to last two
     norm: do normalisation along non correlation axes and normalise for pair count 
-    '''
+    """
     fft, ifft = fftfunctions
     axes = sorted([input.ndim + a if a < 0 else a for a in axes])
     fftshape = [_fastlen(2 * input.shape[ax]) for ax in axes]
