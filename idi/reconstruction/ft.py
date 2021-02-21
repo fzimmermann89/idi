@@ -1,5 +1,3 @@
-#from __future__ import division as _future_division, print_function as _future_print
-#from six import print_ as _print
 import numpy as _np
 from . import autocorrelate3
 import numba as _numba
@@ -7,6 +5,8 @@ import numexpr as _ne
 from ..util import fastlen, atleastnd
 import itertools as _it
 import warnings as _w
+
+
 def corr(input, z,verbose = False):
     '''
     calculated 3d correlation of 2d input array sampled at distance z using fft.

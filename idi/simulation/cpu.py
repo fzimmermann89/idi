@@ -3,7 +3,7 @@ import numba as _numba
 
 
 def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
-    '''
+    """
     returns a cpu implementation of the wavefield, used internally
     Natoms: Number of atoms
     Ndet: detector pixels
@@ -12,7 +12,7 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
     k: angular wavenumber
     returns a function with signature complex64(:,:)(out complex64(:,:), atompositionsandphases float64[:,4]) 
         that will write the wavefield into out 
-    '''
+    """
     maxx, maxy = int(Ndet[0]), int(Ndet[1])
     k = float(k)
     pixelsize = float(pixelsize)
@@ -42,8 +42,6 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
             px = rdist * _np.cos(phase)
             py = rdist * _np.sin(phase)
         return px, py
-
-    phase = nfphase
 
     @_numba.njit('complex128[:, ::1],float64[:, ::1]', parallel=True, fastmath={'contract', 'arcp', 'ninf', 'nnan'})
     def kernel(ret, atom):
@@ -83,11 +81,12 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
 
 
 def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings, verbose=True, *args,  **kwargs):
-    '''
+    """
     returns an array of simulated wavefields
     parameters:
     Nimg: number of wavefields to simulate
-    simobject: a simobject whose get() returns an Nx4 array with atoms in the first and (x,y,z,phase) of each atom in the last dimension
+    simobject: a simobject whose get() returns an Nx4 array with atoms in the first
+        and (x,y,z,phase) of each atom in the last dimension
     Ndet: pixels on the detector
     pixelsize: size of one pixel in same unit as simobjects unit (usually um)
     detz: detector distance in same unit as simobjects unit (usually um)
@@ -95,9 +94,9 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings, verbose=True, 
     settings: string 
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
-    '''
+    """
     
-    nodist = not 'scale' in settings
+    nodist = 'scale' not in settings
     nf = 'nf' in settings
 
     if _np.size(Ndet) == 1:
@@ -115,10 +114,11 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings, verbose=True, 
 
 
 def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, *args,  **kwargs):
-    '''
+    """
     returns a generator that yields simulated wavefields
     parameters:
-    simobject: a simobject whose get() returns an Nx4 array with atoms in the first and (x,y,z,phase) of each atom in the last dimension
+    simobject: a simobject whose get() returns an Nx4 array with atoms in the first
+        and (x,y,z,phase) of each atom in the last dimension
     Ndet: pixels on the detector
     pixelsize: size of one pixel in same unit as simobjects unit (usually um)
     detz: detector distance in same unit as simobjects unit (usually um)
@@ -126,9 +126,9 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, *args,  **kwargs
     settings: string 
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
-    '''
+    """
     
-    nodist = not 'scale' in settings
+    nodist = 'scale' not in settings
     nf = 'nf' in settings
 
     if _np.size(Ndet) == 1:
@@ -139,4 +139,4 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, *args,  **kwargs
     while True:
         atoms = simobject.get(False)
         f(result, atoms)
-        yield wf
+        yield result

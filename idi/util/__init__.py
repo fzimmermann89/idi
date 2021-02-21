@@ -1,5 +1,3 @@
-from __future__ import division as _future_division, print_function as _future_print
-
 from .accum import *
 from .filters import *
 from .funchelper import *
@@ -10,6 +8,7 @@ import numba as _numba
 import numpy as _np
 import scipy.ndimage as _snd
 import numexpr as _ne
+import itertools as _it
 
 
 def radial_profile(data, center=None, calcStd=False, os=1):
@@ -23,7 +22,7 @@ def radial_profile(data, center=None, calcStd=False, os=1):
     if len(center) != data.ndim:
         raise TypeError("center should be of length data.ndim")
     center = _np.array(center)[tuple([slice(len(center))] + data.ndim * [None])]
-    ind = _np.indices((data.shape))
+    ind = _np.indices(data.shape)
     r = (_np.rint(os * _np.sqrt(((ind - center) ** 2).sum(axis=0)))).astype(int)
     databin = _np.bincount(r.ravel(), (_np.nan_to_num(data)).ravel())
     nr = _np.bincount(r.ravel(), ((~_np.isnan(data)).astype(float)).ravel())
@@ -62,7 +61,7 @@ def bin(ndarray, new_shape, operation="sum"):
     if ndarray.ndim != len(new_shape):
         raise ValueError("Shape mismatch: {} -> {}".format(ndarray.shape, new_shape))
     compression_pairs = [(d, c // d) for d, c in zip(new_shape, ndarray.shape)]
-    flattened = [l for p in compression_pairs for l in p]
+    flattened = [i for p in compression_pairs for i in p]
     ndarray = ndarray.reshape(flattened)
     for i in range(len(new_shape)):
         op = getattr(ndarray, operation)
@@ -108,15 +107,15 @@ def _find_center_jit(img, msk, x0, y0, maxr, d):
     sx, sy = img.shape
     out = _np.empty((2 * d + 1, 2 * d + 1))
     for xs in _numba.prange(x0 - d, x0 + d + 1, 1):
-        for ys in xrange(y0 - d, y0 + d + 1, 1):
+        for ys in range(y0 - d, y0 + d + 1, 1):
             cx = sx // 2 + xs
             cy = sy // 2 + ys
             rx = min(cx, sx - cx, maxr)
             ry = min(cy, sy - cy, maxr)
             err = 0
             cn = 0
-            for x in xrange(-rx + 1, 0):
-                for y in xrange(-ry + 1, ry):
+            for x in range(-rx + 1, 0):
+                for y in range(-ry + 1, ry):
                     if msk[cx + x, cy + y] == 1 and msk[cx - x, cy - y] == 1:
                         cn += 1
                         err += abs(img[cx + x, cy + y] - img[cx - x, cy - y])
@@ -205,9 +204,6 @@ def atleastnd(array, n):
     return array[tuple((n - array.ndim) * [None] + [...])]
 
 
-import itertools as _it
-
-
 def fastlen(x, factors=(2, 3, 5, 7, 11)):
     """
     return N>=x conisting only of the prime factors given as factors
@@ -248,7 +244,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
        3564, 3584, 3600, 3630, 3645, 3675, 3696, 3750, 3773, 3780, 3840,
        3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096,
        4116, 4125, 4158, 4200, 4224, 4235, 4312, 4320, 4356, 4374, 4375
-    ))
+    )) # noqa
     # fmt: on
     if factors != (2, 3, 5, 7, 11) or _np.any(x > 4375):
         # slow fallback
@@ -263,7 +259,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
 
 def split(x, dx, v=None):
     """
-    splits an array x into parts dx appart
+    splits an array x into parts dx apart
     x: 1d array
     dx: scalar
     v (optional): splits v along first axis as x would be split
@@ -284,9 +280,9 @@ def split(x, dx, v=None):
 
 
 def shortsci(number, decimals=0):
-    '''
+    """
     short scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string
-    '''
+    """
     if number == 0:
         return '0e0'
     elif not _np.isfinite(number):
@@ -302,26 +298,26 @@ def shortsci(number, decimals=0):
 
 @_numba.njit
 def axisrotation(axis, theta):
-    '''
+    """
     axis and angle to rotation matrix
-    '''
+    """
     u = axis / _np.linalg.norm(axis.astype(_np.float64))
     return _np.cos(theta) * _np.identity(3) + _np.sin(theta) * _np.cross(_np.identity(3), u) + (1 - _np.cos(theta)) * _np.outer(u, u)
 
 
 @_numba.njit
 def rotation(alpha, beta, gamma):
-    '''
+    """
     angles to rotation matrix
-    '''
+    """
     cosa, cosb, cosg = _np.cos(_np.array((alpha, beta, gamma)))
     sina, sinb, sing = _np.sin(_np.array((alpha, beta, gamma)))
 
     # yaw pitch roll
     M = _np.array(
         [
-            [cosb * cosg, sina * sinb * cosg - cosa * sing, cosa * sinb * cosg + sina * sing,],
-            [cosb * sing, sina * sinb * sing + cosa * cosg, cosa * sinb * sing - sina * cosg,],
+            [cosb * cosg, sina * sinb * cosg - cosa * sing, cosa * sinb * cosg + sina * sing],
+            [cosb * sing, sina * sinb * sing + cosa * cosg, cosa * sinb * sing - sina * cosg],
             [-sinb, sina * cosb, cosa * cosb],
         ]
     )
@@ -329,18 +325,18 @@ def rotation(alpha, beta, gamma):
 
 
 def angles(rotmatrix):
-    '''
+    """
     rotation matrix to angles
-    '''
-    return (_np.arctan2(rotmatrix[2, 1], rotmatrix[2, 2]), -_np.arcsin(rotmatrix[2, 0]), _np.arctan2(rotmatrix[1, 0], rotmatrix[0, 0]))
+    """
+    return _np.arctan2(rotmatrix[2, 1], rotmatrix[2, 2]), -_np.arcsin(rotmatrix[2, 0]), _np.arctan2(rotmatrix[1, 0], rotmatrix[0, 0])
 
 
 def gnorm(x, fwhm, rho, axis=None):
-    '''
+    """
     generalised normal distribution
-    '''
+    """
     s = _np.log(2) * (2 / fwhm) ** rho
     if axis is not None:
-        return np.exp(_ne.evaluate(f'sum(-abs(x)**rho*s), axis={axis})'))
+        return _np.exp(_ne.evaluate(f'sum(-abs(x)**rho*s), axis={axis})'))
     else:
         return _ne.evaluate(f'exp(-abs(x)**rho*s)')

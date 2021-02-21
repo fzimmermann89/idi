@@ -17,15 +17,15 @@ from ..util import gnorm as _gnorm
 from numpy import pi
 from gc import collect as _gc
 
-'''
+"""
 simulation objects
-'''
+"""
 
 
 class simobj(_abc.ABC):
-    '''
+    """
     baseclass
-    '''
+    """
 
     rng = _np.random.default_rng(_np.random.randint(2 ** 63))
     _pos = None
@@ -114,9 +114,9 @@ class simobj(_abc.ABC):
 
 
 class sphere(simobj):
-    '''
+    """
     a sphere with random positions inside
-    '''
+    """
 
     def __init__(self, E, N, r):
         self.r = r
@@ -128,11 +128,11 @@ class sphere(simobj):
 
 
 class icosahedron(simobj):
-    '''
+    """
     icosahedron with random positions inside
-    '''
+    """
 
-    def __init__(self, E, N, r, rotangles=[0, 0, 0]):
+    def __init__(self, E, N, r, rotangles=(0, 0, 0)):
         self.r = r
         self.rndOrientation = False
         self._rotmatrix = _rotation(*rotangles)
@@ -149,11 +149,11 @@ class icosahedron(simobj):
 
 
 class gnorm(simobj):
-    '''
+    """
     a generalised normal shaped volume with random positions inside
-    '''
+    """
 
-    def __init__(self, E, N, fwhm, rho=2, rotangles=[0, 0, 0]):
+    def __init__(self, E, N, fwhm, rho=2, rotangles=(0, 0, 0)):
         self.fwhm, self.rho = _np.array(fwhm), _np.array(rho)
         self._rotmatrix = _rotation(*rotangles) if _np.any(rotangles) else False
         super().__init__(E, N)
@@ -166,7 +166,7 @@ class gnorm(simobj):
             self.pos = self.rng.normal(self.N, 3) * (self.fwhm / 2.355)
         else:
             self._pos = _rndgennorm(0, self.fwhm, self.rho, (self.N, 3), self.rng)
-        if not self._rotmatrix is False:
+        if self._rotmatrix is not False:
             self._rotate(self._rotmatrix)
 
     def _rotate(self, rotmatrix):
@@ -174,18 +174,18 @@ class gnorm(simobj):
 
 
 class gauss(gnorm):
-    '''
+    """
     a gaussian shaped volume with random positions inside
-    '''
+    """
 
     def __init__(self, E, N, fwhm):
         super().__init__(E, N, fwhm, 2)
 
 
 class multisphere(simobj):
-    '''
+    """
     multiple, randomly positioned spheres
-    '''
+    """
 
     @staticmethod
     @_numba.njit()
@@ -195,8 +195,8 @@ class multisphere(simobj):
         """
         pos2[: n[0], :] += pos1[0, :]
         for i in range(1, len(n)):
-            pos2[n[i - 1] : min(len(pos2), n[i]), :] += pos1[i, :]
-        pos2[n[-1] :, :] += pos1[-1, :]
+            pos2[n[i - 1]: min(len(pos2), n[i]), :] += pos1[i, :]
+        pos2[n[-1]:, :] += pos1[-1, :]
 
     def __init__(self, E, Natoms=1e6, rsphere=10, fwhm=200, rho=2, spacing=1, Nspheres=_np.inf):
         """
@@ -249,14 +249,14 @@ class multisphere(simobj):
 
 
 class hcpsphere(multisphere):
-    '''
+    """
     densly hcp packed spheres
-    '''
+    """
 
-    def __init__(self, E, Natoms=1e6, rsphere=10, fwhm=200, rho=2, a=20, rotangles=[0, 0, 0], sigma=0):
+    def __init__(self, E, Natoms=1e6, rsphere=10, fwhm=200, rho=2, a=20, rotangles=(0, 0, 0), sigma=0):
         self.Nhcp = None
         self.rndOrientation = False
-        self.rsphere, self.a, self.sigma, self.rsphere, self.rho = rsphere, a, sigma, rsphere
+        self.rsphere, self.a, self.sigma, self.rsphere = rsphere, a, sigma, rsphere
         self.fwhm, self.rho = _np.array(fwhm), _np.array(rho)
         self._rotmatrix = _rotation(*rotangles) if _np.any(rotangles) else False
         self._resetproperties = ['rsphere', 'fwhm', 'a', 'sigma', 'rho']
@@ -277,7 +277,7 @@ class hcpsphere(multisphere):
             lconst = [self.a, self.a, 1.633 * self.a]
             unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
             langle = _np.array([90, 90, 120]) * pi / 180.0
-            hcp = crystal._lattice(lconst, langle, unitcell, Nhcp, self.sigma)
+            hcp = crystal._lattice(lconst, langle, unitcell, Nhcp, self.sigma, self.rng)
             hcp -= _np.mean(hcp, axis=0)
             self._hcp = hcp
 
@@ -296,23 +296,23 @@ class hcpsphere(multisphere):
 
 
 class xyz(simobj):
-    '''
+    """
     atom positions specified by an xyz file
-    '''
+    """
 
-    def __init__(self, E, filename, atomname, rotangles=[0, 0, 0], scale=1e-4):
+    def __init__(self, E, filename, atomname, rotangles=(0, 0, 0), scale=1e-4):
         import re
 
         with open(filename, 'r') as file:
             data = file.read()
-        lines = re.findall("^" + atomname + "\d*\s*[\d,\.]+\s+[\d,\.]+\s+[\d,\.]+", data, re.IGNORECASE | re.MULTILINE)
+        lines = re.findall("^" + atomname + r"\d*\s*[\d,\.]+\s+[\d,\.]+\s+[\d,\.]+", data, re.IGNORECASE | re.MULTILINE)
         pos = _np.genfromtxt(lines)[:, 1:] * scale
         self._pos = pos - (_np.max(pos, axis=0) / 2.0)
         self._rotmatrix = _rotation(*rotangles)
         self.rndOrientation = False
         if _np.any(rotangles):
             pos = _np.matmul(self._rotmatrix, pos.T, order='F').T
-        super().__init__(E, N)
+        super().__init__(E, len(pos))
 
     def _rotate(self, rotmatrix):
         self._pos = _np.matmul(rotmatrix, self._pos.T, order='F').T
@@ -324,11 +324,11 @@ class xyz(simobj):
 
 
 class crystal(simobj):
-    '''
+    """
     a crystalline structure
-    '''
+    """
 
-    def __init__(self, E, lconst, langle, unitcell, N, repeats=None, rotangles=[0, 0, 0], fwhm=None, rho=2):
+    def __init__(self, E, lconst, langle, unitcell, N, repeats=None, rotangles=(0, 0, 0), fwhm=None, rho=2):
         if fwhm is not None:
             cosa, cosb, cosc = _np.cos(_np.array(langle))
             sina, sinb, sinc = _np.sin(_np.array(langle))
@@ -344,7 +344,7 @@ class crystal(simobj):
             repeats = 3 * [int(_np.rint((N / len(unitcell)) ** (1 / 3.0)))]
         if _np.prod(repeats) * len(unitcell) < N:
             _warn('Number of atoms high for atoms in focus')
-        allpos = crystal._lattice(lconst, langle, unitcell, repeats)
+        allpos = crystal._lattice(lconst, langle, unitcell, repeats, rng=self.rng)
 
         if _np.any(rotangles):
             self._rotmatrix = _rotation(*rotangles)
@@ -361,7 +361,9 @@ class crystal(simobj):
         self._resetproperties = ['rho', 'fwhm']
 
     @staticmethod
-    def _lattice(lconst, langle, unitcell, repeats, sigma=0):
+    def _lattice(lconst, langle, unitcell, repeats, sigma=0, rng=None):
+        if rng is None:
+            rng = _np.random.default_rng(_np.random.randint(2**63))
         cosa, cosb, cosc = _np.cos(_np.array(langle))
         sina, sinb, sinc = _np.sin(_np.array(langle))
         basis = _np.array(
@@ -370,12 +372,12 @@ class crystal(simobj):
 
         atoms = _np.dot(unitcell, basis).astype(_np.float32)
         if sigma != 0:
-            atoms += self.rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
+            atoms += rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
 
         for j in range(3):
             atoms = _np.concatenate([atoms + (basis[j] * k).astype(_np.float32)[_np.newaxis, :] for k in range(repeats[j])])
             if sigma != 0:
-                atoms += self.rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
+                atoms += rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
 
         return atoms - _np.max(atoms, axis=0) / 2.0
 
@@ -425,11 +427,11 @@ class crystal(simobj):
 
 
 class sc(crystal):
-    '''
+    """
     a sc crystal
-    '''
+    """
 
-    def __init__(self, E, N, a, repeats=None, rotangles=[0, 0, 0], fwhm=None, rho=None):
+    def __init__(self, E, N, a, repeats=None, rotangles=(0, 0, 0), fwhm=None, rho=None):
         lconst = [a, a, a]
         unitcell = [[0, 0, 0]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
@@ -437,11 +439,11 @@ class sc(crystal):
 
 
 class fcc(crystal):
-    '''
+    """
     a fcc crystal
-    '''
+    """
 
-    def __init__(self, E, N, a, repeats=None, rotangles=[0, 0, 0], fwhm=None, rho=None):
+    def __init__(self, E, N, a, repeats=None, rotangles=(0, 0, 0), fwhm=None, rho=None):
         lconst = [a, a, a]
         unitcell = [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]
         langle = _np.array([90, 90, 90]) * pi / 180.0
@@ -449,11 +451,11 @@ class fcc(crystal):
 
 
 class hcp(crystal):
-    '''
+    """
     a hcp crystal
-    '''
+    """
 
-    def __init__(self, E, N, a, repeats=None, rotangles=[0, 0, 0], fwhm=None, rho=None):
+    def __init__(self, E, N, a, repeats=None, rotangles=(0, 0, 0), fwhm=None, rho=None):
         lconst = [a, a, 1.633 * a]
         unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
         langle = _np.array([90, 90, 120]) * pi / 180.0
@@ -461,11 +463,11 @@ class hcp(crystal):
 
 
 class cuso4(crystal):
-    '''
+    """
     cuso4 crsystal with fixed lattice constant
-    '''
+    """
 
-    def __init__(self, N, E, repeats=None, rotangles=[0, 0, 0], fwhm=None, rho=None):
+    def __init__(self, N, E, repeats=None, rotangles=(0, 0, 0), fwhm=None, rho=None):
         # https://doi.org/10.1524%2Fzkri.1975.141.5-6.330
         unitcell = [[0, 0, 0], [0.5, 0.5, 0]]
         lconst = _np.array([6.141, 10.736, 5.986]) * 1e-4
@@ -474,7 +476,7 @@ class cuso4(crystal):
 
 
 class grating(simobj):
-    def __init__(self, E, N, linewidth, spacingwidth, fwhm, rho=2, rholine=10, rotangles=[0,0,0]):
+    def __init__(self, E, N, linewidth, spacingwidth, fwhm, rho=2, rholine=10, rotangles=(0, 0, 0)):
         self.linewidth = linewidth
         self.spacingwidth = spacingwidth
         self.fwhm = fwhm

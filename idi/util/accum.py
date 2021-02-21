@@ -1,8 +1,6 @@
-from __future__ import division as _future_division, print_function as _future_print
-import numba as _numba
 import numpy as _np
-import scipy.ndimage as _snd
 import numexpr as _ne
+
 
 class accumulator:
     def __init__(self, like=None):
@@ -26,7 +24,7 @@ class accumulator:
         else:
             with _np.errstate(divide='ignore', invalid='ignore'):
                 delta = value - self._mean
-                self._mean = _np.add(self._mean, delta / self._n, where=(count!=0), out=self._mean)
+                self._mean = _np.add(self._mean, delta / self._n, where=(count != 0), out=self._mean)
                 self._nvar = _ne.evaluate(
                     'nvar + delta * (value - mean)',
                     local_dict={'nvar': self._nvar, 'value': value, 'delta': delta, 'mean': self._mean},
@@ -41,6 +39,7 @@ class accumulator:
             return _np.asarray(self._mean).shape
         else:
             return 0
+
     @property
     def mean(self):
         if self._mean is not None:
@@ -58,5 +57,3 @@ class accumulator:
     @property
     def std(self):
         return _np.sqrt(self.var)
-
-    

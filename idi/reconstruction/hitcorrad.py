@@ -1,4 +1,3 @@
-from __future__ import division as _future_div, print_function as _future_print
 import numpy as _np
 import numba as _numba
 from six.moves import range  # for python2 compatibility

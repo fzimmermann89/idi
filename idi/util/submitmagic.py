@@ -1,16 +1,15 @@
 from IPython.core.magic import Magics, magics_class, line_magic, cell_magic, line_cell_magic
 import argparse
 import shlex
-import subprocess
 import os
 import time
 import subprocess
 import getpass
 import IPython.display
 
-'''
+"""
 IPython magic to submit jobs
-'''
+"""
 
 
 @magics_class
@@ -54,7 +53,8 @@ class submit_magics(Magics):
             + [f'{key} {mapping[k]}={v}' for k, v in vars(args).items() if (v is not None and k in mapping)]
             + [f'{key} {v}' for v in unknown]
             + (['', 'hostname', 'env', 'pwd', 'mount'] if args.debug else [])
-            + ['''       
+            + [
+                """       
 _term() { 
     echo "Got SIGTERM signal!" 
     kill -TERM "$pid" 
@@ -65,15 +65,16 @@ _usr1() {
 }
 trap _term TERM
 trap _usr1 USR1
-            ''']
+            """
+            ]
             + [f'{prepcmd} << "EOF_PYTHONFILE" | {args.interpreter} &', '', cell, '', 'EOF_PYTHONFILE']
             + ['export pid=$!']
             + (['echo "$pid"'] if args.debug else [])
             + ['wait']
         )
-        bcmd=[inner for outer in [shlex.split(i) for i in args.batch_cmd] for inner in outer]
+        bcmd = [inner for outer in [shlex.split(i) for i in args.batch_cmd] for inner in outer]
         if args.debug or args.dryrun:
-            print(args.batch_cmd,bcmd)
+            print(args.batch_cmd, bcmd)
             print(cmd)
         if not args.dryrun:
             try:
@@ -81,8 +82,8 @@ trap _usr1 USR1
             except FileNotFoundError:
                 return 'Submit Command not found'
             if p.returncode or args.debug:
-                    print(p.stderr.decode('utf-8'))
-                    print(p.stdout.decode('utf-8'))
+                print(p.stderr.decode('utf-8'))
+                print(p.stdout.decode('utf-8'))
             return p.returncode
 
     @line_magic
@@ -91,16 +92,16 @@ trap _usr1 USR1
             self.defaultline = self.defaultline + ' ' + line
         else:
             print(
-                f'''
+                f"""
 usage: %submitdefault -argument val
 use reload_ext to reset.
 currently set: 
-{self.defaultline}'''
+{self.defaultline}"""
             )
 
     @cell_magic
     def slurm(self, line, cell=None):
-        '''       
+        """
         usage: %%slurm [-h] [-c C] [-m M] [-t T] [-n N] [-o O] [-g G] [-a A] [-i I]
         [--dryrun] [--debug] [--no-replace]
         [sbatch_cmd [sbatch_cmd ...]]
@@ -121,7 +122,7 @@ currently set:
         --dryrun      don't submit
         --debug       print debug info
         --no-replace  don't replace scheduler variables with values
-        '''
+        """
         defaultcmd = 'sbatch'
         mapping = {
             'c': '--cpus-per-task',
@@ -156,32 +157,36 @@ currently set:
     @cell_magic
     def lsf(self, line, cell=None):
         raise NotImplementedError('lsf not implmented')
-        
-        
+
     @line_magic
     def queue(self, line=None, display=None):
-        cmd=shlex.split(line) or ['/opt/slurm/bin/squeue','-u', getpass.getuser(),'-O','JobArrayID:80,JobID:80,name:80,state:80,ReasonList:80,MINCPUS:80,tres-per-job:80,MinMemory:80,SubmitTime:80,TimeUsed:80,TimeLeft:80']
-        display=display or IPython.display.display({'text/plain':'getting data..'},raw=True,display_id=True);
-        p=subprocess.run(cmd,capture_output=True,timeout=5)
+        cmd = shlex.split(line) or [
+            '/opt/slurm/bin/squeue',
+            '-u',
+            getpass.getuser(),
+            '-O',
+            'JobArrayID:80,JobID:80,name:80,state:80,ReasonList:80,MINCPUS:80,tres-per-job:80,MinMemory:80,SubmitTime:80,TimeUsed:80,TimeLeft:80',
+        ]
+        display = display or IPython.display.display({'text/plain': 'getting data..'}, raw=True, display_id=True)
+        p = subprocess.run(cmd, capture_output=True, timeout=5)
         if not p.returncode:
-            output=p.stdout.decode('ascii').split("\n")
-            rows=[f'<th>{"</th><th>".join(output[0].split())}</th>'] + [f'<td>{"</td><td>".join(line.split())}</td>' for line in output[1:-1]] 
-            html ="<table><tr>" + '</tr>\n<tr>'.join(rows) + '</tr><table>' 
-            display.update({'text/html':html+f'<i>Last Updated at {time.asctime(time.localtime())}</i>'},raw=True)
+            output = p.stdout.decode('ascii').split("\n")
+            rows = [f'<th>{"</th><th>".join(output[0].split())}</th>'] + [f'<td>{"</td><td>".join(line.split())}</td>' for line in output[1:-1]]
+            html = "<table><tr>" + '</tr>\n<tr>'.join(rows) + '</tr><table>'
+            display.update({'text/html': html + f'<i>Last Updated at {time.asctime(time.localtime())}</i>'}, raw=True)
             time.sleep(1)
-        else: 
+        else:
             return p.returncode
 
-                
     @line_magic
     def monitor(self, line=None):
-        display=IPython.display.display({'text/plain':'getting data..'},raw=True,display_id=True)
+        display = IPython.display.display({'text/plain': 'getting data..'}, raw=True, display_id=True)
         try:
             while True:
-                if self.queue(line,display): break
+                if self.queue(line, display):
+                    break
         except KeyboardInterrupt:
-            IPython.display.display({'text/plain':'Stopped'}, raw=True)
-            
+            IPython.display.display({'text/plain': 'Stopped'}, raw=True)
 
 
 def load_ipython_extension(ipython):

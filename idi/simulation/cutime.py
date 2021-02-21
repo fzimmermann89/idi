@@ -269,7 +269,7 @@ import numpy as _np
 
 
 def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='mixed', threads=None):
-    '''
+    """
     Time dependent simulation with decaying amplitudes.
     simobject: simobject to use for simulation (in lengthunit)
     pixelsize: pixelsize (in lengthunit)
@@ -283,7 +283,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
         nf - for nearfield form 
         scale - do 1/r intensity scaling
     first call with new settings might recompile and take a few seconds
-    '''
+    """
 
     if 'double' in settings:
         nametmp, namesim = "tempsized", "simulated"
@@ -297,7 +297,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     options = []
     if 'nf' in settings:
         options += ['-Dusenf']
-    if not 'scale' in settings:
+    if 'scale' not in settings:
         options += ['-Dnodist']
     options += ['-dc', '--std=c++11', '--expt-relaxed-constexpr', '-O3', '--use_fast_math']
 
@@ -322,7 +322,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
         pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), 
         pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), 
         detz
-    )).T.reshape(-1, 3),inouttype,)
+    )).T.reshape(-1, 3), inouttype,)
     pdet = _cp.array([i.data.ptr for i in det], _np.uint64)
 
     tmpout = _cp.zeros(1, _np.int64)

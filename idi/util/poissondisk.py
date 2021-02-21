@@ -4,8 +4,8 @@ import numba as _numba
 from scipy.spatial import cKDTree as _cKDTree
 
 
-def poisson_disc_sample(r, d, N=_np.inf, ndim=3, k=10, method='auto', rng = None):
-    '''
+def poisson_disc_sample(r, d, N=_np.inf, ndim=3, k=10, method='auto', rng=None):
+    """
     Random points with minimum distance in between inside n-sphere
     Parameters:
     r: radius n-sphere
@@ -18,31 +18,32 @@ def poisson_disc_sample(r, d, N=_np.inf, ndim=3, k=10, method='auto', rng = None
         'bridson_dense': use bridson algorithm with minimum distance between sample canditates. will result in denser samples
         'auto': will use darts for small N and bridson only for big N
     k: fidelity parameter, should be >10 for good results
-    '''
-    if rng is None: rng=_np.random.default_rng()
-    ndim=int(ndim)
-    if ndim<1:
+    """
+    if rng is None:
+        rng = _np.random.default_rng()
+    ndim = int(ndim)
+    if ndim < 1:
         raise ValueError('ndim should be integer >=1')
-    if r<0 or d<0:
+    if r < 0 or d < 0:
         raise ValueError('r and d should be positive')
-    if d==0:
+    if d == 0:
         if 'bridson' in method:
             raise ValueError('bridson needs d>0')
         if not _np.isfinite(N):
-            raise ValueError('Zero distance would cause infinite number of spheres. Limit N or set distance >0')    
-        method='darts'
-    if (method == 'auto' and (N > 0.75*(1.33*r/d)**(ndim) or N>1e6)) or (method == 'bridson' or method=='bridson_dense'):
-        fixd=method=='bridson_dense'
+            raise ValueError('Zero distance would cause infinite number of spheres. Limit N or set distance >0')
+        method = 'darts'
+    if (method == 'auto' and (N > 0.75 * (1.33 * r / d) ** ndim or N > 1e6)) or (method == 'bridson' or method == 'bridson_dense'):
+        fixd = method == 'bridson_dense'
         cellsize = d / _math.sqrt(ndim)
         grid_shape = int(_np.ceil((2 * r + 2 * d) / cellsize))
         grid = _np.zeros(ndim * [grid_shape], dtype=_np.int64)
-        points = _poisson_disc_sample_bridson(grid, r, d, ndim, k,fixd=fixd, seed=rng.integers(2**63))
-        points = points[((_np.einsum('ij,ij->i', points, points))) < r ** 2]
+        points = _poisson_disc_sample_bridson(grid, r, d, ndim, k, fixd=fixd, seed=rng.integers(2 ** 63))
+        points = points[(_np.einsum('ij,ij->i', points, points)) < r ** 2]
         if len(points) > N:
             points = points[rng.choice(range(len(points)), int(N)), :]
-    elif method=='darts' or method=='auto':
+    elif method == 'darts' or method == 'auto':
         points = _poisson_disc_sample_darts(r, d, N, ndim, k=k)
-    else: 
+    else:
         raise NotImplementedError(f'method {method} unknown')
     return points
 
@@ -52,21 +53,21 @@ def _poisson_disc_sample_bridson(grid, r, d, ndim=3, k=10, fixd=False, seed=0):
     """
     using the nd-bridson algorithm. the grid has to be preallocated
     """
-    if seed!=0:
+    if seed != 0:
         _np.random.seed(seed)
-        
+
     cellsize = d / _math.sqrt(ndim)
     grid_shape = len(grid)
     gstride = (_np.array(grid.strides) / grid.itemsize).astype(_np.int64)
     p = _np.zeros(ndim)
-    while _np.sum((p - r - d) ** 2) > (r) ** 2:
+    while _np.sum((p - r - d) ** 2) > r ** 2:
         p = 2 * r * _np.random.rand(ndim) + d - r
     if grid_shape < 2:
         return p.reshape(1, -1)
     points = _np.zeros((1024, ndim))
     points[0, :] = p[:]
     queue = [0]
-    coords = ((p / cellsize)).astype(_np.int64)
+    coords = (p / cellsize).astype(_np.int64)
     n = 0
     flatcoord = _np.sum(gstride * coords)
     grid.ravel()[flatcoord] = n + 1
@@ -77,8 +78,8 @@ def _poisson_disc_sample_bridson(grid, r, d, ndim=3, k=10, fixd=False, seed=0):
         rs = _np.ones(k) * d if fixd else d * (1 + (2 ** ndim - 1) * _np.random.rand(k)) ** (1 / ndim)
         ps = rand * (rs / norm).reshape(-1, 1) + q
         for ip in range(len(ps)):
-            p=ps[ip,:]
-            coord = ((p / cellsize)).astype(_np.int64)
+            p = ps[ip, :]
+            coord = (p / cellsize).astype(_np.int64)
             if not _fits_bridson(p, d, points, grid, coord):
                 continue
             else:
@@ -121,12 +122,13 @@ def _fits_bridson(p, d, points, grid, coords):
     return True
 
 
-def _poisson_disc_sample_darts(r, mindistance, N, d=3, m=None, k=10, rng = None):
+def _poisson_disc_sample_darts(r, mindistance, N, d=3, m=None, k=10, rng=None):
     """
     throwing darts and checking using ndtree
     """
-    if rng is None: rng=_np.random.default_rng()
-    N = _np.clip(N,1, (1.35*r/mindistance)**(d)) if mindistance > 0 else N
+    if rng is None:
+        rng = _np.random.default_rng()
+    N = _np.clip(N, 1, (1.35 * r / mindistance) ** d) if mindistance > 0 else N
     if m is None:
         m = max(1, N / 4)
     m = int(min(N, m))
@@ -134,7 +136,7 @@ def _poisson_disc_sample_darts(r, mindistance, N, d=3, m=None, k=10, rng = None)
     found = 0
     points = _np.zeros((0, d))
     maxtries = k * N / m
-    for i in range(int(maxtries)):
+    for k in range(int(maxtries)):
         rand = rng.standard_normal((m, d + 2))
         newpoints = rand[:, :d] * ((r + mindistance) / _np.sqrt(_np.einsum('ij,ij->i', rand, rand)))[:, None]
         tree = _cKDTree(newpoints)
@@ -149,11 +151,11 @@ def _poisson_disc_sample_darts(r, mindistance, N, d=3, m=None, k=10, rng = None)
         newpoints = newpoints[mask, :]
         if len(points) > 0:
             newpoints = newpoints[_cKDTree(points, balanced_tree=False).query(newpoints, n_jobs=4, distance_upper_bound=mindistance)[0] > mindistance]
-        found += _np.sum(((_np.einsum('ij,ij->i', newpoints, newpoints))) < r ** 2)
+        found += _np.sum((_np.einsum('ij,ij->i', newpoints, newpoints)) < r ** 2)
         points = _np.vstack((points, newpoints))
         if found > N:
             break
-    points = points[((_np.einsum('ij,ij->i', points, points))) < r ** 2]
+    points = points[(_np.einsum('ij,ij->i', points, points)) < r ** 2]
     if len(points) > N:
         points = points[:N]
     return points

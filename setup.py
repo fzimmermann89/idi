@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 from os.path import join, exists, dirname, realpath
 from os import getcwd

@@ -34,7 +34,7 @@ def _integral(amp, t0, tau):
 
 
 def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings=''):
-    '''
+    """
     Time dependent simulation with decaying amplitudes (cpu version).
     simobject: simobject to use for simulation (in lengthunit)
     pixelsize: pixelsize (in lengthunit)
@@ -45,36 +45,37 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
     settings: string, can contain 
         scale - do 1/r intensity scaling
-    '''
-    
+    """
+
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
-    if 'scale' in settings: 
-        eq='exp(-1j*(s*k-phases))/d'
+    if 'scale' in settings:
+        eq = 'exp(-1j*(s*k-phases))/d'
     else:
-        eq='exp(-1j*(s*k-phases))'
+        eq = 'exp(-1j*(s*k-phases))'
     n = _np.prod(Ndet)
-    blocksize = min(4,(n & (~(n - 1)))) #do highest power of two of n <=4 pixels at once. tradeoff between memory allocations and call overhead.
-    
+    # do highest power of two of n <=4 pixels at once. tradeoff between memory allocations and call overhead.
+    blocksize = min(4, (n & (~(n - 1))))
+
     dets = _np.array(
         _np.meshgrid(
-            pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), 
-            pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), 
+            pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)),
+            pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)),
             detz
         )
     ).T
-    res = _np.zeros(Ndet[0]*Ndet[1]).reshape(-1,blocksize)
+    res = _np.zeros(Ndet[0] * Ndet[1]).reshape(-1, blocksize)
     data = simobject.get()
-    times = _np.random.randn(simobject.N)*(pulsewidth/2.35)
+    times = _np.random.randn(simobject.N) * (pulsewidth / 2.35)
 
-    for j,det in enumerate(dets.reshape(-1, blocksize, 3)):
-        d = _np.linalg.norm(det,axis=-1)[:,None]
-        q=(det/d)
-        q[...,-1]-=1
-        phases=data[:, 3]
-        s = _np.inner(q,data[:,:3]) #path difference
-        e = _ne.evaluate(eq) # complex e field
-        t = -s/c+times.T  # arrival time
-        res[j]= _integral(e, t, tau)
+    for j, det in enumerate(dets.reshape(-1, blocksize, 3)):
+        d = _np.linalg.norm(det, axis=-1)[:, None]
+        q = (det / d)
+        q[..., -1] -= 1
+        phases = data[:, 3]
+        s = _np.inner(q, data[:, :3])  # path difference
+        e = _ne.evaluate(eq)  # complex e field
+        t = -s / c + times.T  # arrival time
+        res[j] = _integral(e, t, tau)
     res = res.reshape(Ndet[0], Ndet[1])
     return res
