@@ -1,6 +1,4 @@
 #!/bin/env python
-from __future__ import division, print_function
-from six import print_ as print
 import IPython
 from optparse import OptionParser
 import idi.simulation as sim

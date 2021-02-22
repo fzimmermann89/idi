@@ -1,5 +1,4 @@
 #!/bin/env python
-from __future__ import division, print_function
 import numpy as np
 from optparse import OptionParser
 import numba
