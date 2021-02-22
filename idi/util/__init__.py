@@ -80,7 +80,7 @@ def rebin(ndarray, n, operation="mean"):
     """
     if not (_np.size(n) == 1 or _np.size(n) == _np.ndim(ndarray)):
         raise ValueError("n should be scalar or of same length as ndarray has dimensions")
-    newshape = _np.array(ndarray.shape) // n
+    newshape = _np.maximum(_np.array(ndarray.shape) // n, 1)
     return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n * newshape))]), newshape, operation,)
 
 
@@ -95,6 +95,12 @@ def centered_part(arr, newshape):
     myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
     return arr[tuple(myslice)]
 
+
+def list2array(li):
+    def _len(e):
+        return 1 if _np.isscalar(e) else len(e)
+    maxlen = _np.max([_len(e) for e in li])
+    return _np.array([_np.pad(e, (0, maxlen - _len(e)), 'constant') for e in li])
 
 @_numba.jit()
 def find_center(img, mask, x0=0, y0=0, maxr=500, d=60):
@@ -201,6 +207,8 @@ def atleastnd(array, n):
     """
     adds dimensions of length 1 in front of array to get to n dimensions
     """
+    if not isinstance(array,_np.ndarray):
+        array=_np.array(array)
     return array[tuple((n - array.ndim) * [None] + [...])]
 
 
