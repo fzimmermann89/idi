@@ -37,12 +37,12 @@ def rndSphere(r, N, rng=None):
     ret = _np.zeros((N, 3))
     t = rng.uniform(-1, 1, N)
     p = rng.uniform(0, 2 * pi, N)
-    r = rng.uniform(0, r, N)
-    _ne.evaluate('r**(1/3)', out=r)
-    _ne.evaluate('r * t', out=ret[:, 0])
+    u = rng.uniform(0, 1, N)
+    _ne.evaluate('r*u**(1/3)', out=u)
+    _ne.evaluate('u * t', out=ret[:, 0])
     _ne.evaluate('sqrt(1 - t**2)', out=t)
-    _ne.evaluate('r * t * sin(p)', out=ret[:, 1])
-    _ne.evaluate('r * t * cos(p)', out=ret[:, 2])
+    _ne.evaluate('u * t * sin(p)', out=ret[:, 1])
+    _ne.evaluate('u * t * cos(p)', out=ret[:, 2])
     return ret
 
 

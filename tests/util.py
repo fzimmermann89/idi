@@ -65,11 +65,10 @@ class basic(unittest.TestCase):
         testing.assert_allclose(r, 1, atol=1e-15)
         self.assertFalse(np.any(np.isnan(r)))
 
-
     def test_abs(self):
         from idi.util import abs2, abs2c
 
-        self.assertAlmostEquals(abs2(1j + 1), 2)
+        self.assertAlmostEqual(abs2(1j + 1), 2)
         t = np.array(1 - 1j, dtype=np.complex)
         self.assertAlmostEqual(abs2c(t), 2.0)
         self.assertFalse(np.iscomplex(abs2c(t)), 2.0)
@@ -92,33 +91,78 @@ class random(unittest.TestCase):
     poisson_disc_sample
     rndConvexpoly
     rndIcosahedron
-    rndSphere
     rndgennorm
     rndstr
     gnorm
     '''
 
+    def test_rndSphere(self):
+        from idi.util import rndSphere
 
-def test_something(self):
-    self.assertEqual(True, True)
+        R = 10
+        N = int(1e6)
+        t = rndSphere(R, N)
+        r = np.linalg.norm(t, axis=1)
+        self.assertTupleEqual(t.shape, (N, 3))
+        self.assertGreater(r.max(), R * 0.95)
+        self.assertLessEqual(r.max(), R)
+        hist = np.histogram(r, bins=np.linspace(0, 1, int(N ** (1 / 3) * 0.2)) ** (1 / 3) * R)[0]
+        self.assertLess(np.ptp(hist) / np.mean(hist), 0.05, msg='r deviation higher than 5%')
+        d, b = np.histogramdd(t, density=True, bins=11)
+        br = np.linalg.norm(np.meshgrid(*((c[:-1] + c[1:]) / 2 for c in b)), axis=0)
+        f = d[br < 0.9 * R]
+        self.assertLess(f.std() / f.mean(), 0.05, msg='density deviation higher than 5%')
+
+    def test_rndstr(self):
+        from idi.util import rndstr
+
+        self.assertEqual(len(rndstr(0)), 0)
+        self.assertEqual(len(rndstr(1)), 1)
+        self.assertEqual(len(rndstr(1000)), 1000)
+        s = set()
+        for i in range(100):
+            c = rndstr(5)
+            s.add(c)
+            self.assertTrue(c.isascii())
+        self.assertEqual(len(s), 100, msg='repeats found')
 
 
 class h5util(unittest.TestCase):
-    def test_something(self):
-        self.assertEqual(True, True)
+    def setUp(self):
+        import h5py
+
+        self.f1 = h5py.File(name='f1', driver='core', backing_store=False, mode='w')
+
+    def tearDown(self):
+        self.f1.close()
+
+    def test_append(self):
+        import idi.util.h5util as h5util
+
+        h5util.appenddata(self.f1, 't1', np.zeros((1, 10, 10)))
+        t = self.f1['t1']
+        self.assertTupleEqual(t.shape, (1, 10, 10))
+        self.assertRaises(KeyError, h5util.appenddata, t, 'blub', np.zeros((3, 10, 10)))
+        h5util.appenddata(t, '/', np.zeros((3, 10, 10)))
+        self.assertTupleEqual(t.shape, (4, 10, 10))
+        self.assertEqual(t.compression, 'lzf')
+        self.assertEqual(t.shuffle, True)
+        self.assertTupleEqual(t.chunks, (1, 10, 10))
+
+        h5util.appenddata(self.f1, 'string', 's1')
+        h5util.appenddata(self.f1, 'string', 's2_ismuchlonger')
+        h5util.appenddata(
+            self.f1, 'string', np.array(self.f1['string']),
+        )
+        t = self.f1['string']
+        self.assertEqual(len(t), 4)
+        self.assertEqual(t[-1], b's2_ismuchlonger')
+        self.assertEqual(np.array(t)[-2], b's1')
 
 
 class funchelper(unittest.TestCase):
-    '''
-    TODO:
-    asgen
-    aslengen
-    aslist
-    '''
-
-
-def test_something(self):
-    self.assertEqual(True, True)
+    def test_asgen(self):
+        self.assertEqual(True, True)
 
 
 class array(unittest.TestCase):
@@ -142,24 +186,96 @@ class array(unittest.TestCase):
         t = np.arange(20).reshape(4, 5)
         testing.assert_array_equal(centered_part(t, (2, 2)), np.array([[6, 7], [11, 12]]))
 
+    def test_list2array(self):
+        from idi.util import list2array
+
+        self.assertRaises(TypeError, list2array, 1)
+
+        l = [1, 2, 3]
+        testing.assert_array_equal(list2array(l), np.array([1, 2, 3]))
+
+        l = [[1], [1, 2], [1, 2, 3], [1]]
+        a = list2array(l)
+        self.assertEqual(a[0, 0], l[0][0])
+        self.assertEqual(a[1, 1], l[1][1])
+        self.assertEqual(a[2, 2], l[2][2])
+        self.assertEqual(np.sum(a), 11)
+        self.assertEqual(len(a), len(l))
+
+        l = [[1.0], ['a', 'b'], ['a', 'b', 'c'], ['a']]
+        a = list2array(l)
+        self.assertEqual(float(a[0, 0]), l[0][0])
+        self.assertEqual(a[1, 1], l[1][1])
+        self.assertEqual(a[2, 2], l[2][2])
+        self.assertEqual(len(a), len(l))
+
+    def test_fill(self):
+        from idi.util import fill
+
+        t = np.arange(20).reshape(4, 5).astype(float)
+        t[1:4, 1:4] = 1
+        t[2, 2] = np.nan
+        t[0, 0] = np.nan
+        t[-1, 0] = np.nan
+        f = fill(t)
+        good = np.copy(t)
+        good[2, 2] = 1
+        good[0, 0] = 5
+        good[-1, 0] = 10
+        self.assertFalse(np.any(np.isnan(f)))
+        testing.assert_array_equal(good, f)
+
+        t = np.empty((3, 3))
+        t[:] = np.nan
+        f = fill(t)
+        self.assertTrue(np.all(np.isnan(f)))
+
+        t = np.empty((3, 3))
+        t[:] = np.nan
+        t[1, 1] = 1
+        f = fill(t)
+        testing.assert_array_equal(f, 1)
+
+    def test_atleastnd(self):
+        from idi.util import atleastnd
+
+        self.assertTupleEqual(atleastnd(0, 2).shape, (1, 1))
+        self.assertTupleEqual(atleastnd(np.zeros((2, 2)), 1).shape, (2, 2))
+        self.assertTupleEqual(atleastnd(np.zeros((3, 2)), 4).shape, (1, 1, 3, 2))
+
+    def test_rebin(self):
+        from idi.util import rebin
+
+        t = np.arange(20).reshape(4, 5).astype(float)
+        testing.assert_array_equal(rebin(t, (1, 1), 'sum'), t)
+        testing.assert_array_equal(rebin(t, (2, 2), 'sum'), np.array([[12.0, 20.0], [52.0, 60.0]]))
+        self.assertEqual(rebin(t, 4, 'sum'), t[:, :4].sum())
+        self.assertEqual(rebin(t, 3, 'max'), t[:3, :3].max())
+        self.assertEqual(rebin(t, 5, 'max'), t.max())
+
+        t = np.ones((4, 4), bool)
+        self.assertEqual(rebin(t, 2, 'min').dtype, bool)
+        testing.assert_array_equal(rebin(t, 2,), np.ones((2, 2)))
+
+        t = np.ones((20, 2, 2))
+        testing.assert_array_equal(rebin(t, (10, 20, 1), 'mean'), np.ones((2, 1, 2)))
+
+        self.assertRaises(ValueError, rebin, t, 1, 'blub')
+        self.assertRaises(ValueError, rebin, t, (1, 1), 'sum')
+
     '''
     TODO:
-    bin
+    
     create_mask
     diffdist
-    fastlen
+    
     fftfilter_mean
     fftfilter_std
-    fill
+
     filter_std
     arrayfromiter
-    atleastnd
     split
     '''
-
-
-def test_something(self):
-    self.assertEqual(True, True)
 
 
 if __name__ == '__main__':
