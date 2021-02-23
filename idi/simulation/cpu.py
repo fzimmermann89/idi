@@ -80,7 +80,7 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
     return kernel
 
 
-def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings, verbose=True, *args,  **kwargs):
+def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings='', verbose=False, *args, **kwargs):
     """
     returns an array of simulated wavefields
     parameters:
@@ -95,25 +95,21 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings, verbose=True, 
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     """
-    
-    nodist = 'scale' not in settings
-    nf = 'nf' in settings
 
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=_np.complex128)
-    f = get_kernel(simobject.N, Ndet, pixelsize, detz, k, nodist=nodist, nf=nf)
+    gen = simulate_gen(simobject, Ndet, pixelsize, detz, k, settings)
     for n in range(0, Nimg):
         if verbose:
             print(n, end='', flush=True)
-        atoms = simobject.get()
-        f(result[n], atoms)
+        result[n] = next(gen)
         if verbose:
             print('. ', end='', flush=True)
     return result
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, *args,  **kwargs):
+def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings='', *args, **kwargs):
     """
     returns a generator that yields simulated wavefields
     parameters:
@@ -127,7 +123,7 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, *args,  **kwargs
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     """
-    
+
     nodist = 'scale' not in settings
     nf = 'nf' in settings
 
@@ -137,6 +133,6 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, *args,  **kwargs
     result = _np.empty((Ndet[0], Ndet[1]), dtype=_np.complex128)
     f = get_kernel(simobject.N, Ndet, pixelsize, detz, k, nodist=nodist, nf=nf)
     while True:
-        atoms = simobject.get(False)
+        atoms = simobject.get()
         f(result, atoms)
         yield result

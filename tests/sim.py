@@ -92,5 +92,18 @@ class simobject(unittest.TestCase):
         self.assertEqual(len(o.get()), 100)
 
 
+class cpu(unittest.TestCase):
+    def setUp(self):
+        from idi.simulation import simobj
+
+        self.obj = simobj.sphere(100, 100, 1)
+
+    def test_cpu(self):
+        from idi.simulation import cpu
+
+        res = cpu.simulate(2, self.obj, 4, 10, 10000, self.obj.k)
+        self.assertTupleEqual(res.shape, (2, 4, 4))
+
+
 if __name__ == '__main__':
     unittest.main()
