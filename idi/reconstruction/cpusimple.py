@@ -28,7 +28,7 @@ def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     ret = _np.fft.fftshift(ret, axes=axes)[tuple((Ellipsis, *(slice(ps // 2 - input.shape[ax], ps // 2 + input.shape[ax]) for ax, ps in zip(axes, fftshape))))]
 
     if norm:
-        n = corr(_np.ones(tuple(input.shape[ax] for ax in axes)))
+        n = corr(_np.ones(tuple(input.shape[ax] for ax in axes)), fftfunctions=fftfunctions)
         ret /= n
         ret[(...,) + (n < 1).nonzero()] = _np.nan
     return ret
