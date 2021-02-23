@@ -91,7 +91,7 @@ class correlator_tiles:
             print(q.shape, mask.shape, mean.shape)
             raise ValueError('shape missmatch')
 
-        q = _np.rint(q - _np.min(q[~maskout], axis=(0))).astype(int)
+        q = _np.rint(q - _np.min(q[~maskout], axis=0)).astype(int)
         q[mask] = _np.max(q, axis=(0, 1)) + 2
         qlen = _np.array([fastlen(2 * (_np.max(k) + 1)) for k in q[~mask].T])
         self.qlenz = _np.max(q[~mask][:, 0]) + 1  # unpadded

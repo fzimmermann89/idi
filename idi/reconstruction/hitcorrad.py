@@ -1,6 +1,5 @@
 import numpy as _np
 import numba as _numba
-from six.moves import range  # for python2 compatibility
 from .common import _getidx
 import math as _math
 

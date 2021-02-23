@@ -5,7 +5,7 @@ import numpy as _np
 @_numba.njit(nogil=True)
 def _getidx(p, pmax, idmax):
     """
-    gives ids (up to idxmax) for job p of pmax jobs to do. will pair low ids with high ids for the same job
+    gives ids (up to idxmax) for job p of pmax jobs to do. will return ids in blocks and pair low ids with high ids for the same job
     """
     idsperP = idmax // (2 * pmax)
     n = 2 * idsperP
