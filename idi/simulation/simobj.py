@@ -161,9 +161,8 @@ class gnorm(simobj):
 
     def updatePos(self):
         _gc()
-
         if _np.all(self.rho == 2):
-            self.pos = self.rng.normal(self.N, 3) * (self.fwhm / 2.355)
+            self._pos = self.rng.normal(scale=(self.fwhm / 2.355), size=(self.N, 3))
         else:
             self._pos = _rndgennorm(0, self.fwhm, self.rho, (self.N, 3), self.rng)
         if self._rotmatrix is not False:
