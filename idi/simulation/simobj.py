@@ -332,7 +332,7 @@ class crystal(simobj):
             cosa, cosb, cosc = _np.cos(_np.array(langle))
             sina, sinb, sinc = _np.sin(_np.array(langle))
             neededrepeats = _np.ceil(
-                2 * fwhm / (_np.array([1, sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)]) * _np.array(lconst))
+                2 * _np.array(fwhm) / (_np.array([1, sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)]) * _np.array(lconst))
             ).astype(int)
             if repeats is not None:
                 if _np.any(neededrepeats > repeats):

@@ -51,8 +51,24 @@ class simobject(unittest.TestCase):
     def test_sc(self):
         from idi.simulation import simobj
 
-        o=simobj.sc(1,100,1)
-        self.assertEqual(len(o.get()),100)
+        o = simobj.sc(1, 100, 1)
+        pos = o.get()
+        self.assertEqual(len(pos), 100)
+        self.assertTrue(all([np.allclose(np.unique(c), np.arange(-2, 3)) for c in pos[:, :3].T]))
+
+        o = simobj.sc(1, 1000, 1, repeats=[10, 10, 10])
+        p0 = o.get2()[0]
+        r0 = sorted(np.linalg.norm(p0, axis=1))
+        o.rotangles = [0.5, 0.1, 0.1]
+        p1 = o.get2()[0]
+        r1 = sorted(np.linalg.norm(p1, axis=1))
+        self.assertFalse(np.allclose(p0, p1))
+        testing.assert_allclose(r0, r1)
+
+        with self.assertWarns(UserWarning):
+            o = simobj.sc(1, 100000, 2, fwhm=[10, 10, 10], rho=[2, 2, 10])
+        self.assertGreaterEqual(np.max(o.get2()[0]), 5)
+        self.assertLessEqual(np.max(o.get2()[0]), 20)
 
     def test_gauss(self):
         from idi.simulation import simobj
@@ -63,11 +79,18 @@ class simobject(unittest.TestCase):
     def test_multisphere(self):
         from idi.simulation import simobj
 
-        o = simobj.multisphere(1, 100, 1,Nspheres=10)
+        o = simobj.multisphere(1, 100, 1, Nspheres=10)
         self.assertEqual(len(o.get()), 100)
 
         o = simobj.multisphere(1, 100, 1, fwhm=10)
         self.assertEqual(len(o.get()), 100)
+
+    def test_grating(self):
+        from idi.simulation import simobj
+
+        o = simobj.grating(1, 100, 1, 10, fwhm=[10, 10, 1], rho=[2, 2, 100], rotangles=[np.pi, 0, 0])
+        self.assertEqual(len(o.get()), 100)
+
 
 if __name__ == '__main__':
     unittest.main()
