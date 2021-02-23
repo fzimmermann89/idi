@@ -6,7 +6,7 @@ import numpy.testing as testing
 
 class basic(unittest.TestCase):
     def test_import(self):
-        import idi.util
+        import idi.util # noqa
 
     def test_angles(self):
         from idi.util import angles, rotation
@@ -85,16 +85,14 @@ class basic(unittest.TestCase):
 
 
 class random(unittest.TestCase):
-    '''
+    """
     TODO:
-    random_rotation
     poisson_disc_sample
     rndConvexpoly
     rndIcosahedron
-    rndgennorm
     rndstr
     gnorm
-    '''
+    """
 
     def test_rndSphere(self):
         from idi.util import rndSphere
@@ -128,25 +126,35 @@ class random(unittest.TestCase):
 
     def test_rndgennorm(self):
         from idi.util import rndgennorm, fwhm
+
         fwhms = (1, 5, 10)
         t = rndgennorm(0, fwhms, (2, 2, 100), int(1e7))
         np.testing.assert_allclose(np.mean(t, axis=0), 0, atol=0.01, err_msg='mean failed')
-        self.assertTupleEqual(t.shape, (int(1e7), 3),msg='shape missmatch')
+        self.assertTupleEqual(t.shape, (int(1e7), 3), msg='shape missmatch')
         hist, bins = zip(*(np.histogram(x, bins=int(1e3), range=(-10, 10)) for x in t.T))
         for h, b, f in zip(hist, bins, fwhms):
             self.assertAlmostEqual(fwhm(b, h), f, delta=0.05, msg='fwhm failed')
+
+    def test_randomrotation(self):
+        from idi.util import random_rotation
+
+        t = random_rotation()
+        self.assertTupleEqual(t.shape, (3, 3))
+        self.assertAlmostEqual(abs(np.linalg.det(t)), 1)
+
 
 class h5util(unittest.TestCase):
     def setUp(self):
         import h5py
 
         self.f1 = h5py.File(name='f1', driver='core', backing_store=False, mode='w')
+        self.f1.create_group('group')
 
     def tearDown(self):
         self.f1.close()
 
     def test_append(self):
-        import idi.util.h5util as h5util
+        from idi.util import h5util
 
         h5util.appenddata(self.f1, 't1', np.zeros((1, 10, 10)))
         t = self.f1['t1']
@@ -160,21 +168,98 @@ class h5util(unittest.TestCase):
 
         h5util.appenddata(self.f1, 'string', 's1')
         h5util.appenddata(self.f1, 'string', 's2_ismuchlonger')
-        h5util.appenddata(
-            self.f1, 'string', np.array(self.f1['string']),
-        )
+        h5util.appenddata(self.f1, 'string', np.array(self.f1['string']))
         t = self.f1['string']
         self.assertEqual(len(t), 4)
         self.assertEqual(t[-1], b's2_ismuchlonger')
         self.assertEqual(np.array(t)[-2], b's1')
 
+        h5util.appenddata(self.f1['group'], 't2', np.ones(5))
+        self.assertTupleEqual(self.f1['group/t2'].shape, (5,))
+
+    def test_overwrite(self):
+        from idi.util import h5util
+
+        h5util.overwritedata(self.f1, 't1', np.zeros((1, 10, 10)))
+        t = self.f1['t1']
+        self.assertTupleEqual(t.shape, (1, 10, 10))
+        self.assertEqual(t.compression, 'lzf')
+        self.assertEqual(t.shuffle, True)
+        self.assertTupleEqual(t.chunks, (1, 10, 10))
+
+        h5util.overwritedata(self.f1, 't1', np.zeros((5, 10)), chunks=(2, 1))
+        t = self.f1['t1']
+        self.assertTupleEqual(t.shape, (5, 10))
+        self.assertTupleEqual(t.chunks, (2, 1))
+
+        self.assertRaises(TypeError, h5util.overwritedata, t, 'blub', np.zeros((3, 10, 10)))
+
+        h5util.overwritedata(self.f1, 't2', 'test')
+        self.assertEqual(self.f1['t2'][0], b'test')
+
+        h5util.overwritedata(self.f1, 't2', 'othertest')
+        self.assertEqual(self.f1['t2'][0], b'othertest')
+
+        h5util.overwritedata(self.f1['group'], 't3', np.array(['a', 'test']))
+        self.assertEqual(self.f1['group/t3'][1], b'test')
+
+    def test_chunkediter(self):
+        from idi.util import h5util
+
+        self.f1['t4'] = np.zeros((15, 10, 1))
+
+        for i, el in enumerate(h5util.chunkediter(self.f1['t4'], outsize=2)):
+            if i < 7:
+                self.assertTupleEqual(el.shape, (2, 10, 1), msg=f'differ at {i}: {el.shape}')
+            else:
+                self.assertTupleEqual(el.shape, (1, 10, 1), msg=f'differ at {i}: {el.shape}')
+        self.assertEqual(i, 7)
+
+        for i, el in enumerate(h5util.chunkediter(self.f1['t4'], outsize=1)):
+            self.assertTupleEqual(el.shape, (10, 1), msg=f'differ at {i}: {el.shape}')
+        self.assertEqual(i, 14)
+
+        for i, el in enumerate(h5util.chunkediter(self.f1['t4'], outsize=5)):
+            self.assertTupleEqual(el.shape, (5, 10, 1), msg=f'differ at {i}: {el.shape}')
+        self.assertEqual(i, 2)
+
+        # h5util.overwritedata(self.f1, 'string', 's1')
+        # h5util.overwritedata(self.f1, 'string', 's2_ismuchlonger')
+        # h5util.overwritedata(
+        #     self.f1, 'string', np.array(self.f1['string']),
+        # )
+        # t = self.f1['string']
+        # self.assertEqual(len(t), 4)
+        # self.assertEqual(t[-1], b's2_ismuchlonger')
+        # self.assertEqual(np.array(t)[-2], b's1')
+
 
 class funchelper(unittest.TestCase):
     def test_asgen(self):
-        self.assertEqual(True, True)
+        from idi.util import asgen
+        import types
+
+        @asgen
+        def test(el):
+            return el
+
+        t = test([1, 2, 3])
+        self.assertIsInstance(t, types.GeneratorType)
+        self.assertEqual(list(t), [1, 2, 3])
 
 
 class array(unittest.TestCase):
+    """
+    TODO:
+    create_mask
+    diffdist
+    fftfilter_mean
+    fftfilter_std
+    filter_std
+    arrayfromiter
+    split
+    """
+
     def test_cutnan(self):
         from idi.util import cutnan
 
@@ -200,23 +285,23 @@ class array(unittest.TestCase):
 
         self.assertRaises(TypeError, list2array, 1)
 
-        l = [1, 2, 3]
-        testing.assert_array_equal(list2array(l), np.array([1, 2, 3]))
+        li = [1, 2, 3]
+        testing.assert_array_equal(list2array(li), np.array([1, 2, 3]))
 
-        l = [[1], [1, 2], [1, 2, 3], [1]]
-        a = list2array(l)
-        self.assertEqual(a[0, 0], l[0][0])
-        self.assertEqual(a[1, 1], l[1][1])
-        self.assertEqual(a[2, 2], l[2][2])
+        li = [[1], [1, 2], [1, 2, 3], [1]]
+        a = list2array(li)
+        self.assertEqual(a[0, 0], li[0][0])
+        self.assertEqual(a[1, 1], li[1][1])
+        self.assertEqual(a[2, 2], li[2][2])
         self.assertEqual(np.sum(a), 11)
-        self.assertEqual(len(a), len(l))
+        self.assertEqual(len(a), len(li))
 
-        l = [[1.0], ['a', 'b'], ['a', 'b', 'c'], ['a']]
-        a = list2array(l)
-        self.assertEqual(float(a[0, 0]), l[0][0])
-        self.assertEqual(a[1, 1], l[1][1])
-        self.assertEqual(a[2, 2], l[2][2])
-        self.assertEqual(len(a), len(l))
+        li = [[1.0], ['a', 'b'], ['a', 'b', 'c'], ['a']]
+        a = list2array(li)
+        self.assertEqual(float(a[0, 0]), li[0][0])
+        self.assertEqual(a[1, 1], li[1][1])
+        self.assertEqual(a[2, 2], li[2][2])
+        self.assertEqual(len(a), len(li))
 
     def test_fill(self):
         from idi.util import fill
@@ -271,20 +356,6 @@ class array(unittest.TestCase):
 
         self.assertRaises(ValueError, rebin, t, 1, 'blub')
         self.assertRaises(ValueError, rebin, t, (1, 1), 'sum')
-
-    '''
-    TODO:
-    
-    create_mask
-    diffdist
-    
-    fftfilter_mean
-    fftfilter_std
-
-    filter_std
-    arrayfromiter
-    split
-    '''
 
 
 if __name__ == '__main__':

@@ -30,6 +30,8 @@ def appenddata(file, key, data, chunks=None, compression='lzf'):
 
 
 def overwritedata(file, key, data, chunks=None, compression='lzf'):
+    if isinstance(file, h5py.Dataset):
+        raise TypeError('file should be a file or group, not a dataset')
     data = _np.atleast_1d(_np.array(data))
     if _np.array(data).dtype.kind == 'U':
         data = data.astype(h5py.string_dtype(encoding='ascii'))
@@ -65,4 +67,5 @@ def chunkediter(dataset, sel=slice(None), readsize=16, outsize=1):
         ids = r[i : i + readsize]
         tmp = _np.array(dataset[ids.start : ids.stop : ids.step])
         for j in range(0, len(tmp), outsize):
-            yield _np.squeeze(tmp[j : j + outsize])
+            yield tmp[j: j + outsize][0] if outsize == 1 else tmp[j : j + outsize]
+
