@@ -65,13 +65,13 @@ class simobj(_abc.ABC):
     def getImg(self, dx, ndim=2):
         if not 0 < ndim <= 3:
             raise ValueError
-        pos, phase = self.get()
+        pos, phase = self.get2()
         ind = _np.rint((pos[:, :ndim] - _np.min(pos[:, :ndim], axis=0, keepdims=True)) / dx).astype(int)
         s = _np.array(ind.max(0)) + 1
         pads = _np.array([_fastlen(i) for i in s])
         ind += (pads - s) // 2
         img = _np.zeros(pads, _np.complex128)
-        _np.add.at(img, tuple(ind.T), _np.exp(1j * phase))
+        _np.add.at(img, tuple(ind.T), _np.exp(1j * _np.squeeze(phase)))
         return img
 
     @_abc.abstractmethod

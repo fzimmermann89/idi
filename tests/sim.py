@@ -96,13 +96,25 @@ class cpu(unittest.TestCase):
     def setUp(self):
         from idi.simulation import simobj
 
-        self.obj = simobj.sphere(100, 100, 1)
+        self.obj = simobj.sphere(100, 100, 10)
 
     def test_cpu(self):
         from idi.simulation import cpu
 
-        res = cpu.simulate(2, self.obj, 4, 10, 10000, self.obj.k)
+        res = cpu.simulate(2, self.obj, 4, 10, 1000, self.obj.k)
         self.assertTupleEqual(res.shape, (2, 4, 4))
+
+    def test_time(self):
+        from idi.simulation import time
+
+        res = time.simulate(self.obj, 4, 10, 1000, self.obj.k, 1.0, 1.0, 1.0)
+        self.assertTupleEqual(res.shape, (4, 4))
+
+    def test_simple(self):
+        from idi.simulation import simple
+
+        res = simple.simulate(self.obj, 4, 10, 1000, self.obj.k)
+        self.assertTupleEqual(res.shape, (4, 4))
 
 
 if __name__ == '__main__':
