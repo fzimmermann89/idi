@@ -20,7 +20,8 @@ def poisson_disc_sample(r, d, N=_np.inf, ndim=3, k=10, method='auto', rng=None):
     k: fidelity parameter, should be >10 for good results
     """
     if rng is None:
-        rng = _np.random.default_rng()
+        rng = _np.random.default_rng(seed=_np.random.randint(2 ** 63))
+
     ndim = int(ndim)
     if ndim < 1:
         raise ValueError('ndim should be integer >=1')
@@ -71,8 +72,9 @@ def _poisson_disc_sample_bridson(grid, r, d, ndim=3, k=10, fixd=False, seed=0):
     n = 0
     flatcoord = _np.sum(gstride * coords)
     grid.ravel()[flatcoord] = n + 1
+
     while len(queue):
-        q = points[queue.pop(_np.random.randint(0, len(queue) - 1)), :]
+        q = points[queue.pop(_np.random.randint(0, len(queue))), :]
         rand = _np.random.randn(k, ndim)
         norm = _np.sum(rand ** 2, axis=-1) ** (1 / 2)
         rs = _np.ones(k) * d if fixd else d * (1 + (2 ** ndim - 1) * _np.random.rand(k)) ** (1 / ndim)
@@ -127,7 +129,7 @@ def _poisson_disc_sample_darts(r, mindistance, N, d=3, m=None, k=10, rng=None):
     throwing darts and checking using ndtree
     """
     if rng is None:
-        rng = _np.random.default_rng()
+        rng = _np.random.default_rng(seed=_np.random.randint(2**63))
     N = _np.clip(N, 1, (1.35 * r / mindistance) ** d) if mindistance > 0 else N
     if m is None:
         m = max(1, N / 4)
