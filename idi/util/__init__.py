@@ -99,8 +99,10 @@ def centered_part(arr, newshape):
 def list2array(li):
     def _len(e):
         return 1 if _np.isscalar(e) else len(e)
+
     maxlen = _np.max([_len(e) for e in li])
     return _np.array([_np.pad(e, (0, maxlen - _len(e)), 'constant') for e in li])
+
 
 @_numba.jit()
 def find_center(img, mask, x0=0, y0=0, maxr=500, d=60):
@@ -176,9 +178,7 @@ def create_mask(img, lowthres=5, highthres=95, sigma=10, hotpixelstd=5):
     if hotpixelstd is not None, pixels higher then hotpixelstd times the standard deviation over masked mean will be ignored.
     """
     blured = _snd.gaussian_filter(img, sigma)
-    mask = _np.logical_or.reduce(
-        (blured < _np.nanpercentile(blured, lowthres), blured > _np.nanpercentile(blured, highthres), _np.isnan(img),)
-    )
+    mask = _np.logical_or.reduce((blured < _np.nanpercentile(blured, lowthres), blured > _np.nanpercentile(blured, highthres), _np.isnan(img),))
     sel21 = _snd.morphology.generate_binary_structure(2, 1)
     mask_cleaned = _snd.morphology.binary_dilation(mask, sel21, 2)
     mask_cleaned = _snd.morphology.binary_closing(mask_cleaned, sel21, 20)
@@ -207,8 +207,8 @@ def atleastnd(array, n):
     """
     adds dimensions of length 1 in front of array to get to n dimensions
     """
-    if not isinstance(array,_np.ndarray):
-        array=_np.array(array)
+    if not isinstance(array, _np.ndarray):
+        array = _np.array(array)
     return array[tuple((n - array.ndim) * [None] + [...])]
 
 
@@ -299,6 +299,7 @@ def splits(N, sections, return_lists=False):
     else:
         return ranges
 
+
 def shortsci(number, decimals=0):
     """
     short scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string
@@ -360,3 +361,12 @@ def gnorm(x, fwhm, rho, axis=None):
         return _np.exp(_ne.evaluate(f'sum(-abs(x)**rho*s), axis={axis})'))
     else:
         return _ne.evaluate(f'exp(-abs(x)**rho*s)')
+
+
+def fwhm(X, Y):
+    """
+    finds the fwhm of y(x) without any interpolation
+    """
+    id1 = X[_np.argmax(Y > 0.5 * Y.max())]
+    id2 = X[-_np.argmax(Y[::-1] > 0.5 * Y.max())]
+    return id2 - id1

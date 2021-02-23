@@ -126,6 +126,15 @@ class random(unittest.TestCase):
             self.assertTrue(c.isascii())
         self.assertEqual(len(s), 100, msg='repeats found')
 
+    def test_rndgennorm(self):
+        from idi.util import rndgennorm, fwhm
+        fwhms = (1, 5, 10)
+        t = rndgennorm(0, fwhms, (2, 2, 100), int(1e7))
+        np.testing.assert_allclose(np.mean(t, axis=0), 0, atol=0.01, err_msg='mean failed')
+        self.assertTupleEqual(t.shape, (int(1e7), 3),msg='shape missmatch')
+        hist, bins = zip(*(np.histogram(x, bins=int(1e3), range=(-10, 10)) for x in t.T))
+        for h, b, f in zip(hist, bins, fwhms):
+            self.assertAlmostEqual(fwhm(b, h), f, delta=0.05, msg='fwhm failed')
 
 class h5util(unittest.TestCase):
     def setUp(self):
