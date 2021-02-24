@@ -503,8 +503,8 @@ class grating(simobj):
             p = _lines(self._x, self.linewidth, self.spacingwidth, self.rholine) * _gnorm(self._x, fwhmx, rhofocusx)
             self._c = _np.cumsum(p)
             self._c = self._c / self._c[-1]
-        rhofocusyz = self.rho if _np.isscalar(self.rho) else self.rho[1:]
-        fwhmyz = self.fwhm if _np.isscalar(self.fwhm) else self.fwhm[1:]
+        rhofocusyz = self.rho if _np.isscalar(self.rho) else _np.array(self.rho[1:])
+        fwhmyz = self.fwhm if _np.isscalar(self.fwhm) else _np.array(self.fwhm[1:])
         self._pos = _np.zeros((self.N, 3))
         self._pos[:, 0] = _np.interp(self.rng.uniform(size=self.N), self._c, self._x)
         self._pos[:, 1:] = _rndgennorm(0, fwhmyz, rhofocusyz, (self.N, 2), self.rng)

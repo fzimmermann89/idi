@@ -370,3 +370,20 @@ def fwhm(X, Y):
     id1 = X[_np.argmax(Y > 0.5 * Y.max())]
     id2 = X[-_np.argmax(Y[::-1] > 0.5 * Y.max())]
     return id2 - id1
+
+
+def arrayfromiter(iterable, count=-1):
+    '''
+    converts an iterable of nd arrays to an n+1-d array
+    '''
+    try:
+        if count == -1:
+            count = len(iterable)
+    except TypeError:
+        return _np.array(list(iterable))
+    ret = None
+    for i, el in enumerate(iterable):
+        if ret is None:
+            ret = _np.zeros((count, *_np.shape(el)))
+        ret[i, ...] = _np.asarray(el)
+    return ret
