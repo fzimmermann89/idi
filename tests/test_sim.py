@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import numpy.testing as testing
+import numba.cuda
 
 
 class basic(unittest.TestCase):
@@ -114,6 +115,26 @@ class cpu(unittest.TestCase):
         from idi.simulation import simple
 
         res = simple.simulate(self.obj, 4, 10, 1000, self.obj.k)
+        self.assertTupleEqual(res.shape, (4, 4))
+
+
+@unittest.skipIf(not numba.cuda.is_available(), 'no cuda available')
+class gpu(unittest.TestCase):
+    def setUp(self):
+        from idi.simulation import simobj
+
+        self.obj = simobj.sphere(100, 100, 10)
+
+    def test_cuda(self):
+        from idi.simulation import cuda
+
+        res = cuda.simulate(2, self.obj, 4, 10, 1000, self.obj.k)
+        self.assertTupleEqual(res.shape, (2, 4, 4))
+
+    def test_cutime(self):
+        from idi.simulation import cutime
+
+        res = cutime.simulate(self.obj, 4, 10, 1000, self.obj.k, 1.0, 1.0, 1.0)
         self.assertTupleEqual(res.shape, (4, 4))
 
 
