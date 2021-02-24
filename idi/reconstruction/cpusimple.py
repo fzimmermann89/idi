@@ -30,5 +30,5 @@ def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     if norm:
         n = corr(_np.ones(tuple(input.shape[ax] for ax in axes)), fftfunctions=fftfunctions)
         ret /= n
-        ret[(...,) + (n < 1).nonzero()] = _np.nan
+        ret[(...,) + (n < 0.9).nonzero()] = _np.nan
     return ret

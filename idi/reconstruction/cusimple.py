@@ -24,7 +24,7 @@ def corr(input, axes=(-1, -2), norm=False, returngpu=False, **kwargs):
     if norm:
         n = corr(_cp.ones(tuple(input.shape[ax] for ax in axes)), returngpu=True)
         ret /= n
-        ret[(...,) + (n < 1).nonzero()] = _np.nan
+        ret[(...,) + (n < 0.9).nonzero()] = _np.nan
     if not returngpu:
         ret = _cp.asnumpy(ret)
         _cp.get_default_memory_pool().free_all_blocks()
