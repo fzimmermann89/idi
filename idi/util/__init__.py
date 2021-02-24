@@ -373,9 +373,9 @@ def fwhm(X, Y):
 
 
 def arrayfromiter(iterable, count=-1):
-    '''
+    """
     converts an iterable of nd arrays to an n+1-d array
-    '''
+    """
     try:
         if count == -1:
             count = len(iterable)
@@ -387,3 +387,24 @@ def arrayfromiter(iterable, count=-1):
             ret = _np.zeros((count, *_np.shape(el)))
         ret[i, ...] = _np.asarray(el)
     return ret
+
+
+def indmax(array: _np.ndarray) -> tuple:
+    """
+    unravel_index(nanargmax(array))
+
+    :param array: nd array
+    :return: index of maximum
+    """
+    return _np.unravel_index(_np.nanargmax(array), array.shape)
+
+
+def indmin(array: _np.ndarray) -> tuple:
+    """
+    unravel_index(nanargmin(array))
+
+    :param array: nd array
+    :return: index of maximum
+    """
+    return _np.unravel_index(_np.nanargmin(array), array.shape)
+

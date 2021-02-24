@@ -6,7 +6,7 @@ import numpy.testing as testing
 
 class basic(unittest.TestCase):
     def test_import(self):
-        import idi.util # noqa
+        import idi.util  # noqa
 
     def test_angles(self):
         from idi.util import angles, rotation
@@ -356,6 +356,19 @@ class array(unittest.TestCase):
 
         self.assertRaises(ValueError, rebin, t, 1, 'blub')
         self.assertRaises(ValueError, rebin, t, (1, 1), 'sum')
+
+    def test_indextreme(self):
+        from idi.util import indmax, indmin
+
+        t = np.array([1, 0, 1, 2, 1, np.nan])
+        self.assertTupleEqual(indmax(t), (3,))
+        self.assertTupleEqual(indmin(t), (1,))
+
+        t = np.ones((4, 4, 4))
+        t[1, 2, 3] = 2
+        t[3, 2, 1:] = 0
+        self.assertTupleEqual(indmax(t), (1, 2, 3))
+        self.assertTupleEqual(indmin(t), (3, 2, 1))
 
 
 if __name__ == '__main__':
