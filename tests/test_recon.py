@@ -10,11 +10,30 @@ class basic(unittest.TestCase):
 
 
 class ft_test(unittest.TestCase):
-    # TODO
     def test_correlator(self):
         from idi.reconstruction import ft
 
-        pass
+        with ft.correlator(np.zeros((32, 32), bool), 1000) as correlator:
+            t = np.ones((32, 32))
+            c = correlator.unwrap(correlator.corr(t))
+            self.assertTupleEqual(c.shape, (1, 64, 64))
+            self.assertTupleEqual(np.unravel_index(np.argmax(c), c.shape), (0, 32, 32))
+            self.assertAlmostEqual(c.max(), 32 * 32)
+
+        with ft.correlator(np.zeros((32, 16), bool), 100) as correlator:
+            t = np.ones((32, 16))
+            c = correlator.unwrap(correlator.corr(t))
+            self.assertTupleEqual(c.shape[1:], (32, 64))
+            self.assertTupleEqual(np.unravel_index(np.argmax(c), c.shape), (0, 16, 32))
+
+        mask = np.zeros((17, 27), bool)
+        mask[5:10] = True
+        with ft.correlator(mask, 64) as correlator:
+            t = np.ones((17, 27))
+            c1 = correlator.unwrap(correlator.corr(t))
+            t[mask] = 100
+            c2 = correlator.unwrap(correlator.corr(t))
+            testing.assert_allclose(c1, c2)
 
     def test_tiles_correlator(self):
         from idi.reconstruction import ft
@@ -23,8 +42,8 @@ class ft_test(unittest.TestCase):
 
     def test_corr(self):
         from idi.reconstruction import ft
-
-        pass
+        c=ft.corr(np.ones((17,8)), 16)
+        self.assertTupleEqual(c.shape[1:],(16,32))
 
     def test_unwrap(self):
         from idi.reconstruction import ft

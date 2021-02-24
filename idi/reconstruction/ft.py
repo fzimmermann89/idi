@@ -236,25 +236,25 @@ def _zero(array):
 
 
 class correlator:
-    def __init__(self, mask, z):
+    def __init__(self, maskout, z):
         """
         3d fft correlator
-        mask: points on detector that will not be used, shape should be same as images to correlate
+        maskout: points on detector that will not be used, shape should be same as images to correlate
         resolution is fixed at dq=1
         """
-        y, x = _np.meshgrid(_np.arange(mask.shape[1], dtype=_np.float64), _np.arange(mask.shape[0], dtype=_np.float64))
-        x -= mask.shape[0] / 2.0
-        y -= mask.shape[1] / 2.0
+        y, x = _np.meshgrid(_np.arange(maskout.shape[1], dtype=_np.float64), _np.arange(maskout.shape[0], dtype=_np.float64))
+        x -= maskout.shape[0] / 2.0
+        y -= maskout.shape[1] / 2.0
         d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
         qs = _np.array([(k / d * z) for k in (z, y, x)])
         qs = _np.rint(qs - _np.min(qs, (-1, -2), keepdims=True)).astype(int, copy=False)
         qlen = [fastlen(k) for k in 2 * (_np.max(qs, (-1, -2)) + 1)]
         maxq = _np.max(qs, (-1, -2))
-        hist = _np.histogramdd(qs.reshape(3, -1).T, bins=maxq + 1, range=[[-0.5, mq + 0.5] for mq in maxq], weights=~mask.ravel())[0]
-        count = hist[qs[0].ravel(), qs[1].ravel(), qs[2].ravel()].reshape(mask.shape)
-        count[mask] = 1
-        self._count = count
-        self._mask = mask
+        hist = _np.histogramdd(qs.reshape(3, -1).T, bins=maxq + 1, range=[[-0.5, mq + 0.5] for mq in maxq], weights=~maskout.ravel())[0]
+        count = hist[qs[0].ravel(), qs[1].ravel(), qs[2].ravel()].reshape(maskout.shape)
+        count[maskout] = _np.inf
+        self._countcorrection = 1 / count
+        self._mask = maskout
         self._qlen = qlen
         self._qs = qs
         self._tmp = None
@@ -262,11 +262,18 @@ class correlator:
     def _corr(self, input, maxqz):
         for image in input:
             _zero(self._tmp)
-            _np.add.at(self._tmp, (*self._qs,), image / self._count)
+            _np.add.at(self._tmp, (*self._qs,), image * self._countcorrection)
             err = autocorrelate3.autocorrelate3(self._tmp)
             if err:
                 raise RuntimeError(f"cython autocorrelations failed with error code {err}")
             yield self._tmp[: min(self._tmp.shape[0] // 2, maxqz), ...]
+
+    @property
+    def mask(self):
+        """
+        mask being used
+        """
+        return self._mask
 
     def corr(self, input, maxqz=_np.inf):
         """
