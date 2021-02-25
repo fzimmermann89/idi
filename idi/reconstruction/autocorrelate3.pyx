@@ -8,13 +8,15 @@ cdef extern from 'mkl.h' nogil:
     int vmlGetErrStatus() nogil
     int vmlSetErrStatus(int) nogil
 
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True) 
 cpdef int autocorrelate3(double[:, :, ::1] input):
-    '''
+    """
     calculates MxNxO autocorrelation of (M)xNx(O+2) array using mkl fft. returns 0 on success.
-    '''
+    """
+
     #strides
     cdef long N1=input.shape[0], N2=input.shape[1], N3=input.shape[2]-2 #N3: extra space needed for r2c-> do smaller fft
     cdef long N[3]

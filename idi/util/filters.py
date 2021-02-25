@@ -11,7 +11,7 @@ def filter_std(image, size, sigma=1):
     import ctypes
     import scipy.ndimage as ndi
     from numba import cfunc, carray
-    from numba.types import intc, intp, float64, voidptr, CPointer
+    from numba.core.types import intc, intp, float64, voidptr, CPointer
     from scipy import LowLevelCallable
 
     @cfunc(intc(CPointer(float64), intp, CPointer(float64), voidptr), fastmath=True)
