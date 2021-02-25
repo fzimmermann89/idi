@@ -408,3 +408,14 @@ def indmin(array: _np.ndarray) -> tuple:
     """
     return _np.unravel_index(_np.nanargmin(array), array.shape)
 
+
+def intersect2d(a: _np.ndarray, b: _np.ndarray) -> _np.ndarray:
+    """
+    finds identical rows in array a,b
+
+    :param a array1
+    :param b array2
+    :return array of intersecting rows
+    """
+    intersect = _np.intersect1d(a.view([('', a.dtype)] * a.shape[1]), b.view([('', b.dtype)] * b.shape[1]))
+    return intersect.view(a.dtype).reshape(-1, a.shape[1])

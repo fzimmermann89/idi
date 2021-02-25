@@ -370,6 +370,15 @@ class array(unittest.TestCase):
         self.assertTupleEqual(indmax(t), (1, 2, 3))
         self.assertTupleEqual(indmin(t), (3, 2, 1))
 
+    def test_intersect2d(self):
+        from idi.util import intersect2d
+
+        a = np.array([[1, 2, 3], [2, 3, 4], [1, 2, 3], [9, 9, 9]])
+        b = np.array([[3, 2, 1], [4, 3, 2], [3, 2, 1], [9, 9, 9]])
+        c = intersect2d(a, b)
+        self.assertTupleEqual(c.shape, (1, 3))
+        self.assertTupleEqual(tuple(c.ravel()), (9, 9, 9))
+
 
 if __name__ == '__main__':
     unittest.main()
