@@ -45,12 +45,12 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         y -= ycenter
         d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
         zd = _np.array((z / d), _np.float32, order="C")
-        maxdqz = _numba.int32(math.ceil(z * (_np.max(zd) - _np.min(zd))))
+        maxdqz = _numba.int32(math.ceil(z * (_np.max(zd) - _np.min(zd)))) | 1
         cz = _numba.float32(z)
 
         with stream.auto_synchronize():
             dzd = _numba.cuda.to_device(zd, stream)
-            doutput = _numba.cuda.device_array((2 * maxdqz + 2, 2 * qmax, 2 * qmax), _np.float32, stream=stream)
+            doutput = _numba.cuda.device_array((2 * maxdqz, 2 * qmax, 2 * qmax), _np.float32, stream=stream)
 
         del zd, x, y, d
 
@@ -88,16 +88,14 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
                 offsetc += _numba.int32(_numba.cuda.blockDim.x)
 
         def assemble(vals):
-            idx, idy, idz = _numba.cuda.grid(3)
-            idy2 = vals.shape[1] - idy - 1
-            tmp = vals[idx, idy, idz]
-            vals[idx, idy, idz] += vals[idx, idy2, idz]
-            vals[idx, idy2, idz] += tmp
+            id0, id1, id2 = _numba.cuda.grid(3)
+            vals[id0, id1, id2] += vals[-id0, -id1, -id2]
+            vals[-id0, -id1, -id2] = vals[id0, id1, id2]
 
         jkernel = _numba.cuda.jit("void(float32[:,:],float32[:,:],float32[:,:,:])", fastmath=True)(kernel)
         jkernel = jkernel[(1, Nr, qmax), (qmax, 1, 1), stream]
-        jassemble = _numba.cuda.jit("void(float32[:,:,:])", fastmath=True, debug=True)(assemble)
-        jassemble = jassemble[(doutput.shape[0], 1, doutput.shape[2]), (1, qmax, 1), stream]
+        jassemble = _numba.cuda.jit("void(float32[:,:,:])", fastmath=True)(assemble)
+        jassemble = jassemble[(doutput.shape[0], doutput.shape[1], 1), (1, 1, doutput.shape[2] // 2), stream]
 
         def corr(input):
             """
@@ -122,12 +120,3 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         import gc
 
         gc.collect()
-
-
-if __name__ == "__main__":
-    qmax = 256
-    z = 2000
-    input = _np.ones((512, 512))
-    with corrfunction(input.shape, z, qmax) as f:
-        out = f(input)
-        print(out.sum())

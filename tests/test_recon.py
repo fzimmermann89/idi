@@ -49,7 +49,7 @@ class ft_test(unittest.TestCase):
         z = 16
         N0, N1 = 8, 8
         off = 1
-        qs = np.round(np.stack([_qs((N0, N1), z, (i, j)).T for i, j in itertools.product([-off, N0 + off], [-off, N1 + off])]).reshape(4, -1, 3), 1)
+        qs = np.stack([_qs((N0, N1), z, (i, j)).T for i, j in itertools.product([-off, N0 + off], [-off, N1 + off])]).reshape(4, -1, 3)
         mean = np.ones((4, N0 * N1))
         maskout = np.zeros((4, N0 * N1), bool)
 
@@ -79,15 +79,14 @@ class gpu_test(unittest.TestCase):
     def test_cucor(self):
         from idi.reconstruction import cucor
 
-        t = np.ones((64, 64))
-        with cucor.corrfunction(t.shape, 100, 32) as f:
+        t = np.ones((32, 32))
+        with cucor.corrfunction(t.shape, 1000, 32) as f:
             c = f(t)
             self.assertTupleEqual(c.shape[1:], (64, 64))
             self.assertGreater(len(c), 1)
-            # TODO
-            # self.assertEqual(c.max(), t.sum())
-            # maxid = np.unravel_index(np.argmax(c), c.shape)
-            # self.assertTupleEqual(maxid, tuple(((i-1) // 2 for i in c.shape)))
+            self.assertEqual(c.max(), t.sum())
+            maxid = np.unravel_index(np.argmax(c), c.shape)
+            self.assertTupleEqual(maxid, tuple((i / 2 for i in c.shape)))
 
     def test_cucorrrad(self):
         from idi.reconstruction import cucorrad
