@@ -3,23 +3,35 @@ import numba as _numba
 from .common import _getidx
 
 pmax = 16  # todo
+debug = True
 
 
-@_numba.njit(parallel=False, boundscheck=True)
-def _corr(input, z):
-    Nx, Ny = input.shape
-    xi, yi = _np.where(input > 0)
-    Nhits = len(xi)
-    qlenx = int(Nx)
-    qleny = int(Ny * 2)
-    qlenz = 2 * int((z - (z ** 2 / _np.sqrt((Nx / 2 + 1) ** 2 + (Ny / 2 + 1) ** 2 + z ** 2))) + 1)
-    tmp = _np.zeros((qlenx, qleny, qlenz), dtype=_np.uint64)
-    x = xi.astype(_numba.float64) - Nx / 2.0
-    y = yi.astype(_numba.float64) - Ny / 2.0
+@_numba.njit()
+def _ks(xi, yi, z, center):
+    x = xi.astype(_numba.float64) - center[0]
+    y = yi.astype(_numba.float64) - center[1]
     d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
     kx = x / d * z
     ky = y / d * z
     kz = z / d * z
+    return kx, ky, kz
+
+@_numba.njit()
+def _qsize(Nx, Ny, z):
+    qlenx = int(Nx)
+    qleny = int(Ny * 2)
+    qlenz = 2 * int((z - (z ** 2 / _np.sqrt((Nx / 2 + 1) ** 2 + (Ny / 2 + 1) ** 2 + z ** 2))) + 1)
+    return qlenx, qleny, qlenz
+
+@_numba.njit(parallel=False, boundscheck=not debug)
+def _corr(input, z):
+    Nx, Ny = input.shape
+    xi, yi = _np.where(input > 0)
+    Nhits = len(xi)
+    qlenx, qleny, qlenz = _qsize(Nx, Ny, z)
+    tmp = _np.zeros((qlenx, qleny, qlenz), dtype=_np.uint64)
+    center = (Nx / 2.0, Ny / 2.0)
+    kx, ky, kz = _ks(xi, yi, z, center)
 
     for n in range(Nhits):
         for m in range(n):
@@ -37,21 +49,15 @@ def _corr(input, z):
     return tmp
 
 
-@_numba.njit(nogil=False, parallel=True, fastmath=True, boundscheck=True)
+@_numba.njit(parallel=True, fastmath=True, boundscheck=not debug)
 def _pcorr(input, z):
     Nx, Ny = input.shape
     xi, yi = _np.where(input > 0)
     Nhits = len(xi)
-    qlenx = int(Nx)
-    qleny = int(Ny * 2)
-    qlenz = 2 * int((z - (z ** 2 / _np.sqrt((Nx / 2 + 1) ** 2 + (Ny / 2 + 1) ** 2 + z ** 2))) + 1)
+    qlenx, qleny, qlenz = _qsize(Nx, Ny, z)
     tmp = [_np.zeros((qlenx, qleny, qlenz), dtype=_np.float64) for p in range(pmax)]
-    x = xi.astype(_numba.float64) - Nx / 2.0
-    y = yi.astype(_numba.float64) - Ny / 2.0
-    d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    kx = x / d * z
-    ky = y / d * z
-    kz = z / d * z
+    center = (Nx / 2.0, Ny / 2.0)
+    kx, ky, kz = _ks(xi, yi, z, center)
 
     for p in _numba.prange(pmax):
         ptmp = tmp[p]
@@ -89,17 +95,18 @@ def corr(input, z):
         raise TypeError
 
 
-@_numba.njit(parallel=True, boundscheck=True)
+@_numba.njit(parallel=True, boundscheck=not debug)
 def _pcorrs(input, z):
     Nx, Ny = input.shape[-2:]
     Nimg = input.shape[0]
     qlenx = int(Nx)
     qleny = int(2 * Ny)
     qlenz = 2 * int((z - (z ** 2 / _np.sqrt((Nx / 2 + 1) ** 2 + (Ny / 2 + 1) ** 2 + z ** 2))) + 1)
-    Nperp = int(_np.floor(Nimg / pmax))
     out = _np.zeros((pmax, qlenx, qleny, qlenz), dtype=_np.uint64)
     for p in _numba.prange(pmax):
-        for n in range(p * Nperp, (p + 1) * Nperp):
+        # Nperp = int(_np.floor(Nimg / pmax))
+        # for n in range(p * Nperp, (p + 1) * Nperp):
+        for n in range(p, Nimg, pmax):
             out[p] += _corr(input[n, ...], z)
     return out
 
