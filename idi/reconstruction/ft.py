@@ -2,7 +2,7 @@ import numpy as _np
 from . import autocorrelate3
 import numba as _numba
 import numexpr as _ne
-from ..util import fastlen, atleastnd
+from ..util import fastlen, atleastnd, intersect2d
 import itertools as _it
 import warnings as _w
 
@@ -81,10 +81,10 @@ class correlator_tiles:
         """
         q = atleastnd(qs, 3)
         for a, b in _it.combinations(range(q.shape[0]), 2):
-            if len(_np.intersect1d(q[a, :, :], q[b, :, :])):
-                _w.warn('qs are asummed to be unique in first dimension!')
+            if len(intersect2d(q[a, :, :], q[b, :, :])):
+                _w.warn('qs are assumed to be unique in first dimension!')
         if not q.shape[2] == 3:
-            raise ValueError('q should qx,qy,qz in last axis')
+            raise ValueError('q should qz,qy,qx in last axis')
         mask = atleastnd(maskout, 2)
         mean = atleastnd(meandata, 2)
         if not q.shape[:2] == mask.shape == mean.shape:
@@ -173,7 +173,7 @@ class correlator_tiles:
             raise RuntimeError(f'cython autocorrelations failed with error code {err}')
 
         res = _ne.evaluate(
-            'where((norm<(100*N)), nan,accum/norm)',
+            'where((norm<(10*N)), nan,accum/norm)',
             local_dict={'N': self._N, 'norm': self._tmp[: self.qlenz, ...], 'nan': _np.nan, 'accum': self.accum},
         )
         if finish:

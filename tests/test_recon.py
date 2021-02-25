@@ -37,13 +37,36 @@ class ft_test(unittest.TestCase):
 
     def test_tiles_correlator(self):
         from idi.reconstruction import ft
+        import itertools
 
-        pass
+        def _qs(shape, z, offset):
+            y, x = np.meshgrid(np.arange(shape[1], dtype=np.float64), np.arange(shape[0], dtype=np.float64))
+            x -= offset[0]
+            y -= offset[1]
+            d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+            return np.array([(k / d * z) for k in (z, y, x)])
+
+        z = 16
+        N0, N1 = 8, 8
+        off = 1
+        qs = np.round(np.stack([_qs((N0, N1), z, (i, j)).T for i, j in itertools.product([-off, N0 + off], [-off, N1 + off])]).reshape(4, -1, 3), 1)
+        mean = np.ones((4, N0 * N1))
+        maskout = np.zeros((4, N0 * N1), bool)
+
+        with ft.correlator_tiles(qs, maskout, mean) as correlator:
+            correlator.add(mean)
+            correlator.add(mean)
+            c = correlator.result(True)
+            self.assertTupleEqual(c.shape, (4, 32, 32))
+            self.assertAlmostEqual(np.nanmax(c), 1)
+            self.assertAlmostEqual(np.nanmin(c), 1)
+            self.assertGreater(np.nansum(c), N0 * N1)
 
     def test_corr(self):
         from idi.reconstruction import ft
-        c=ft.corr(np.ones((17,8)), 16)
-        self.assertTupleEqual(c.shape[1:],(16,32))
+
+        c = ft.corr(np.ones((17, 8)), 16)
+        self.assertTupleEqual(c.shape[1:], (16, 32))
 
     def test_unwrap(self):
         from idi.reconstruction import ft
