@@ -1,7 +1,6 @@
-import sys
+#!/usr/bin/env python
 from os.path import join, exists, dirname, realpath
-from os import getcwd
-import IPython
+import setuptools  # noqa
 
 
 def configuration():
@@ -12,7 +11,9 @@ def configuration():
     srcdir = join(dirname(realpath(__file__)), 'idi')
     mkl_info = get_info('mkl')
     libs = mkl_info.get('libraries', ['mkl_rt'])
-    include_dirs = mkl_info.get('include_dirs') + [srcdir]
+    include_dirs = [srcdir]
+    if mkl_info:
+        include_dirs.extend(mkl_info.get('include_dirs'))
     try:
         from Cython.Build import cythonize
 
@@ -24,11 +25,7 @@ def configuration():
         if not exists(sources[0]):
             raise ValueError(str(e) + '. ' + 'Cython is required to build the initial .c file.')
     config.add_extension(
-        name='reconstruction.autocorrelate3',
-        sources=sources,
-        libraries=libs,
-        include_dirs=include_dirs,
-        extra_compile_args=['-DNDEBUG'],
+        name='reconstruction.autocorrelate3', sources=sources, libraries=libs, include_dirs=include_dirs, extra_compile_args=['-DNDEBUG', '-O3'],
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
@@ -52,9 +49,10 @@ def setup_package():
         description='idi simulation and reconstruction',
         platforms=['Linux', 'Mac OS-X'],
         python_requires='>=3.6',
-        install_requires=['numpy', 'cython', 'numba', 'numexpr', 'scipy', 'jinja2', 'mkl-include','mkl-service', 'matplotlib'],
-        scripts=['idi_sim.py', 'idi_simrecon.py', 'idi_simrecon_normalize.py'],
+        install_requires=['numpy', 'cython', 'numba', 'numexpr', 'scipy', 'jinja2', 'mkl-include', 'mkl-service', 'matplotlib'],
+        scripts=['scripts/idi_sim.py', 'scripts/idi_simrecon.py'],
         configuration=configuration,
+        test_suite='tests',
     )
     setup(**metadata)
 
