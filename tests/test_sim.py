@@ -6,7 +6,10 @@ import numba.cuda
 
 class basic(unittest.TestCase):
     def test_import(self):
-        import idi.simulation
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            import idi.simulation
 
 
 class simobject(unittest.TestCase):
