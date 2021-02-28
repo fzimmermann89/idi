@@ -419,3 +419,29 @@ def intersect2d(a: _np.ndarray, b: _np.ndarray) -> _np.ndarray:
     """
     intersect = _np.intersect1d(a.view([('', a.dtype)] * a.shape[1]), b.view([('', b.dtype)] * b.shape[1]))
     return intersect.view(a.dtype).reshape(-1, a.shape[1])
+
+
+def isdir(string):
+    """
+    Is string an existing dir?
+    :param string: path
+    :return: abspath or raise NotADirectoryError if is not a dir
+    """
+    import os
+    if os.path.isdir(string):
+        return os.path.abspath(string)
+    else:
+        raise NotADirectoryError(string)
+
+
+def isfile(string):
+    """
+    Is string an existing file?
+    :param string: path
+    :return: abspath or raise FileNotFoundError if is not a dir
+    """
+    import os
+    if os.path.isfile(string):
+        return os.path.abspath(string)
+    else:
+        raise FileNotFoundError(string)
