@@ -379,6 +379,40 @@ class array(unittest.TestCase):
         self.assertTupleEqual(c.shape, (1, 3))
         self.assertTupleEqual(tuple(c.ravel()), (9, 9, 9))
 
+    def test_accum(self):
+        from idi.util import accumulator
+
+        a = accumulator(False)
+        self.assertEqual(None, a.mean)
+        self.assertEqual(None, a.std)
+        self.assertEqual(a.n, 0)
+
+        a.add(np.ones((2, 10, 10)))
+        testing.assert_allclose(a.mean, np.ones((2, 10, 10)))
+        testing.assert_allclose(a.std, np.zeros((2, 10, 10)))
+
+        t = np.ones((2, 10, 10))
+        t[0, ...] = 0
+        a.add(t)
+        self.assertEqual(a.n, 2)
+        testing.assert_allclose(a.mean, np.array((0.5, 1))[:, None, None] * np.ones((2, 10, 10)))
+        testing.assert_allclose(a.std, np.array((0.5, 0))[:, None, None] * np.ones((2, 10, 10)))
+        testing.assert_allclose(a.result.mean, np.array((0.5, 1))[:, None, None] * np.ones((2, 10, 10)))
+        testing.assert_allclose(a.result.std, np.array((0.5, 0))[:, None, None] * np.ones((2, 10, 10)))
+        a.add(np.ones((1, 10, 1)))
+        a.add(np.ones((1, 1, 1)))
+        testing.assert_allclose(a.result.mean, np.array((0.75, 1))[:, None, None] * np.ones((2, 10, 10)))
+
+        self.assertRaises(ValueError, a.add, np.ones((3, 3, 3)))
+
+        a = accumulator(True)
+        a.add(np.ones(2))
+        a.add(np.array((0, 1)))
+        testing.assert_allclose(a.result.mean, np.array((0.5, 1)))
+        testing.assert_allclose(a.result.std, np.array((0.5, 0)))
+        testing.assert_allclose(a.max, np.array((1, 1)))
+        testing.assert_allclose(a.min, np.array((0, 1)))
+
 
 if __name__ == '__main__':
     unittest.main()
