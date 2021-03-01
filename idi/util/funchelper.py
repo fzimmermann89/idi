@@ -28,17 +28,17 @@ def asgen(fn=None):
     return asgen_return(fn)
 
 
-def aslengen(fn=None):
-    class lengen(object):
-        def __init__(self, gen, length):
-            self.gen = gen
-            self.length = length
-
-        def __len__(self):
-            return self.length
-
-        def __iter__(self):
-            return self.gen
+# def aslengen(fn=None):
+#     class lengen(object):
+#         def __init__(self, gen, length):
+#             self.gen = gen
+#             self.length = length
+#
+#         def __len__(self):
+#             return self.length
+#
+#         def __iter__(self):
+#             return self.gen
 
 
 def parallel(fn=None):
@@ -74,3 +74,6 @@ def parallel(fn=None):
 
 def chain(*fns):
     return _reduce(lambda f, g: lambda x: f(g(x)), fns)
+
+def group(iterable, n):
+    return zip(*([iter(iterable)] * n))

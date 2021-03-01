@@ -247,6 +247,13 @@ class funchelper(unittest.TestCase):
         self.assertIsInstance(t, types.GeneratorType)
         self.assertEqual(list(t), [1, 2, 3])
 
+    def test_group(self):
+        from idi.util import group
+
+        a = range(10)
+        for value, truth in zip(group(a, 4), [tuple(range(n, n + 4)) for n in range(0, 20, 4)]):
+            self.assertTupleEqual(value, truth)
+
 
 class array(unittest.TestCase):
     """
@@ -379,7 +386,9 @@ class array(unittest.TestCase):
         self.assertTupleEqual(c.shape, (1, 3))
         self.assertTupleEqual(tuple(c.ravel()), (9, 9, 9))
 
-    def test_accum(self):
+
+class accum(unittest.TestCase):
+    def test_basic(self):
         from idi.util import accumulator
 
         a = accumulator(False)
@@ -388,9 +397,6 @@ class array(unittest.TestCase):
         self.assertEqual(a.n, 0)
 
         a.add(np.ones((2, 10, 10)))
-        testing.assert_allclose(a.mean, np.ones((2, 10, 10)))
-        testing.assert_allclose(a.std, np.zeros((2, 10, 10)))
-
         t = np.ones((2, 10, 10))
         t[0, ...] = 0
         a.add(t)
@@ -399,33 +405,51 @@ class array(unittest.TestCase):
         testing.assert_allclose(a.std, np.array((0.5, 0))[:, None, None] * np.ones((2, 10, 10)))
         testing.assert_allclose(a.result.mean, np.array((0.5, 1))[:, None, None] * np.ones((2, 10, 10)))
         testing.assert_allclose(a.result.std, np.array((0.5, 0))[:, None, None] * np.ones((2, 10, 10)))
+
+    def test_shape(self):
+        from idi.util import accumulator
+
+        a = accumulator(False)
+        a.add(np.ones((2, 10, 10)))
+        self.assertTupleEqual(a.shape, (2, 10, 10))
         a.add(np.ones((1, 10, 1)))
         a.add(np.ones((1, 1, 1)))
-        testing.assert_allclose(a.result.mean, np.array((0.75, 1))[:, None, None] * np.ones((2, 10, 10)))
-
+        testing.assert_allclose(a.result.mean, np.ones((2, 10, 10)))
         self.assertRaises(ValueError, a.add, np.ones((3, 3, 3)))
+
+    def test_minmax(self):
+        from idi.util import accumulator
+
+        a = accumulator(True)
+        a.add(np.ones(3))
+        a.add(np.array((0, 1, 2)))
+        self.assertEqual(a.n, 2)
+        testing.assert_allclose(a.result.mean, np.array((0.5, 1, 1.5)))
+        testing.assert_allclose(a.result.std, np.array((0.5, 0, 0.5)))
+        testing.assert_allclose(a.max, np.array((1, 1, 2)))
+        testing.assert_allclose(a.min, np.array((0, 1, 1)))
+
+    def test_combine(self):
+        from idi.util import accumulator
 
         a = accumulator(True)
         a.add(np.ones(2))
-        a.add(np.array((0, 1)))
-        testing.assert_allclose(a.result.mean, np.array((0.5, 1)))
-        testing.assert_allclose(a.result.std, np.array((0.5, 0)))
-        testing.assert_allclose(a.max, np.array((1, 1)))
-        testing.assert_allclose(a.min, np.array((0, 1)))
 
         b = accumulator(False)
         b.add(np.ones(2))
         self.assertRaises(ValueError, a.combine, b)
+
         b = accumulator(True)
         b.add(np.ones(3))
         self.assertRaises(ValueError, a.combine, b)
+
         b = accumulator(True)
-        b.add(2 * np.ones(2))
+        b.add(np.zeros(2))
         a.combine(b)
-        testing.assert_allclose(a.std, np.std([[1, 0, 2], [1, 1, 2]], 1))
-        testing.assert_allclose(a.mean, np.mean([[1, 0, 2], [1, 1, 2]], 1))
-        testing.assert_allclose(a.max, np.max([[1, 0, 2], [1, 1, 2]], 1))
-        testing.assert_allclose(a.min, np.min([[1, 0, 2], [1, 1, 2]], 1))
+        testing.assert_allclose(a.std, 0.5)
+        testing.assert_allclose(a.mean, 0.5)
+        testing.assert_allclose(a.max, 1)
+        testing.assert_allclose(a.min, 0)
         self.assertEqual(a.n, 3)
 
 
