@@ -413,6 +413,21 @@ class array(unittest.TestCase):
         testing.assert_allclose(a.max, np.array((1, 1)))
         testing.assert_allclose(a.min, np.array((0, 1)))
 
+        b = accumulator(False)
+        b.add(np.ones(2))
+        self.assertRaises(ValueError, a.combine, b)
+        b = accumulator(True)
+        b.add(np.ones(3))
+        self.assertRaises(ValueError, a.combine, b)
+        b = accumulator(True)
+        b.add(2 * np.ones(2))
+        a.combine(b)
+        testing.assert_allclose(a.std, np.std([[1, 0, 2], [1, 1, 2]], 1))
+        testing.assert_allclose(a.mean, np.mean([[1, 0, 2], [1, 1, 2]], 1))
+        testing.assert_allclose(a.max, np.max([[1, 0, 2], [1, 1, 2]], 1))
+        testing.assert_allclose(a.min, np.min([[1, 0, 2], [1, 1, 2]], 1))
+        self.assertEqual(a.n, 3)
+
 
 if __name__ == '__main__':
     unittest.main()

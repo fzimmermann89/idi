@@ -58,6 +58,20 @@ class accumulator:
                     _np.maximum(self._max, value, out=self._max)
                     _np.minimum(self._min, value, out=self._min)
 
+    def combine(self, other):
+        if not self.shape == other.shape:
+            raise ValueError('not the same shape')
+        if self._maxmin:
+            if not other._maxmin:
+                raise ValueError('other does not have minmax set, but self has. would loose min/max information')
+            self._min = _np.minimum(self._min, other._min)
+            self._max = _np.maximum(self._max, other._max)
+
+        ld = {'s_nvar': self._nvar, 's_mean': self._mean, 's_n': self._n, 'o_nvar': other._nvar, 'o_mean': other._mean, 'o_n': other._n}
+        self._nvar = _ne.evaluate('s_nvar+(o_nvar + (s_mean - o_mean) ** 2 * s_n * o_n / (s_n + o_n))', local_dict=ld)
+        self._mean = _ne.evaluate('(s_mean*s_n + o_mean* o_n)/(s_n + o_n)', local_dict=ld)
+        self._n += other._n
+
     def __len__(self):
         return _np.max(self._n)
 
@@ -76,7 +90,7 @@ class accumulator:
 
     @property
     def var(self):
-        if _np.any(self._n>0):
+        if _np.any(self._n > 0):
             with _np.errstate(all='ignore'):
                 return self._nvar / self._n
         else:
@@ -93,19 +107,26 @@ class accumulator:
     @property
     def max(self):
         if self._maxmin is False:
-            raise NotImplementedError('set maxmin to True when creating accumulator to keep min and max')
+            raise ValueError('set maxmin to True when creating accumulator to keep min and max')
         return self._max
 
     @property
     def min(self):
         if self._maxmin is False:
-            raise NotImplementedError('set maxmin to True when creating accumulator to keep min and max')
+            raise ValueError('set maxmin to True when creating accumulator to keep min and max')
         return self._min
+
+    @property
+    def shape(self):
+        if self._mean is None:
+            return tuple()
+        else:
+            return self._mean.shape
 
     @property
     def result(self):
         if self._result is None:
-            self._result = _frozenaccumulator(self)
+            self._result = _frozenaccumulatorInv(self)
         return self._result
 
 
@@ -118,8 +139,6 @@ class _frozenaccumulator:
         self._mean = _np.copy(accum.mean)
         self._std = _np.copy(accum.std)
         self._n = _np.copy(accum.n)
-        self._invmean = _np.nan_to_num(1.0 / self._mean)
-        self._invstd = _np.nan_to_num(1.0 / self._std)
 
     @property
     def mean(self):
@@ -130,13 +149,29 @@ class _frozenaccumulator:
         return self._std
 
     @property
+    def n(self):
+        return self._n
+
+    @property
+    def shape(self):
+        return self._mean.shape
+
+
+class _frozenaccumulatorInv(_frozenaccumulator):
+    """
+    Accumulator that doesn't accumulate anymore but has inverses precalculated
+    """
+
+    def __init__(self, accum):
+        super().__init__(accum)
+        with _np.errstate(divide='ignore', invalid='ignore'):
+            self._invmean = _np.nan_to_num(1.0 / self._mean)
+            self._invstd = _np.nan_to_num(1.0 / self._std)
+
+    @property
     def invstd(self):
         return self._invstd
 
     @property
     def invmean(self):
         return self._invmean
-
-    @property
-    def n(self):
-        return self._n
