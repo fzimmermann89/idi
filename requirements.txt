@@ -3,7 +3,6 @@ matplotlib~=3.3
 numpy~=1.19
 scipy~=1.5
 numba>=0.50
-cupy*~=8
 Cython~=0.29
 mkl-include>=2018
 numexpr>=2.7.1
