@@ -149,7 +149,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
     finally:
         if stream is not None:
             stream.synchronize()
-        stream = dqx = dqy = dqz = dvals = doutput = jkernel = jreduce = jzero = None
+        stream = dqx = dqy = dqz = doutput = jkernel = jreduce = jzero = None
 
 
 if __name__ == "__main__":

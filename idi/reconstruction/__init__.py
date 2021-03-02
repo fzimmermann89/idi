@@ -10,8 +10,8 @@ from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common  # noqa
 
 # mkl fft
 try:
-    from . import autocorrelate3
-except ImportError as e:
+    from . import autocorrelate3 # noqa
+except ImportError:
     _local = True
 else:
     _local = False

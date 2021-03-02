@@ -29,7 +29,6 @@ def _getidx(p, pmax, idmax):
     return out
 
 
-
 def getidx_ordered(p, pmax, idmax):
     """
     gives ids (up to idxmax) for job p of pmax jobs to do.

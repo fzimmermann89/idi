@@ -14,7 +14,7 @@ def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     """
     simple autocorrelation of input along axes (default: last two)
     axes: axes to correlate along, defaults to last two
-    norm: do normalisation along non correlation axes and normalise for pair count 
+    norm: do normalisation along non correlation axes and normalise for pair count
     """
     fft, ifft = fftfunctions
     axes = sorted([input.ndim + a if a < 0 else a for a in axes])
@@ -25,7 +25,9 @@ def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     ret = _np.abs(ret) ** 2
     # _ne.evaluate('(ret*conj(ret))', out=ret, casting='same_kind')
     ret = ifft(ret, axes=axes)
-    ret = _np.fft.fftshift(ret, axes=axes)[tuple((Ellipsis, *(slice(ps // 2 - input.shape[ax], ps // 2 + input.shape[ax]) for ax, ps in zip(axes, fftshape))))]
+    ret = _np.fft.fftshift(ret, axes=axes)[
+        tuple((Ellipsis, *(slice(ps // 2 - input.shape[ax], ps // 2 + input.shape[ax]) for ax, ps in zip(axes, fftshape))))
+    ]
 
     if norm:
         n = corr(_np.ones(tuple(input.shape[ax] for ax in axes)), fftfunctions=fftfunctions)

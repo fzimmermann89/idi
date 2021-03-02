@@ -21,7 +21,7 @@ def rndgennorm(mu, fwhm, rho, N, rng=None):
     # https://sccn.ucsd.edu/wiki/Generalized_Gaussian_Probability_Density_Function
     # https://en.wikipedia.org/wiki/Generalized_normal_distribution
     # ret=mu + fwhm / 2 * (rng.gamma(1 / rho, 1, N) / _np.log(2)) ** (1 / rho) * rng.choice((-1, 1), N)
-    c = rng.choice(_np.array([-1, 1], _np.int8), N)
+    c = rng.choice(_np.array([-1, 1], _np.int8), N) # noqa
     ret = rng.gamma(1 / rho, 1, N)
     _ne.evaluate('mu + fwhm / 2 * (ret / log(2)) ** (1 / rho) * c', out=ret)
     return ret

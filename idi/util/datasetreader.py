@@ -191,7 +191,7 @@ class datasetreader:
             raise IndexError(f'image index must be between 0 and {self._n - 1}')
         try:
             r = range(self._nds)[t]
-        except:
+        except IndexError:
             raise IndexError('tile index invalid')
         if self._lastread.value > n:
             raise IndexError('must request images monotonically increasing')

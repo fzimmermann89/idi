@@ -15,7 +15,7 @@ def radial_profile(data, center=None, calcStd=False, os=1):
     """
     calculates a ND radial profile of data around center. will ignore nans
     calStd: calculate standard deviation, return tuple of (profile, std)
-    os: oversample by a factor. With default 1 the stepsize will be 1 pixel, with 2 it will be .5 pixels etc. 
+    os: oversample by a factor. With default 1 the stepsize will be 1 pixel, with 2 it will be .5 pixels etc.
     """
     if center is None:
         center = _np.array(data.shape) // 2
@@ -52,7 +52,6 @@ def bin(ndarray, new_shape, operation="sum"):
     ndarray: nd-array
     new_shape: shape to bin to. shape of ndarray has to be integer multiple of new_shape along each dimension
     operation: string. sum, mean, max, or min. operation to use
-    
     """
     ops = ["sum", "mean", "max", "min"]
     operation = operation.lower()
@@ -157,7 +156,9 @@ def fill(data, invalid=None):
 
 def photons_localmax(img, E, thres=0.0):
     """
-    photonize image. First count whole photons. Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
+    photonize image.
+    First count whole photons.
+    Second count fractional/split photons at local maxima if sum of neighbouring pixeles (over thres) is over 0.5
     """
     data = (img * (img > 0)) / E
     photons = _np.floor(data)  # whole photons
@@ -174,7 +175,7 @@ def photons_simple(img, E, ev_per_adu=3.65, bg=0):
 
 def create_mask(img, lowthres=5, highthres=95, sigma=10, hotpixelstd=5):
     """
-    create mask by high/low threshold (in percentile) in gaussian (with sigma) blurred image and morphologically cleaning. 
+    create mask by high/low threshold (in percentile) in gaussian (with sigma) blurred image and morphologically cleaning.
     if hotpixelstd is not None, pixels higher then hotpixelstd times the standard deviation over masked mean will be ignored.
     """
     blured = _snd.gaussian_filter(img, sigma)
@@ -217,41 +218,41 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
     return N>=x conisting only of the prime factors given as factors
     """
     # fmt: off
-    fastlens = _np.array((   
-          1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,
-         12,   14,   15,   16,   18,   20,   21,   22,   24,   25,   27,
-         28,   30,   32,   33,   35,   36,   40,   42,   44,   45,   48,
-         49,   50,   54,   55,   56,   60,   63,   64,   66,   70,   72,
-         75,   77,   80,   81,   84,   88,   90,   96,   98,   99,  100,
-        105,  108,  110,  112,  120,  121,  125,  126,  128,  132,  135,
-        140,  144,  147,  150,  154,  160,  162,  165,  168,  175,  176,
-        180,  189,  192,  196,  198,  200,  210,  216,  220,  224,  225,
-        231,  240,  242,  243,  245,  250,  252,  256,  264,  270,  275,
-        280,  288,  294,  297,  300,  308,  315,  320,  324,  330,  336,
-        343,  350,  352,  360,  363,  375,  378,  384,  385,  392,  396,
-        400,  405,  420,  432,  440,  441,  448,  450,  462,  480,  484,
-        486,  490,  495,  500,  504,  512,  525,  528,  539,  540,  550,
-        560,  567,  576,  588,  594,  600,  605,  616,  625,  630,  640,
-        648,  660,  672,  675,  686,  693,  700,  704,  720,  726,  729,
-        735,  750,  756,  768,  770,  784,  792,  800,  810,  825,  840,
-        847,  864,  875,  880,  882,  891,  896,  900,  924,  945,  960,
-        968,  972,  980,  990, 1000, 1008, 1024, 1029, 1050, 1056, 1078,
-       1080, 1089, 1100, 1120, 1125, 1134, 1152, 1155, 1176, 1188, 1200,
-       1210, 1215, 1225, 1232, 1250, 1260, 1280, 1296, 1320, 1323, 1331,
-       1344, 1350, 1372, 1375, 1386, 1400, 1408, 1440, 1452, 1458, 1470,
-       1485, 1500, 1512, 1536, 1540, 1568, 1575, 1584, 1600, 1617, 1620,
-       1650, 1680, 1694, 1701, 1715, 1728, 1750, 1760, 1764, 1782, 1792,
-       1800, 1815, 1848, 1875, 1890, 1920, 1925, 1936, 1944, 1960, 1980,
-       2000, 2016, 2025, 2048, 2058, 2079, 2100, 2112, 2156, 2160, 2178,
-       2187, 2200, 2205, 2240, 2250, 2268, 2304, 2310, 2352, 2376, 2400,
-       2401, 2420, 2430, 2450, 2464, 2475, 2500, 2520, 2541, 2560, 2592,
-       2625, 2640, 2646, 2662, 2673, 2688, 2695, 2700, 2744, 2750, 2772,
-       2800, 2816, 2835, 2880, 2904, 2916, 2940, 2970, 3000, 3024, 3025,
-       3072, 3080, 3087, 3125, 3136, 3150, 3168, 3200, 3234, 3240, 3267,
-       3300, 3360, 3375, 3388, 3402, 3430, 3456, 3465, 3500, 3520, 3528,
-       3564, 3584, 3600, 3630, 3645, 3675, 3696, 3750, 3773, 3780, 3840,
-       3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096,
-       4116, 4125, 4158, 4200, 4224, 4235, 4312, 4320, 4356, 4374, 4375
+    fastlens = _np.array((
+                            1,    2,    3,    4,    5,    6,    7,    8,    9,    10,   11,
+                            12,   14,   15,   16,   18,   20,   21,   22,   24,   25,   27,
+                            28,   30,   32,   33,   35,   36,   40,   42,   44,   45,   48,
+                            49,   50,   54,   55,   56,   60,   63,   64,   66,   70,   72,
+                            75,   77,   80,   81,   84,   88,   90,   96,   98,   99,   100,
+                            105,  108,  110,  112,  120,  121,  125,  126,  128,  132,  135,
+                            140,  144,  147,  150,  154,  160,  162,  165,  168,  175,  176,
+                            180,  189,  192,  196,  198,  200,  210,  216,  220,  224,  225,
+                            231,  240,  242,  243,  245,  250,  252,  256,  264,  270,  275,
+                            280,  288,  294,  297,  300,  308,  315,  320,  324,  330,  336,
+                            343,  350,  352,  360,  363,  375,  378,  384,  385,  392,  396,
+                            400,  405,  420,  432,  440,  441,  448,  450,  462,  480,  484,
+                            486,  490,  495,  500,  504,  512,  525,  528,  539,  540,  550,
+                            560,  567,  576,  588,  594,  600,  605,  616,  625,  630,  640,
+                            648,  660,  672,  675,  686,  693,  700,  704,  720,  726,  729,
+                            735,  750,  756,  768,  770,  784,  792,  800,  810,  825,  840,
+                            847,  864,  875,  880,  882,  891,  896,  900,  924,  945,  960,
+                            968,  972,  980,  990,  1000, 1008, 1024, 1029, 1050, 1056, 1078,
+                            1080, 1089, 1100, 1120, 1125, 1134, 1152, 1155, 1176, 1188, 1200,
+                            1210, 1215, 1225, 1232, 1250, 1260, 1280, 1296, 1320, 1323, 1331,
+                            1344, 1350, 1372, 1375, 1386, 1400, 1408, 1440, 1452, 1458, 1470,
+                            1485, 1500, 1512, 1536, 1540, 1568, 1575, 1584, 1600, 1617, 1620,
+                            1650, 1680, 1694, 1701, 1715, 1728, 1750, 1760, 1764, 1782, 1792,
+                            1800, 1815, 1848, 1875, 1890, 1920, 1925, 1936, 1944, 1960, 1980,
+                            2000, 2016, 2025, 2048, 2058, 2079, 2100, 2112, 2156, 2160, 2178,
+                            2187, 2200, 2205, 2240, 2250, 2268, 2304, 2310, 2352, 2376, 2400,
+                            2401, 2420, 2430, 2450, 2464, 2475, 2500, 2520, 2541, 2560, 2592,
+                            2625, 2640, 2646, 2662, 2673, 2688, 2695, 2700, 2744, 2750, 2772,
+                            2800, 2816, 2835, 2880, 2904, 2916, 2940, 2970, 3000, 3024, 3025,
+                            3072, 3080, 3087, 3125, 3136, 3150, 3168, 3200, 3234, 3240, 3267,
+                            3300, 3360, 3375, 3388, 3402, 3430, 3456, 3465, 3500, 3520, 3528,
+                            3564, 3584, 3600, 3630, 3645, 3675, 3696, 3750, 3773, 3780, 3840,
+                            3850, 3872, 3888, 3920, 3960, 3969, 3993, 4000, 4032, 4050, 4096,
+                            4116, 4125, 4158, 4200, 4224, 4235, 4312, 4320, 4356, 4374, 4375
     )) # noqa
     # fmt: on
     if factors != (2, 3, 5, 7, 11) or _np.any(x > 4375):
@@ -360,7 +361,7 @@ def gnorm(x, fwhm, rho, axis=None):
     if axis is not None:
         return _np.exp(_ne.evaluate(f'sum(-abs(x)**rho*s), axis={axis})'))
     else:
-        return _ne.evaluate(f'exp(-abs(x)**rho*s)')
+        return _ne.evaluate('exp(-abs(x)**rho*s)')
 
 
 def fwhm(X, Y):
@@ -428,6 +429,7 @@ def isdir(string):
     :return: abspath or raise NotADirectoryError if is not a dir
     """
     import os
+
     if os.path.isdir(string):
         return os.path.abspath(string)
     else:
@@ -441,6 +443,7 @@ def isfile(string):
     :return: abspath or raise FileNotFoundError if is not a dir
     """
     import os
+
     if os.path.isfile(string):
         return os.path.abspath(string)
     else:

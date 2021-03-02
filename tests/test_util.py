@@ -80,7 +80,7 @@ class basic(unittest.TestCase):
         for n, s in zip([1, 0.1, -0.1, 10, 1e17, -1e-17, 0.5, 1.5, -15], ['1e0', '1e-1', '-1e-1', '1e1', '1e17', '-1e-17', '5e-1', '2e0', '-2e1']):
             self.assertEqual(shortsci(n), s)
 
-        for n, s in zip([1, 0.555, 1.51, -1.234e17], ['1.0e0', '5.6e-1', '1.5e0', '-1.2e17',]):
+        for n, s in zip([1, 0.555, 1.51, -1.234e17], ['1.0e0', '5.6e-1', '1.5e0', '-1.2e17']):
             self.assertEqual(shortsci(n, decimals=1), s)
 
 
@@ -450,7 +450,7 @@ class accum(unittest.TestCase):
         testing.assert_allclose(a.mean, 0.5)
         testing.assert_allclose(a.max, 1)
         testing.assert_allclose(a.min, 0)
-        self.assertEqual(a.n, 3)
+        self.assertEqual(a.n, 2)
 
 
 if __name__ == '__main__':

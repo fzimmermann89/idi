@@ -10,8 +10,8 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
     pixelsize: detector pixelsize
     detz: detector distance
     k: angular wavenumber
-    returns a function with signature complex64(:,:)(out complex64(:,:), atompositionsandphases float64[:,4]) 
-        that will write the wavefield into out 
+    returns a function with signature complex64(:,:)(out complex64(:,:), atompositionsandphases float64[:,4])
+        that will write the wavefield into out
     """
     maxx, maxy = int(Ndet[0]), int(Ndet[1])
     k = float(k)
@@ -91,7 +91,7 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings='', verbose=Fal
     pixelsize: size of one pixel in same unit as simobjects unit (usually um)
     detz: detector distance in same unit as simobjects unit (usually um)
     k: angular wavenumber
-    settings: string 
+    settings: string
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     """
@@ -119,7 +119,7 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings='', *args, **kwar
     pixelsize: size of one pixel in same unit as simobjects unit (usually um)
     detz: detector distance in same unit as simobjects unit (usually um)
     k: angular wavenumber
-    settings: string 
+    settings: string
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     """

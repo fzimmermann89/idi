@@ -6,9 +6,8 @@ from ..util import fastlen as _fastlen
 class correlator:
     def __init__(self, mask, fftfunctions=(_np.fft.rfftn, _np.fft.irfftn)):
         """
-        nd-correlations with constant mask. 
-        
-        will not normalize between different added images, but each single image. 
+        nd-correlations with constant mask.
+        will not normalize between different added images, but each single image.
         optional fftfunctions argument is pair of forward and backward fft function to use (default: numpy default)
         based on http://www.dirkpadfield.com/Home/MaskedFFTRegistrationPresentation.pdf but instead of subtracting correlations of mean, divide by it
         masked Autocorrelation of Image =          (maskedImage C maskedImage)

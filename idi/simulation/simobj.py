@@ -194,8 +194,8 @@ class multisphere(simobj):
         """
         pos2[: n[0], :] += pos1[0, :]
         for i in range(1, len(n)):
-            pos2[n[i - 1]: min(len(pos2), n[i]), :] += pos1[i, :]
-        pos2[n[-1]:, :] += pos1[-1, :]
+            pos2[n[i - 1] : min(len(pos2), n[i]), :] += pos1[i, :]
+        pos2[n[-1] :, :] += pos1[-1, :]
 
     def __init__(self, E, Natoms=1e6, rsphere=10, fwhm=200, rho=2, spacing=1, Nspheres=_np.inf):
         """
@@ -203,7 +203,7 @@ class multisphere(simobj):
         Parameters:
         Natoms: total number of excited atoms, if negative: mean number per sphere
         rsphere: radius of each sphere
-        fwhm: the number of atoms per sphere scales generalised gaussian with the distance from the center. this sets the fhwm of the generalised gaussian.
+        fwhm: the number of atoms per sphere scales generalised gaussian with the distance from the center. fhwm of the generalised gaussian.
         rho: parameter for generalised gaussian, rho=2 is gaussian in all directions.
         spacing: thickness of atom-free layer around each sphere
         Nspheres: max. total number of particles in volume
@@ -226,9 +226,7 @@ class multisphere(simobj):
         """
         posspheres = self._spherepos()
         p = _np.exp(
-            _ne.evaluate(
-                'sum(-pos**rho*s, axis=1)', local_dict={'s': _np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': posspheres, 'rho': self.rho}
-            )
+            _ne.evaluate('sum(-pos**rho*s, axis=1)', local_dict={'s': _np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': posspheres, 'rho': self.rho})
         )
         n = self.rng.poisson(p * (self._N / _np.sum(p)))
         missing = self._N - _np.sum(n)
@@ -363,11 +361,11 @@ class crystal(simobj):
     @staticmethod
     def _lattice(lconst, langle, unitcell, repeats, sigma=0, rng=None):
         if rng is None:
-            rng = _np.random.default_rng(_np.random.randint(2**63))
+            rng = _np.random.default_rng(_np.random.randint(2 ** 63))
         cosa, cosb, cosc = _np.cos(_np.array(langle))
         sina, sinb, sinc = _np.sin(_np.array(langle))
         basis = _np.array(
-            [[1, 0, 0], [cosc, sinc, 0], [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)],]
+            [[1, 0, 0], [cosc, sinc, 0], [cosb, (cosa - cosb * cosc) / sinc, _np.sqrt(sinb ** 2 - ((cosa - cosb * cosc) / sinc) ** 2)]]
         ) * _np.expand_dims(lconst, 1)
 
         atoms = _np.dot(unitcell, basis).astype(_np.float32)
@@ -398,9 +396,7 @@ class crystal(simobj):
 
         if self.fwhm is not None and self._p is None:
             p = _np.exp(
-                _ne.evaluate(
-                    'sum(-pos**rho*s, axis=1)', local_dict={'s': _np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': pos, 'rho': self.rho}
-                )
+                _ne.evaluate('sum(-pos**rho*s, axis=1)', local_dict={'s': _np.log(2) * (2 / self.fwhm) ** self.rho, 'pos': pos, 'rho': self.rho})
             )
             p /= _np.sum(p)
             self._p = p
@@ -491,15 +487,13 @@ class grating(simobj):
 
     def updatePos(self):
         def _lines(x, a, b, rho):
-            s = _np.log(2) * (2 / a) ** rho
+            s = _np.log(2) * (2 / a) ** rho  # noqa
             return _ne.evaluate('exp(-abs((x%(a+b))-(a+b)/2)**rho*s)')
 
         if self._pos is None:
             rhofocusx = self.rho if _np.isscalar(self.rho) else self.rho[0]
             fwhmx = self.fwhm if _np.isscalar(self.fwhm) else self.fwhm[0]
-            self._x = _np.arange(
-                -(0.5 + 2 / rhofocusx) * fwhmx, (0.5 + 2 / rhofocusx) * fwhmx, min(self.linewidth, self.spacingwidth) / 10
-            )
+            self._x = _np.arange(-(0.5 + 2 / rhofocusx) * fwhmx, (0.5 + 2 / rhofocusx) * fwhmx, min(self.linewidth, self.spacingwidth) / 10)
             p = _lines(self._x, self.linewidth, self.spacingwidth, self.rholine) * _gnorm(self._x, fwhmx, rhofocusx)
             self._c = _np.cumsum(p)
             self._c = self._c / self._c[-1]
@@ -508,9 +502,9 @@ class grating(simobj):
         self._pos = _np.zeros((self.N, 3))
         self._pos[:, 0] = _np.interp(self.rng.uniform(size=self.N), self._c, self._x)
         self._pos[:, 1:] = _rndgennorm(0, fwhmyz, rhofocusyz, (self.N, 2), self.rng)
-        
+
         if self._rotmatrix is not False:
             self._rotate(self._rotmatrix)
-        
+
     def _rotate(self, rotmatrix):
         self._pos = _np.matmul(rotmatrix, self._pos.T, order='F').T

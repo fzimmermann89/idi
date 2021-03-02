@@ -46,7 +46,6 @@ def shrink(file, key, n):
     file[key].resize(file[key].shape[0] - n, axis=0)
 
 
-
 def copymasked(src, dst, mask):
     def func(name, obj):
         if isinstance(obj, h5py._hl.dataset.Dataset):
@@ -67,5 +66,4 @@ def chunkediter(dataset, sel=slice(None), readsize=16, outsize=1):
         ids = r[i : i + readsize]
         tmp = _np.array(dataset[ids.start : ids.stop : ids.step])
         for j in range(0, len(tmp), outsize):
-            yield tmp[j: j + outsize][0] if outsize == 1 else tmp[j : j + outsize]
-
+            yield tmp[j : j + outsize][0] if outsize == 1 else tmp[j : j + outsize]

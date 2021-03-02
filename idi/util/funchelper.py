@@ -75,5 +75,6 @@ def parallel(fn=None):
 def chain(*fns):
     return _reduce(lambda f, g: lambda x: f(g(x)), fns)
 
+
 def group(iterable, n):
     return zip(*([iter(iterable)] * n))

@@ -43,7 +43,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     c: speed of light in (lengthunit/timeunit)
     tau: decay time (in timeunit)
     pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
-    settings: string, can contain 
+    settings: string, can contain
         scale - do 1/r intensity scaling
     """
 

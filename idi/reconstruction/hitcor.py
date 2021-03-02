@@ -16,12 +16,14 @@ def _ks(xi, yi, z, center):
     kz = z / d * z
     return kx, ky, kz
 
+
 @_numba.njit()
 def _qsize(Nx, Ny, z):
     qlenx = int(Nx)
     qleny = int(Ny * 2)
     qlenz = 2 * int((z - (z ** 2 / _np.sqrt((Nx / 2 + 1) ** 2 + (Ny / 2 + 1) ** 2 + z ** 2))) + 1)
     return qlenx, qleny, qlenz
+
 
 @_numba.njit(parallel=False, boundscheck=not debug)
 def _corr(input, z):

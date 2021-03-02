@@ -1,4 +1,4 @@
-from IPython.core.magic import Magics, magics_class, line_magic, cell_magic, line_cell_magic
+from IPython.core.magic import Magics, magics_class, line_magic, cell_magic
 import argparse
 import shlex
 import os
@@ -54,14 +54,14 @@ class submit_magics(Magics):
             + [f'{key} {v}' for v in unknown]
             + (['', 'hostname', 'env', 'pwd', 'mount'] if args.debug else [])
             + [
-                """       
-_term() { 
-    echo "Got SIGTERM signal!" 
-    kill -TERM "$pid" 
+                """
+_term() {
+    echo "Got SIGTERM signal!"
+    kill -TERM "$pid"
 }
-_usr1() { 
-    echo "Got USR1 signal!" 
-    kill -USR1 "$pid" 
+_usr1() {
+    echo "Got USR1 signal!"
+    kill -USR1 "$pid"
 }
 trap _term TERM
 trap _usr1 USR1
@@ -95,7 +95,7 @@ trap _usr1 USR1
                 f"""
 usage: %submitdefault -argument val
 use reload_ext to reset.
-currently set: 
+currently set:
 {self.defaultline}"""
             )
 

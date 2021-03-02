@@ -16,9 +16,9 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     c: speed of light in (lengthunit/timeunit)
     tau: decay time (in timeunit)
     pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
-    settings: string, can contain 
-        double,single,mixed - precision 
-        nf - for nearfield form 
+    settings: string, can contain
+        double,single,mixed - precision
+        nf - for nearfield form
         scale - do 1/r intensity scaling
     first call with new settings might recompile and take a few seconds
     """
@@ -56,11 +56,12 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
 
-    det = _cp.array(_np.array(_np.meshgrid(
-        pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), 
-        pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), 
-        detz
-    )).T.reshape(-1, 3), inouttype,)
+    det = _cp.array(
+        _np.array(_np.meshgrid(pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), detz)).T.reshape(
+            -1, 3
+        ),
+        inouttype,
+    )
     pdet = _cp.array([i.data.ptr for i in det], _np.uint64)
 
     tmpout = _cp.zeros(1, _np.int64)
@@ -86,21 +87,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
         fsimulate(
             grid=(1,),
             block=(cthreads,),
-            args=(
-                data,
-                times,
-                pdet[start:end],
-                float(tau),
-                float(c),
-                float(k),
-                int(N),
-                int(cthreads),
-                pt,
-                pa,
-                tempsize,
-                ptemp,
-                poutput[start:end],
-            ),
+            args=(data, times, pdet[start:end], float(tau), float(c), float(k), int(N), int(cthreads), pt, pa, tempsize, ptemp, poutput[start:end],),
         )
     _cp.cuda.get_current_stream().synchronize()
     return output.get().reshape(Ndet)

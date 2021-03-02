@@ -8,7 +8,7 @@ try:
 except ImportError as _e:
     if any(x in str(_e.args[0]).lower() for x in ["cuda", "libcu", "cupy"]):
         import warnings as _w
-        _w.warn(f'cuda error. cuda time dependent simulation not imported. is cuda available and paths set?')
+        _w.warn('cuda error. cuda time dependent simulation not imported. is cuda available and paths set?')
         auto = cpu
     else:
         print(_e)
@@ -21,7 +21,7 @@ try:
 except (AttributeError, ImportError) as _e:
     if any(x in str(_e.args[0]).lower() for x in ["cuda", "libcu", "cupy"]):
         import warnings as _w
-        _w.warn(f'cuda error. cuda time dependent simulation not imported. is cuda available and paths set?')
+        _w.warn('cuda error. cuda time dependent simulation not imported. is cuda available and paths set?')
         autotime = time
     else:
         print(_e)

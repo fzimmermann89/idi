@@ -1,4 +1,3 @@
-import functools
 import numba as _numba
 from numba import cuda
 import numpy as _np
@@ -21,7 +20,6 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
     ycenter (scalar): position of center in x direction, defaults to shape[1]/2
     returns a function with signature float[:,:,:](float[:,:] image) that does the correlation
     and returns val(dqz,dqy,dqx)=sum_qx,qy image(qx,qy)*image(qx+dqx,qy+dqy)
-    
     """
 
     stream = None
