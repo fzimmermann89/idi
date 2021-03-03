@@ -1,19 +1,45 @@
 #!/usr/bin/env python
 from os.path import join, exists, dirname, realpath
+from os import environ
+from sys import prefix, path
 import setuptools  # noqa
 
 
 def configuration():
     from numpy.distutils.misc_util import Configuration
-    from numpy.distutils.system_info import get_info
+    from numpy.distutils.system_info import get_info, default_include_dirs, default_lib_dirs
+    from collections import OrderedDict
+    import numpy
 
     config = Configuration('idi', '')
     srcdir = join(dirname(realpath(__file__)), 'idi')
     mkl_info = get_info('mkl')
-    libs = mkl_info.get('libraries', ['mkl_rt'])
+    libs = default_lib_dirs
+    basedirs = list(
+        OrderedDict.fromkeys(
+            realpath(p)
+            for p in [join(dirname(numpy.__file__), *(4 * ['..'])), prefix]
+            + [join(*p, *(2 * ['...'])) for p in [p.split('site-packages')[:-1] for p in path] if p]
+            + [join(p, '..') for p in environ['PATH'].split(':')]
+        )
+    )
+
     include_dirs = [srcdir]
+    library_dirs = []
     if mkl_info:
         include_dirs.extend(mkl_info.get('include_dirs'))
+        libs = mkl_info.get('libraries', ['mkl_rt'])
+    else:
+        libs = ['mkl_rt', 'pthread']
+    library_dirs.extend(join(b, 'lib') for b in basedirs)
+    library_dirs.extend(join(b, 'lib64') for b in basedirs)
+    library_dirs.extend(join(b, 'libraries') for b in basedirs)
+    include_dirs.extend(join(b, 'include') for b in basedirs)
+
+    print('base', basedirs)
+    print('inc', include_dirs)
+    print('lib', library_dirs)
+
     try:
         from Cython.Build import cythonize
 
@@ -25,7 +51,12 @@ def configuration():
         if not exists(sources[0]):
             raise ValueError(str(e) + '. ' + 'Cython is required to build the initial .c file.')
     config.add_extension(
-        name='reconstruction.autocorrelate3', sources=sources, libraries=libs, include_dirs=include_dirs, extra_compile_args=['-DNDEBUG', '-O3'],
+        name='reconstruction.autocorrelate3',
+        sources=sources,
+        libraries=libs,
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        extra_compile_args=['-DNDEBUG', '-O3'],
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
