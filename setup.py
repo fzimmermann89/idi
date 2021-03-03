@@ -68,6 +68,7 @@ def configuration():
     config.package_dir['idi.reconstruction'] = './idi/reconstruction'
     config.packages.append('idi.util')
     config.package_dir['idi.util'] = './idi/util'
+
     return config
 
 

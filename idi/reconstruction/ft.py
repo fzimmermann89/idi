@@ -7,9 +7,8 @@ import warnings as _w
 
 try:
     from .autocorrelate3 import autocorrelate3
-
-    _w.warn('using numpy ft')
 except ImportError:
+    _w.warn('using numpy ft')
 
     def autocorrelate3(data):
         tmp = _np.fft.rfftn(data[..., :-2])
