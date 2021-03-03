@@ -1,0 +1,6 @@
+h5py
+lmfit
+numpy
+scikit-image
+PyQt5
+scipy
