@@ -10,26 +10,33 @@ from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common  # noqa
 
 # mkl fft
 try:
-    from . import autocorrelate3 # noqa
-except ImportError:
-    _local = True
-else:
+    from . import autocorrelate3  # noqa
+
     _local = False
-if _local:
+except ImportError as e:
+    print('trying local compilation', e)
+    _w.warn('blub')
+    _w.warn(str(e))
+    _local = True
+
     try:
         import pyximport as _pyx
-        from numpy.distutils.system_info import get_info as _getinfo
+        from sys import prefix as _prefix
+        from os.path import join as _join
+        from numpy.distutils.system_info import get_info as _getinfo, default_include_dirs as _defaultincludedirs
         from numpy import get_include as _np_get_include
 
-        _mkl_inc = _getinfo('mkl').get('include_dirs')
-        _np_inc = [_np_get_include()]
-        _pyx.install(setup_args={'include_dirs': _mkl_inc + _np_inc}, language_level=2)
-    except ImportError:
-        _w.warn("ft autocorrelate")
-    else:
-        from . import ft
-else:
-    from . import ft
+        _incs = _defaultincludedirs
+        _incs.append(_np_get_include())
+        _incs.append(_join(_prefix, 'include'))
+        _mklinc = _getinfo('mkl').get('include_dirs')
+        if _mklinc:
+            _incs.extend(_mklinc)
+        _pyx.install(setup_args={'include_dirs': _incs}, language_level=2)
+    except Exception as e:
+        _w.warn("no mkl autocorrelation")
+
+from . import ft # noqa
 
 # cuda
 _cuda = _nbcuda.is_available()

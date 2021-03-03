@@ -1,10 +1,22 @@
 import numpy as _np
-from . import autocorrelate3
 import numba as _numba
 import numexpr as _ne
 from ..util import fastlen, atleastnd, intersect2d
 import itertools as _it
 import warnings as _w
+
+try:
+    from .autocorrelate3 import autocorrelate3
+
+    _w.warn('using numpy ft')
+except ImportError:
+
+    def autocorrelate3(data):
+        tmp = _np.fft.rfftn(data[..., :-2])
+        tmp *= tmp.conj()
+        data[..., :-2] = _np.fft.irfftn(tmp, s=_np.add(data.shape, (0, 0, -2)))
+        data[..., -2:] = 0
+        return 0
 
 
 def corr(input, z, verbose=False):
@@ -42,7 +54,7 @@ def corr(input, z, verbose=False):
         wrapper for autocorrelate3, removes redundant slices in first dimension
         """
         tmp = _prepare(input, z)
-        err = autocorrelate3.autocorrelate3(tmp)
+        err = autocorrelate3(tmp)
         if err:
             raise RuntimeError(f'cython autocorrelations failed with error code {err}')
         return tmp[: tmp.shape[0] // 2, ...]
@@ -151,7 +163,7 @@ class correlator_tiles:
         d = d * self.invmean
         d[self.mask] = 0
         _addat(self._tmp, self.q, d)
-        err = autocorrelate3.autocorrelate3(self._tmp)
+        err = autocorrelate3(self._tmp)
         if err:
             raise RuntimeError(f'cython autocorrelations failed with error code {err}')
         _np.add(self.accum, self._tmp[: self.qlenz, ...], out=self.accum)
@@ -168,7 +180,7 @@ class correlator_tiles:
         _zero(self._tmp)
         assemblenorm = correlator_tiles._getnorm(self.q, self.mask)
         _addat(self._tmp, self.q, _np.sqrt(self.N) * _np.array(~self.mask, dtype=_np.float64) / assemblenorm)
-        err = autocorrelate3.autocorrelate3(self._tmp)
+        err = autocorrelate3(self._tmp)
         if err:
             raise RuntimeError(f'cython autocorrelations failed with error code {err}')
 
@@ -263,7 +275,7 @@ class correlator:
         for image in input:
             _zero(self._tmp)
             _np.add.at(self._tmp, (*self._qs,), image * self._countcorrection)
-            err = autocorrelate3.autocorrelate3(self._tmp)
+            err = autocorrelate3(self._tmp)
             if err:
                 raise RuntimeError(f"cython autocorrelations failed with error code {err}")
             yield self._tmp[: min(self._tmp.shape[0] // 2, maxqz), ...]
