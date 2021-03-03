@@ -2,7 +2,7 @@
 from os.path import join, exists, dirname, realpath
 from os import environ
 from sys import prefix, path
-import setuptools  # noqa
+import setuptools  # noqa # TODO
 
 
 def configuration():
@@ -14,7 +14,7 @@ def configuration():
     config = Configuration('idi', '')
     srcdir = join(dirname(realpath(__file__)), 'idi')
     mkl_info = get_info('mkl')
-    libs = default_lib_dirs
+
     basedirs = list(
         OrderedDict.fromkeys(
             realpath(p)
@@ -31,14 +31,13 @@ def configuration():
         libs = mkl_info.get('libraries', ['mkl_rt'])
     else:
         libs = ['mkl_rt', 'pthread']
+
+    include_dirs.extend(default_include_dirs)
+    library_dirs.extend(default_lib_dirs)
     library_dirs.extend(join(b, 'lib') for b in basedirs)
     library_dirs.extend(join(b, 'lib64') for b in basedirs)
     library_dirs.extend(join(b, 'libraries') for b in basedirs)
     include_dirs.extend(join(b, 'include') for b in basedirs)
-
-    print('base', basedirs)
-    print('inc', include_dirs)
-    print('lib', library_dirs)
 
     try:
         from Cython.Build import cythonize
