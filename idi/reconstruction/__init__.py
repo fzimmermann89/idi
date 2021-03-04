@@ -14,9 +14,7 @@ try:
 
     _local = False
 except ImportError as e:
-    print('trying local compilation', e)
-    _w.warn('blub')
-    _w.warn(str(e))
+    _w.warn('trying local compilation' + str(e))
     _local = True
 
     try:
@@ -36,7 +34,7 @@ except ImportError as e:
     except Exception as e:
         _w.warn("no mkl autocorrelation")
 
-from . import ft # noqa
+from . import ft  # noqa
 
 # cuda
 _cuda = _nbcuda.is_available()
