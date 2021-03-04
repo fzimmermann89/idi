@@ -32,45 +32,21 @@
 #   http://rsgalloway.github.com/qrangeslider
 # ---------------------------------------------------------------------------------------------
 
-__author__ = "Ryan Galloway <ryan@rsgalloway.com>"
-__version__ = "0.1.1+mm+qt5+v"
 
-# ---------------------------------------------------------------------------------------------
-# SUMMARY
-# ---------------------------------------------------------------------------------------------
-"""The QRangeSlider class implements a horizontal and vertical range slider widget.
-
-"""
-
-# ---------------------------------------------------------------------------------------------
-# TODO
-# ---------------------------------------------------------------------------------------------
-
-"""
-  - smoother mouse move event handler
-  - support splits and joins
-  - verticle sliders
-  - ticks
-
-"""
-
-# ---------------------------------------------------------------------------------------------
-# IMPORTS
-# ---------------------------------------------------------------------------------------------
-import os
 import sys
-
 from PyQt5 import QtCore
 from PyQt5 import QtGui
-from PyQt5 import uic
 from PyQt5 import QtWidgets
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
 except AttributeError:
-    _fromUtf8 = lambda s: s
+    def _fromUtf8(s):
+        return s
 
 __all__ = ['QRangeSlider']
+__author__ = "Ryan Galloway <ryan@rsgalloway.com>"
+__version__ = "0.1.1+mm+qt5+v"
 
 DEFAULT_CSS = """
 QRangeSlider * {
@@ -147,13 +123,10 @@ class RangeSliderForm(object):
         QtCore.QMetaObject.connectSlotsByName(Form)
 
     def retranslateUi(self, Form):
-        Form.setWindowTitle(QtWidgets.QApplication.translate("QRangeSlider",
-                                                             "QRangeSlider",
-                                                             None))
+        Form.setWindowTitle(QtWidgets.QApplication.translate("QRangeSlider", "QRangeSlider", None))
 
 
 class RangeSliderElement(QtWidgets.QGroupBox):
-
     def __init__(self, parent, main, vertical=False):
         super(RangeSliderElement, self).__init__(parent)
         self.main = main
@@ -334,6 +307,7 @@ class QRangeSlider(QtWidgets.QWidget, RangeSliderForm):
         }
 
     """
+
     endValueChanged = QtCore.pyqtSignal(int)
     maxValueChanged = QtCore.pyqtSignal(int)
     minValueChanged = QtCore.pyqtSignal(int)

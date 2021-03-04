@@ -1,12 +1,7 @@
-# -*- coding: utf-8 -*-
-
-# Form implementation generated from reading ui file 'kossel.ui'
-#
-# Created by: PyQt5 UI code generator 5.9.2
-#
-# WARNING! All changes made in this file will be lost!
-
 from PyQt5 import QtCore, QtGui, QtWidgets
+from mplwidget import MplWidget
+from rangeslider import QRangeSlider
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -257,6 +252,3 @@ class Ui_MainWindow(object):
         self.angleXSpin.setSuffix(_translate("MainWindow", "°"))
         self.label_3.setText(_translate("MainWindow", "Lattice Contant"))
         self.label_8.setText(_translate("MainWindow", "Display Range"))
-
-from mplwidget import MplWidget
-from rangeslider import QRangeSlider
