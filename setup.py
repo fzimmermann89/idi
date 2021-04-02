@@ -51,8 +51,9 @@ def configuration():
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, 'include') for b in basedirs)
 
-    print('libs', libs)
-    print('libdirs:', library_dirs)
+    # print('libs', libs)
+    # print('libdirs:', library_dirs)
+    # print('includedirs:', include_dirs)
 
     try:
         from Cython.Build import cythonize
