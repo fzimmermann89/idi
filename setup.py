@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from os.path import join, exists, dirname, realpath
-from os import environ
+from os import environ, listdir
 from sys import prefix, path
 import setuptools  # noqa # TODO
 
@@ -23,22 +23,37 @@ def configuration():
             + [join(p, '..') for p in environ['PATH'].split(':')]
         )
     )
-    print('basedirs', basedirs)
     include_dirs = [srcdir]
-    library_dirs = []
+    library_dirs = default_lib_dirs
+    library_dirs.extend(join(b, 'lib') for b in basedirs)
+    library_dirs.extend(join(b, 'lib64') for b in basedirs)
+    library_dirs.extend(join(b, 'libraries') for b in basedirs)
+
     if mkl_info:
         include_dirs.extend(mkl_info.get('include_dirs'))
         libs = mkl_info.get('libraries', ['mkl_rt'])
     else:
-        libs = ['mkl_rt', 'pthread']
+        found_mkl = False
+        found_mkl_name = 'mkl_rt'
+        for d in library_dirs:
+            try:
+                for f in listdir(d):
+                    if f == 'mkl_rt.dll' or f == 'mkl_rt.so':
+                        found_mkl = True
+                        found_mkl_name = 'mkl_rt'
+                    elif 'mkl_rt.so.' in f and not found_mkl:
+                        found_mkl_name = ':' + f
+                        found_mkl = True
+            except FileNotFoundError:
+                continue
+        libs = ['pthread', found_mkl_name]
 
     include_dirs.extend(default_include_dirs)
-    library_dirs.extend(default_lib_dirs)
-    library_dirs.extend(join(b, 'lib') for b in basedirs)
-    library_dirs.extend(join(b, 'lib64') for b in basedirs)
-    library_dirs.extend(join(b, 'libraries') for b in basedirs)
     include_dirs.extend(join(b, 'include') for b in basedirs)
+
+    print('libs', libs)
     print('libdirs:', library_dirs)
+
     try:
         from Cython.Build import cythonize
 
