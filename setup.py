@@ -19,11 +19,11 @@ def configuration():
         OrderedDict.fromkeys(
             realpath(p)
             for p in [join(dirname(numpy.__file__), *(4 * ['..'])), prefix]
-            + [join(*p, *(2 * ['...'])) for p in [p.split('site-packages')[:-1] for p in path] if p]
+            + [join(*p, *(2 * ['..'])) for p in [p.split('site-packages')[:-1] for p in path] if p]
             + [join(p, '..') for p in environ['PATH'].split(':')]
         )
     )
-
+    print('basedirs', basedirs)
     include_dirs = [srcdir]
     library_dirs = []
     if mkl_info:
@@ -38,7 +38,7 @@ def configuration():
     library_dirs.extend(join(b, 'lib64') for b in basedirs)
     library_dirs.extend(join(b, 'libraries') for b in basedirs)
     include_dirs.extend(join(b, 'include') for b in basedirs)
-
+    print('libdirs:', library_dirs)
     try:
         from Cython.Build import cythonize
 

@@ -12,7 +12,7 @@ def randomphotons(probs, Nphotons, rng=None, dtype=float):
 def chargesharing(img, s):
     """
     simulates charge sharing between neighboring pixels:
-    for each count in the discrete image img, a uniformly random position within the pixel is chosen 
+    for each count in the discrete image img, a uniformly random position within the pixel is chosen
     and a Gaussian distribution with sigma s applied to the neighboring pixels.
     charge that leaves the detector is lost.
     """
@@ -26,6 +26,7 @@ def chargesharing(img, s):
     __putcharges(ret, hits, s, w)
     ret = ret[w:-w, w:-w]
     return ret
+
 
 @_numba.njit(fastmath=True, cache=True)
 def __putcharges(ret, hits, s, w):
