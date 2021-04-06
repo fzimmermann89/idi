@@ -1,4 +1,5 @@
 import numpy as _np
+import numexpr as _ne
 from ..util import rebin as _rebin
 
 
@@ -35,5 +36,7 @@ def simulate3d(simobject, Ndet, pixelsize, detz, k, fftfunction=_np.fft.fft2):
         1 - sum(q ** 2 for q in _np.meshgrid(*[(pixelsize / (detz * o)) * _np.arange(-n * o / 2, n * o / 2) for n, o in zip(Ndet, os)]))
     )
     f = _np.fft.fftshift(fftfunction(obj, s=os * Ndet, axes=(0, 1)), axes=(0, 1))
-    img = sum(f[..., i] * _np.exp((-1j * dz * k * i) * qz) for i in range(f.shape[-1]))
+    # img = sum(f[..., i] * _np.exp((-1j * dz * k * i) * qz) for i in range(f.shape[-1]))
+    i = _np.arange(0, f.shape[-1])
+    img = _ne.evaluate('sum(f * exp(-(1j * dz * k * i) * qz), axis=2)')
     return _rebin(img, os, 'mean')
