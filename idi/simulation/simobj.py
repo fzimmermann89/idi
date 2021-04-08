@@ -353,7 +353,7 @@ class crystal(simobj):
         self.rndOrientation = False
         self._p = None
         self.fwhm = None if fwhm is None else _np.array(fwhm)
-        self.rho = _np.array(rho)
+        self.rho = _np.array(2) if rho is None else _np.array(rho)
 
         super().__init__(E, N)
         self._resetproperties = ['rho', 'fwhm']
