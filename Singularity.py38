@@ -44,7 +44,7 @@ yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.re
 yum -y install epel-release https://repo.ius.io/ius-release-el7.rpm && yum update -y && yum upgrade -y
 yum install -y aria2 bsdtar curl git224 gzip lz4 p7zip p7zip-plugins perl-Digest-MD5 perl-File-Fetch perl-LWP-Protocol-https perl-Mozilla-CA perl-libwww-perl rsync unzip wget xz zip
 #intel-mkl-64bit-2020.3-111.x86_64 intel-mkl-gnu-2020.3-279.x86_64 intel-mkl-tbb-rt-2020.3-279.x86_64 
-yum install -y axel binutils cmake curl diffutils elfutils environment-modules file gcc gcc-c++ gdb gettext ghostscript htop less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh  openssl openssl-devel pam-devel numactl numactl-devel hwloc hwloc-devel lua lua-devel readline-devel rrdtool-devel ncurses-devel man2html libibmad libibumad munge-libs && yum clean all && rm -rf /var/cache/yum &
+yum install -y axel binutils cmake curl diffutils elfutils environment-modules file gcc gcc-c++ gdb gettext ghostscript htop less libstdc++ libtiff libtool ltrace make man man-pages mc mosh openmpi-devel openssh patch patchutils perf psmisc screen strace tmux vim zsh  openssl openssl-devel pam-devel numactl numactl-devel hwloc hwloc-devel lua lua-devel readline-devel rrdtool-devel ncurses-devel man2html libibmad libibumad munge-libs mesa-libOSMesa mesa-libOSMesa-devel nmap nc && yum clean all && rm -rf /var/cache/yum &
 
 
 ##texlive
