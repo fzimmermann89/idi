@@ -188,7 +188,7 @@ EOF3
 
 
 #pip
-echo "installing pycuda from pip" && LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda && \
+echo "installing pycuda from pip" && CFLAGS=-std=c++11 CXXFLAGS=-std=c++11  LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda
 echo 'installing cupy from pip' && pip install cupy-cuda102  &
 
 #conda config
@@ -238,6 +238,8 @@ rm -rf /tmp/npm*
 rm -rf /tmp/texlive*
 rm -rf /tmp/yarn*
 rm -rf /var/cache/*
+rm -f /anaconda-post.log
+touch /INSIDE_SINGULARITY_IDI_IMAGE
 echo '####ALL DONE####'
 
 #slurm user
