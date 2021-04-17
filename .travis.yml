@@ -42,7 +42,6 @@ install:
 script:
   - singularity build $image $recipe
 
-    
 deploy:
   provider: releases
   api_key:
