@@ -143,17 +143,17 @@ jupyter labextension install jupyter-threejs --no-build
 jupyter labextension install @krassowski/jupyterlab_go_to_definition --no-build
 jupyter labextension install @aquirdturtle/collapsible_headings --no-build
 jupyter labextension install @jupyterlab/google-drive --no-build
-jupyter labextension install jupyterlab-plotly --no-build
+# jupyter labextension install jupyterlab-plotly --no-build
 jupyter labextension install @jupyterlab/server-proxy --no-build
 
-pip install -q --upgrade jupyterlab-git "jupyterlab_code_formatter<1.4"  jupyterlab_latex jupyter-dash "jupyterlab<3" jupyterlab_hdf "jedi<0.18"
+pip install -q --upgrade "jupyterlab-git<0.30" "jupyterlab_code_formatter<1.4"  jupyterlab_latex  "jupyterlab<3" jupyterlab_hdf "jedi<0.18" #jupyter-dash
 jupyter labextension install @jupyterlab/latex --no-build
 jupyter labextension install "@ryantam626/jupyterlab_code_formatter@<1.4" --no-build
 jupyter labextension install @jupyterlab/git --no-build
 jupyter labextension install @jupyterlab/debugger --no-build
-jupyter labextension install  jupyterlab-dash --no-build
-jupyter labextension install jupyterlab-tabular-data-editor
-jupyter labextension install @jupyterlab/hdf5
+# jupyter labextension install  jupyterlab-dash --no-build
+jupyter labextension install jupyterlab-tabular-data-editor --no-build
+jupyter labextension install @jupyterlab/hdf5 --no-build
 jupyter serverextension enable --py jupyterlab_code_formatter --sys-prefix
 jupyter serverextension enable --sys-prefix jupyterlab_latex
 jupyter serverextension enable --py jupyterlab_git --sys-prefix
@@ -164,10 +164,10 @@ jupyter serverextension enable --py jupyterlab_hdf --sys-prefix
 echo 'waiting'
 sleep 10
 wait #make sure not to run out of memory
-sleep 30
+sleep 60
 
 echo 'building lab'
-jupyter lab build --dev-build=False ||true
+jupyter lab build --dev-build=False --minimize=False ||true
 cat /tmp/jupyterlab-debug-* ||true
 
 cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
