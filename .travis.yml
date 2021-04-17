@@ -50,4 +50,5 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
+    repo: fzimmermann89/idi
   file: *.sif
