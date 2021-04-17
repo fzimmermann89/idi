@@ -1,0 +1,53 @@
+os: linux
+
+language: go
+
+go:
+    - "1.11"
+
+addons:
+  apt:
+    packages:
+      - flawfinder
+      - squashfs-tools
+      - uuid-dev
+      - libuuid1
+      - libffi-dev
+      - libssl-dev
+      - libssl1.0.0
+      - libarchive-dev
+      - libgpgme11-dev
+      - libseccomp-dev
+  homebrew:
+    packages:
+      - squashfs
+    update: true
+
+
+sudo: required
+#dist: trusty
+
+jobs:
+  include:
+  - name: "3.8"
+    env: recipe=Singularity.py38 image=idi.sif
+
+before_install:
+  - sudo chmod u+x .travis/*.sh
+  - /bin/bash .travis/setupsingularity.sh
+
+install:
+  - # override
+
+script:
+  - singularity build $image $recipe
+
+    
+deploy:
+  provider: releases
+  api_key:
+    secure: LGZSz6q6Ve3kZp1FH2JNLqzby341NwIVmPjZUl09bB4E8XQn9qVc/nNy1rcTyiowkI676kmyOt/t+pX2DfpKQuJPS5JX66LfO+WIdCNrnnF/xPsaf2JhcozYaGOJXJ+SrUqZxCiQhdsxuY223SGhHEPwOtHAbxILlI51zsEPv4xNTV8a2jM/Vm8yuMl9x/p/kuMzTyEqAa3ivqoW0Hdc0dFFAQl+vFw0JOWoUbNuCRKZ3ST4jgtzuBPsAgOn/Fs2aH164Eg2OPLXLns5v3SZNygYYVbOlroklzBekTS79tlTQHR6g5yHJMmgkCdXAbaYcGf4fVmP01yxJ8f7OVbgf77IfxcqKN1xf258H7m7DYzHz3Y0jcBBHn3R9tNGMd15mZzndWFSoglGVdzly+/aqaZlUdSXFtji7bRKY/pwrXY0ylPX+oXCRS6foGxKJpwuTHk5n/1fF2WCL0pnYVnrR8gxgrlaV0Rhvu24Q1YkYT1VPhnP1SEL53pRtfk7QlhJoZEdoXm0krWa+H8ZDCbto5RIPulZt6I4c5kcUxOkeXL7Ni7JkejSRiA7DSAA/KZQUcevwWlnTQtpRPvJRcrLTHpITRR+IsvVxo/o8/hM21jOPKXygUCfkdr5ugr3l1xwyHBty43xN6ZI2I90KtFUGk6H/CO9SUrCu/2/tCPOzDE=
+  skip_cleanup: true
+  on:
+    tags: true
+  file: *.sif
