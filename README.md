@@ -23,7 +23,7 @@ preparation for slac sdf:
 Use Singulariy, if using OOD launcher, use the following to start a jupyterhub
 
 ```
-    function jupyter() { singularity run --app jupyter --nv -B /sdf,/gpfs,/scratch,/lscratch shub://fzimmermann89/idi $@; }
+    function jupyter() { singularity run --app jupyter --nv -B /sdf,/gpfs,/scratch,/lscratch library://fzimmermann89/idi/idi $@; }
 ```
 
 
