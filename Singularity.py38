@@ -182,6 +182,15 @@ cat > /opt/anaconda3/etc/jupyter/jupyter_config.json << "EOF3"
       "jupyterlab_code_formatter": true,
       "jupyter_server_proxy": true
     }
+  },
+  "LabApp": {
+    "tornado_settings": {
+      "page_config_data": {
+        "buildCheck": false,
+        "buildAvailable": false,
+      },
+    "compress_response" : true
+    }
   }
 }
 EOF3

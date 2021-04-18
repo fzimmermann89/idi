@@ -3,7 +3,7 @@ os: linux
 language: go
 
 go:
-    - "1.13"
+    - "1.15"
 
 addons:
   apt:
@@ -23,15 +23,16 @@ addons:
       - squashfs
     update: true
 
-
-
 sudo: required
-#dist: trusty
+
+
 
 jobs:
   include:
     - name: "3.8"
       env: recipe=Singularity.py38 image=idi
+
+
 
 before_install:
   - sudo chmod u+x .travis/*.sh
@@ -40,15 +41,22 @@ before_install:
 install:
   - # override
 
-
 script:
-  - travis_wait 30 sudo singularity build /tmp/$image $recipe
+  - sudo singularity build /tmp/$image $recipe &
+  - while [ -e /proc/$! ]; do echo -n "."  && sleep 60; done
   - echo "done"
 
+cache:
+  directories:
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
+    - $HOME/.singularity/cache
 
 after_sucess:
-  - echo $SYLABS_TOKEN > ~/.singularity/sylabs-token
-  - singularity push /tmp/$image library://fzimmermann89/idi/$image
+  - echo $SYLABS_TOKEN > sylabs-token
+  - singularity remote login --tokenfile sylabs-token
+  - singularity push -U /tmp/$image library://fzimmermann89/idi/$image
+
 #deploy:
 #  provider: releases
 #  api_key:
