@@ -7,7 +7,10 @@ _The code is a mess, undocumented and only certain code paths are tested._
 # IDI - INCOHERENT DIFFRACTION IMAGING
 
 [![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/4824)
-![example workflow](https://github.com/fzimmermann89/idi/actions/workflows/test.yml/badge.svg)
+![tests](https://github.com/fzimmermann89/idi/actions/workflows/test.yml/badge.svg)
+[![Build Status](https://www.travis-ci.com/fzimmermann89/idi.svg?branch=master)](https://www.travis-ci.com/fzimmermann89/idi)
+
+Singularity Image now at library://fzimmermann89/idi/idi
 
 
 content of the repo   
