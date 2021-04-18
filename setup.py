@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from os.path import join, exists, dirname, realpath
+from os.path import join, exists, dirname, realpath, isdir
 from os import environ, listdir
 from sys import prefix, path
 import setuptools  # noqa # TODO
@@ -50,6 +50,9 @@ def configuration():
 
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, "include") for b in basedirs)
+    
+    include_dirs = filter(isdir, include_dirs)
+    library_dirs = filter(isdir, library_dirs)
 
     # print('libs', libs)
     # print('libdirs:', library_dirs)
@@ -109,7 +112,7 @@ def setup_package():
             "mkl",
             "mkl-include",
         ],
-        package_data={"idi/simulation": ["*.cu"]},
+        package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         configuration=configuration,
         test_suite="tests",
