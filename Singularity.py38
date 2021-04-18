@@ -20,16 +20,16 @@ export SINGULARITY_SHELL
 # TBBROOT=/opt/intel/compilers_and_libraries/linux/tbb
 # export TBBROOT
 # INTEL_LICENSE_FILE=/opt/intel/compilers_and_libraries/linux/licenses
-export INTEL_LICENSE_FILE
-LIBRARY_PATH=$LIBRARY_PATH:/opt/intel/compilers_and_libraries/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8
-export LIBRARY_PATH
+# export INTEL_LICENSE_FILE
+# LIBRARY_PATH=$LIBRARY_PATH:/opt/intel/compilers_and_libraries/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8:/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8
+# export LIBRARY_PATH
 # CPATH=$CPATH:/opt/intel/compilers_and_libraries/linux/mkl/include:/opt/intel/compilers_and_libraries/linux/tbb/include:/opt/intel/compilers_and_libraries/linux/tbb/include
 # export CPATH
 PATH=$PATH:/opt/anaconda3/bin:/usr/local/texlive/bin/x86_64-linux:/usr/local/cuda/bin
 PATH=$PATH:/opt/intel/compilers_and_libraries/linux/bin/intel64:/opt/intel/compilers_and_libraries/linux/bin
 export PATH
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/compilers_and_libraries/linux/mkl/bin/pkgconfig
-export PKG_CONFIG_PATH
+# PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/compilers_and_libraries/linux/mkl/bin/pkgconfig
+# export PKG_CONFIG_PATH
 LD_PRELOAD=/usr/local/lib64/mklpatch.so
 export LD_PRELOAD
 SHELL=/usr/bin/zsh
@@ -130,7 +130,7 @@ PATH=$PATH:/usr/local/cuda/bin:/opt/anaconda3/bin
 echo "installing conda extensions"
 conda activate
 conda install -q -y -c conda-forge mamba conda
-mamba install -q -y simplejson colorama   protobuf requests "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba mkl cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort mkl-devel fastrlock six setuptools
+mamba install -q -y simplejson colorama   protobuf requests "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba "mkl>=2020" cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort "mkl-include>=2020" fastrlock six setuptools
 mamba install -q -y -c anaconda -c  conda-forge -c plotly gpustat colorful "h5py>3,<3.2" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume "jupyter-server-proxy<3" six openssl "jedi<0.18"
 conda clean -a -y &
 
@@ -233,7 +233,7 @@ cp /tmp/mklpatch.so /usr/local/lib64/mklpatch.so && chmod 775 /usr/local/lib64/m
 
 #idi
 wait
-echo 'install idi' && pip install git+https://github.com/fzimmermann89/idi
+echo 'install idi' && pip install git+https://github.com/fzimmermann89/idi --no-deps
 
 
 #cleanup
