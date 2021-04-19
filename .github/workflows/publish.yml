@@ -86,7 +86,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
-          password: ${{ secrets.pypi_token }}
+          password: ${{ secrets.PYPI_TOKEN }}
     
     
   build_conda:
@@ -114,14 +114,18 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           activate-environment: "build"
-      - run: conda install anaconda-client conda-build -y
+      - shell: bash -l {0}
+        run: conda install anaconda-client conda-build -y
       - run: ls -R dist
       - name: Build packages
-        run: python .github/conda/wheel2conda.py dist
+        shell: bash -l {0}
+        run: |
+          conda install anaconda-client conda-build -y 
+          python .github/conda/wheel2conda.py dist/artifact
       - run: ls -R dist
       - name: Upload
+        shell: bash -l {0}
         env:
-          ANACONDA_UPLOAD_TOKEN: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
-        #run: bash build_tools/github/upload_anaconda.sh
-        run: anaconda upload dist/output/*.tar.bz2
+          ANACONDA_UPLOAD_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+        run: anaconda upload dist/artifact/output/*.tar.bz2
 
