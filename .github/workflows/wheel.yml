@@ -27,6 +27,7 @@ jobs:
            CIBW_REPAIR_WHEEL_COMMAND_LINUX: ""
            CIBW_ARCHS: "auto64"
            CIBW_BUILD_VERBOSITY: 1
+           CIBW_SKIP: pp*
 
       - uses: actions/upload-artifact@v2
         with:
