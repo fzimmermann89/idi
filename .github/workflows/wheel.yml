@@ -1,4 +1,4 @@
-name: Build
+name: Build Wheels
 
 on: [push, pull_request]
 
@@ -25,7 +25,7 @@ jobs:
         env:
            CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
            CIBW_REPAIR_WHEEL_COMMAND_LINUX: ""
-           CIBW_BUILD_VERBOSITY: 3
+           CIBW_BUILD_VERBOSITY: 1
 
       - uses: actions/upload-artifact@v2
         with:
