@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macOS-10.15]
+        os: [ubuntu-20.04] #, macOS-10.15]
 
     steps:
       - uses: actions/checkout@v2
@@ -27,7 +27,8 @@ jobs:
            CIBW_REPAIR_WHEEL_COMMAND_LINUX: ""
            CIBW_ARCHS: "auto64"
            CIBW_BUILD_VERBOSITY: 1
-           CIBW_SKIP: pp*
+           #CIBW_SKIP: pp*
+           CIBW_BUILD: cp37-*
 
       - uses: actions/upload-artifact@v2
         with:
@@ -40,3 +41,28 @@ jobs:
           files: ./wheelhouse/*.whl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  build_conda:
+    name: Upload to Anaconda
+    runs-on: ubuntu-latest
+    needs: [build_wheels]
+    #if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: dist
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+
+      - name: Upload artifacts
+        env:
+          ANACONDA_UPLOAD_TOKEN: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
+        #run: bash build_tools/github/upload_anaconda.sh
+        run: ls dist
+
