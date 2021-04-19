@@ -4,6 +4,9 @@ import mkl as _mkl
 import numba.cuda as _nbcuda
 import warnings as _w
 
+_w.filterwarnings("ignore", message="numpy.dtype size changed")
+_w.filterwarnings("ignore", message="numpy.ufunc size changed")
+
 _vml_threads = _mkl.domain_get_max_threads('vml')
 
 from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common  # noqa
