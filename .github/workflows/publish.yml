@@ -80,7 +80,8 @@ jobs:
         with:
           name: artifact
           path: dist
-      - run: rm dist/artifact/*.whl
+      - run: ls -R dist
+      - run: rm -f dist/*.whl
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
