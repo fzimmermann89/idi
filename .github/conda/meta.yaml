@@ -1,0 +1,34 @@
+package:
+  name: idi
+  version: "0.0.0"
+
+build:
+  number: 1
+  script_env:
+   - WHEEL
+
+ 
+
+requirements:
+  build:
+    - python {{ environ.get('PYVERSION', '') }}
+    - pip
+    - numpy
+    - cython
+    - mkl 
+    - mkl-include
+  run:
+    - python {{ environ.get('PYVERSION', '') }}
+    - numpy
+    - scipy
+    - numexpr
+    - mkl
+    - h5py
+    - numba
+
+
+
+about:
+  home: http://github.com/fzimmermann89/idi
+  license: BSD 2-Clause
+  summary: IDI
