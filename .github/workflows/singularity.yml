@@ -1,0 +1,28 @@
+name: Singularity
+
+on: [push]
+
+jobs:
+  build_singularity:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        stable: 'false'
+        go-version: '1.15'
+    - run: |
+        sudo apt install -y build-essential libssl-dev  uuid-dev libgpgme11-dev squashfs-tools libseccomp-dev pkg-config 
+        sudo chmod u+x .travis/*.sh && /bin/bash .travis/setupsingularity.sh
+
+    - name: build image
+      run: sudo singularity build /tmp/idi Singularity.py38
+      
+    - name: upload image
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+         {{ secrets.SYLABS_TOKEN }} > sylabs-token
+         singularity remote login --tokenfile sylabs-token
+         singularity push -U /tmp/idi library://fzimmermann89/idi/idi
+      
+
