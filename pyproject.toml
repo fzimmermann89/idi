@@ -1,3 +1,6 @@
+[project]
+requires-python = ">=3.6"
+
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = ["setuptools", "numpy", "Cython", "mkl==2019", "mkl-include==2019"]
