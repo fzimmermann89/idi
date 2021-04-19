@@ -50,7 +50,7 @@ def configuration():
 
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, "include") for b in basedirs)
-    
+
     include_dirs = list(filter(isdir, include_dirs))
     library_dirs = list(filter(isdir, library_dirs))
 
