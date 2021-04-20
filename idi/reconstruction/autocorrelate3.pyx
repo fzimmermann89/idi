@@ -4,7 +4,7 @@ cdef extern from 'mkl.h' nogil:
     ctypedef struct MKL_Complex16:
         double real
         double imag   
-    void vzMulByConj(long long n, const MKL_Complex16*, const MKL_Complex16*,MKL_Complex16*) nogil
+    void vzMulByConj(int n, const MKL_Complex16*, const MKL_Complex16*,MKL_Complex16*) nogil
     int vmlGetErrStatus() nogil
     int vmlSetErrStatus(int) nogil
 
