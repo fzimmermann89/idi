@@ -1,6 +1,8 @@
+{% set data = load_setup_py_data(setup_file='../../setup.py', from_recipe_dir=True) %}
+
 package:
-  name: idi
-  version: {{ environ.get('VERSION', '0.0.0') }}
+  name: {{ data.get('name') }}
+  version: {{ data.get('version') }}
 
 build:
   number: 1
