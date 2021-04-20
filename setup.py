@@ -115,7 +115,8 @@ def configuration():
 
 def setup_package():
     from numpy.distutils.core import setup
-
+    import idi as app
+    
     metadata = dict(
         maintainer="zimmf",
         description="idi simulation and reconstruction",
@@ -135,6 +136,7 @@ def setup_package():
             "mkl-include",
         ],
         package_data={"": ["*.cu"]},
+        version=app.__version__,
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         configuration=configuration,
         test_suite="tests",
