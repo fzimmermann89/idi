@@ -44,9 +44,9 @@ cpdef int autocorrelate3(double[:, :, ::1] input):
     if not error: error = mkl_dfti.DftiComputeForward(hand, x)
 
     if not error:
-        #abs (inplace), will not work if N1*N2*(N3//2+1) > intmax
+        #abs (inplace), will not work if N1*N2*(N3//2+1) > intmax and 32 bit
         #xc = <MKL_Complex16*>x
-        #vzMulByConj(N1*N2*(N3//2+1),<const MKL_Complex16*> xc,<const MKL_Complex16*> xc,xc)
+        #vzMulByConj(<long long>N1*<long long>N2*(<long long>N3//2+1),<const MKL_Complex16*> xc,<const MKL_Complex16*> xc,xc)
 
         #abs (inplace batched, works even if number of elements can be larger than intmax)
         for i from 0 <= i < N1:
