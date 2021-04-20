@@ -22,7 +22,7 @@ jobs:
     - run: df -h . 
 
     - name: build image
-      run: sudo singularity build image.sif Singularity.py38
+      run: sudo singularity build image.sif Singularity
       
     - name: upload image
       run: |
