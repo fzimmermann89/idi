@@ -7,7 +7,11 @@ import setuptools  # noqa # TODO
 
 def configuration():
     from numpy.distutils.misc_util import Configuration
-    from numpy.distutils.system_info import get_info, default_include_dirs, default_lib_dirs
+    from numpy.distutils.system_info import (
+        get_info,
+        default_include_dirs,
+        default_lib_dirs,
+    )
     from collections import OrderedDict
     import numpy
 
@@ -17,9 +21,21 @@ def configuration():
     basedirs = list(
         OrderedDict.fromkeys(
             realpath(p)
-            for p in [join(dirname(numpy.__file__), *(4 * [".."])), join(dirname(numpy.__file__), *(3 * [".."])), prefix]
-            + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
-            + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
+            for p in [
+                join(dirname(numpy.__file__), *(4 * [".."])),
+                join(dirname(numpy.__file__), *(3 * [".."])),
+                prefix,
+            ]
+            + [
+                join(*p, *(2 * [".."]))
+                for p in [p.split("site-packages")[:-1] for p in path]
+                if p
+            ]
+            + [
+                join(*p, "..")
+                for p in [p.split("site-packages")[:-1] for p in path]
+                if p
+            ]
             + [join(p, "..") for p in environ["PATH"].split(":")]
         )
     )
@@ -37,9 +53,6 @@ def configuration():
 
     include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
     library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
-    
-    
-    
 
     if mkl_info:
         include_dirs.extend(mkl_info.get("include_dirs"))
@@ -50,7 +63,7 @@ def configuration():
         for d in library_dirs:
             try:
                 for f in listdir(d):
-                    if f == "mkl_rt.dll" or f == "mkl_rt.so" or f == 'mkl_rt.dylib':
+                    if f == "mkl_rt.dll" or f == "mkl_rt.so" or f == "mkl_rt.dylib":
                         found_mkl = True
                         found_mkl_name = "mkl_rt"
                     elif "mkl_rt.so." in f and not found_mkl:
@@ -61,7 +74,6 @@ def configuration():
             except FileNotFoundError:
                 continue
         libs = ["pthread", found_mkl_name]
-
 
     # print('libs', libs)
     # print('libdirs:', library_dirs)
@@ -76,14 +88,16 @@ def configuration():
         have_cython = False
         sources = [join(srcdir, "reconstruction", "autocorrelate.c")]
         if not exists(sources[0]):
-            raise ValueError(str(e) + ". " + "Cython is required to build the initial .c file.")
+            raise ValueError(
+                str(e) + ". " + "Cython is required to build the initial .c file."
+            )
     config.add_extension(
         name="reconstruction.autocorrelate3",
         sources=sources,
         libraries=libs,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        extra_compile_args=["-DNDEBUG", "-O3","-DMKL_ILP64"],
+        extra_compile_args=["-DNDEBUG", "-O3", "-DMKL_ILP64"],
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
