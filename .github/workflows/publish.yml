@@ -1,12 +1,6 @@
 name: Publish
 
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+on: [push]
 
 jobs:
   build_wheels:
@@ -18,7 +12,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
+      
+      - name: Version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION=$(echo $GITHUB_REF | sed 's#refs/tags/##')
+          echo "$VERSION"
+          PLACEHOLDER="develop"'
+          VERSION_FILE='idi/__init__.py'
+          grep "__version__.*$PLACEHOLDER" "$VERSION_FILE"
+          sed -Ei "s/(__version__ ?=.*)-$PLACEHOLDER/\1-$VERSION/g" "$VERSION_FILE"
+          cat "$VERSION_FILE"
+        shell: bash
+        
       # Used to host cibuildwheel
       - uses: actions/setup-python@v2
 
@@ -53,7 +59,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
+        
+      - name: Version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION=$(echo $GITHUB_REF | sed 's#refs/tags/##')
+          echo "$VERSION"
+          PLACEHOLDER="develop"'
+          VERSION_FILE='idi/__init__.py'
+          grep "__version__.*$PLACEHOLDER" "$VERSION_FILE"
+          sed -Ei "s/(__version__ ?=.*)-$PLACEHOLDER/\1-$VERSION/g" "$VERSION_FILE"
+          cat "$VERSION_FILE"
+        shell: bash
+        
       - uses: actions/setup-python@v2
         name: Install Python
         with:
@@ -111,7 +129,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
-
+        
+      - name: Version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION=$(echo $GITHUB_REF | sed 's#refs/tags/##')
+          echo "$VERSION"
+          PLACEHOLDER="develop"'
+          VERSION_FILE='idi/__init__.py'
+          grep "__version__.*$PLACEHOLDER" "$VERSION_FILE"
+          sed -Ei "s/(__version__ ?=.*)-$PLACEHOLDER/\1-$VERSION/g" "$VERSION_FILE"
+          cat "$VERSION_FILE"
+        shell: bash
+        
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
@@ -120,8 +150,8 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with: 
-           python-version: '3.7'
-        
+           python-version: '3.7'     
+      
       - name: Setup conda  
         uses: conda-incubator/setup-miniconda@v2
         with:
