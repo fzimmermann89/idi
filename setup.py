@@ -50,7 +50,7 @@ def configuration():
 
         linkline = "{paths}"
     else:
-        extension = 'a'
+        libextension = 'a'
         libprefix = 'lib'
         linkline = "-Wl,{paths} -lpthread -lm"
         compileline = "-DNDEBUG -O3 -DMKL_ILP64"
