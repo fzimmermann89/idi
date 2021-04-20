@@ -44,15 +44,15 @@ def configuration():
     include_dirs.extend(join(b, "include") for b in basedirs)
     include_dirs.extend(join(b, "Library", "include") for b in basedirs)
 
-    print("XXXXXXXXX")
-    print("basedirs", basedirs)
-    print("libdirs:", library_dirs)
-    print("includedirs:", include_dirs)
-    print("np", numpy.__file__)
-    print("env", environ)
-    print("path", path)
-    print("prefix", prefix)
-    print("XXXXXXXXXX")
+    # print("XXXXXXXXX")
+    # print("basedirs", basedirs)
+    # print("libdirs:", library_dirs)
+    # print("includedirs:", include_dirs)
+    # print("np", numpy.__file__)
+    # print("env", environ)
+    # print("path", path)
+    # print("prefix", prefix)
+    # print("XXXXXXXXXX")
 
     include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
     library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
@@ -80,10 +80,6 @@ def configuration():
         if not osname == "nt":
             libs.extend(["pthread"])
 
-    print("libs", libs)
-    print("basedirs", basedirs)
-    print("libdirs:", library_dirs)
-    print("includedirs:", include_dirs)
 
     try:
         from Cython.Build import cythonize
