@@ -17,7 +17,7 @@ def configuration():
     basedirs = list(
         OrderedDict.fromkeys(
             realpath(p)
-            for p in [join(dirname(numpy.__file__), *(4 * [".."])), prefix]
+            for p in [join(dirname(numpy.__file__), *(4 * [".."])), join(dirname(numpy.__file__), *(3 * [".."])), prefix]
             + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(p, "..") for p in environ["PATH"].split(":")]
         )
