@@ -18,7 +18,7 @@ jobs:
         run: |
           VERSION=$(echo $GITHUB_REF | sed 's#refs/tags/##')
           echo "$VERSION"
-          PLACEHOLDER="develop"'
+          PLACEHOLDER="develop"
           VERSION_FILE='idi/__init__.py'
           grep "__version__.*$PLACEHOLDER" "$VERSION_FILE"
           sed -Ei "s/(__version__ ?=.*)-$PLACEHOLDER/\1-$VERSION/g" "$VERSION_FILE"
@@ -65,7 +65,7 @@ jobs:
         run: |
           VERSION=$(echo $GITHUB_REF | sed 's#refs/tags/##')
           echo "$VERSION"
-          PLACEHOLDER="develop"'
+          PLACEHOLDER="develop"
           VERSION_FILE='idi/__init__.py'
           grep "__version__.*$PLACEHOLDER" "$VERSION_FILE"
           sed -Ei "s/(__version__ ?=.*)-$PLACEHOLDER/\1-$VERSION/g" "$VERSION_FILE"
@@ -135,7 +135,7 @@ jobs:
         run: |
           VERSION=$(echo $GITHUB_REF | sed 's#refs/tags/##')
           echo "$VERSION"
-          PLACEHOLDER="develop"'
+          PLACEHOLDER="develop"
           VERSION_FILE='idi/__init__.py'
           grep "__version__.*$PLACEHOLDER" "$VERSION_FILE"
           sed -Ei "s/(__version__ ?=.*)-$PLACEHOLDER/\1-$VERSION/g" "$VERSION_FILE"
