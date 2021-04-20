@@ -60,7 +60,7 @@ def configuration():
     print('env', environ)
     print('path', path)
     print('prefix', prefix)
-    print('XXXXXXXXXX)
+    print('XXXXXXXXXX')
     
     include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
     library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
