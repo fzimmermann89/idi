@@ -1,6 +1,6 @@
 package:
   name: idi
-  version: "0.0.0"
+  version: "0.0.0-developversion"
 
 build:
   number: 1
