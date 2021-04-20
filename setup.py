@@ -27,16 +27,8 @@ def configuration():
                 join(dirname(numpy.__file__), *(3 * [".."])),
                 prefix,
             ]
-            + [
-                join(*p, *(2 * [".."]))
-                for p in [p.split("site-packages")[:-1] for p in path]
-                if p
-            ]
-            + [
-                join(*p, "..")
-                for p in [p.split("site-packages")[:-1] for p in path]
-                if p
-            ]
+            + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
+            + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(p, "..") for p in environ["PATH"].split(":")]
         )
     )
@@ -45,23 +37,23 @@ def configuration():
     library_dirs.extend(join(b, "lib") for b in basedirs)
     library_dirs.extend(join(b, "lib64") for b in basedirs)
     library_dirs.extend(join(b, "libraries") for b in basedirs)
-    library_dirs.extend(join(b, "Library/lib") for b in basedirs)
-    library_dirs.extend(join(b, "Library/bin") for b in basedirs)
+    library_dirs.extend(join(b, "Library", "lib") for b in basedirs)
+    library_dirs.extend(join(b, "Library", "bin") for b in basedirs)
 
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, "include") for b in basedirs)
-    include_dirs.extend(join(b, "Library/include") for b in basedirs)
-    
-    print('XXXXXXXXX')
-    print('basedirs', basedirs)
-    print('libdirs:', library_dirs)
-    print('includedirs:', include_dirs)
-    print('np', numpy.__file__)
-    print('env', environ)
-    print('path', path)
-    print('prefix', prefix)
-    print('XXXXXXXXXX')
-    
+    include_dirs.extend(join(b, "Library", "include") for b in basedirs)
+
+    print("XXXXXXXXX")
+    print("basedirs", basedirs)
+    print("libdirs:", library_dirs)
+    print("includedirs:", include_dirs)
+    print("np", numpy.__file__)
+    print("env", environ)
+    print("path", path)
+    print("prefix", prefix)
+    print("XXXXXXXXXX")
+
     include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
     library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
 
@@ -85,14 +77,13 @@ def configuration():
             except FileNotFoundError:
                 continue
         libs = [found_mkl_name]
-        if not osname == 'nt':
-            libs.extend(['pthread'])
-        
+        if not osname == "nt":
+            libs.extend(["pthread"])
 
-    print('libs', libs)
-    print('basedirs', basedirs)
-    print('libdirs:', library_dirs)
-    print('includedirs:', include_dirs)
+    print("libs", libs)
+    print("basedirs", basedirs)
+    print("libdirs:", library_dirs)
+    print("includedirs:", include_dirs)
 
     try:
         from Cython.Build import cythonize
@@ -103,9 +94,7 @@ def configuration():
         have_cython = False
         sources = [join(srcdir, "reconstruction", "autocorrelate.c")]
         if not exists(sources[0]):
-            raise ValueError(
-                str(e) + ". " + "Cython is required to build the initial .c file."
-            )
+            raise ValueError(str(e) + ". " + "Cython is required to build the initial .c file.")
     config.add_extension(
         name="reconstruction.autocorrelate3",
         sources=sources,
