@@ -1,6 +1,6 @@
 package:
   name: idi
-  version: "0.0.0-developversion"
+  version: {{ environ.get('VERSION', '0.0.0') }}
 
 build:
   number: 1
