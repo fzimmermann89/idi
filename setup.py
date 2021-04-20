@@ -58,7 +58,7 @@ def configuration():
     paths = []
     for f in files:
         for d in library_dirs:
-            c = join(d, f'{libprefix}{f}.{extension}')
+            c = join(d, f'{libprefix}{f}.{libextension}')
             if exists(c):
                 paths.append(c)
                 break
