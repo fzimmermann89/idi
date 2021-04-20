@@ -43,7 +43,7 @@ def configuration():
         linkline="{paths}"
     else:
         extension='a'
-        linkline="-Wl,--start-group {paths} -Wl,--end-group -lpthread -lm"
+        linkline="-Wl,{paths} -lpthread -lm"
         compileline="-DNDEBUG -O3 -DMKL_ILP64"
     
     paths=[]
