@@ -14,7 +14,7 @@ jobs:
         go-version: '1.15'
     - run: |
         sudo apt install -y build-essential libssl-dev  uuid-dev libgpgme11-dev squashfs-tools libseccomp-dev pkg-config 
-        sudo chmod u+x .travis/*.sh && /bin/bash .travis/setupsingularity.sh
+        sudo chmod u+x .github/*.sh && /bin/bash .github/setupsingularity.sh
     
     - run: df -h . 
     - name: Free disk space
