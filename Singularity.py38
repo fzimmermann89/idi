@@ -13,8 +13,10 @@ Centos7 with conda python, jupyter, latex, cuda
 %environment
 CUDA_ROOT=/usr/local/cuda
 export CUDA_ROOT
+
 SINGULARITY_SHELL=/bin/zsh
 export SINGULARITY_SHELL
+
 # MKLROOT=/opt/intel/compilers_and_libraries/linux/mkl
 # export MKLROOT
 # TBBROOT=/opt/intel/compilers_and_libraries/linux/tbb
@@ -25,15 +27,21 @@ export SINGULARITY_SHELL
 # export LIBRARY_PATH
 # CPATH=$CPATH:/opt/intel/compilers_and_libraries/linux/mkl/include:/opt/intel/compilers_and_libraries/linux/tbb/include:/opt/intel/compilers_and_libraries/linux/tbb/include
 # export CPATH
-PATH=$PATH:/opt/anaconda3/bin:/usr/local/texlive/bin/x86_64-linux:/usr/local/cuda/bin
-PATH=$PATH:/opt/intel/compilers_and_libraries/linux/bin/intel64:/opt/intel/compilers_and_libraries/linux/bin
-export PATH
+# PATH=$PATH:/opt/intel/compilers_and_libraries/linux/bin/intel64:/opt/intel/compilers_and_libraries/linux/bin
 # PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/compilers_and_libraries/linux/mkl/bin/pkgconfig
 # export PKG_CONFIG_PATH
+
+PATH=$PATH:/opt/anaconda3/bin:/usr/local/texlive/bin/x86_64-linux:/usr/local/cuda/bin
+export PATH
+
 LD_PRELOAD=/usr/local/lib64/mklpatch.so
 export LD_PRELOAD
+
 SHELL=/usr/bin/zsh
 export SHELL
+
+MKL_THREADING_LAYER=gnu
+export MKL_THREADING_LAYER
 
 
 
