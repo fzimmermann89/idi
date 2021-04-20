@@ -53,11 +53,9 @@ def configuration():
                 if exists(c):
                     paths.append(c)
                     break
-    if len(paths)!=len(files):
-        raise FileNotFoundError(f'found only {files} -> {paths}')
-    print('paths',paths)
-    
-    
+ 
+    print(f'found {files} -> {paths}')
+        
     try:
         from Cython.Build import cythonize
 
