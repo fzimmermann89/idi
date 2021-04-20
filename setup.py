@@ -37,7 +37,7 @@ def configuration():
     
     files=['libmkl_intel_ilp64','libmkl_core','libmkl_intel_thread']
     
-    if osname()=='nt':
+    if osname=='nt':
         extension='lib'
         compileline=' /DMKL_ILP64 /DNDEBUG /O3'
         linkline="{paths}"
