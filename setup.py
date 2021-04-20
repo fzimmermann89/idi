@@ -4,6 +4,7 @@ from os import environ, listdir, name as osname
 from sys import prefix, path
 import setuptools  # noqa # TODO
 
+
 def configuration():
     from numpy.distutils.misc_util import Configuration
     from numpy.distutils.system_info import get_info, default_include_dirs, default_lib_dirs
@@ -27,35 +28,33 @@ def configuration():
     library_dirs.extend(join(b, "lib64") for b in basedirs)
     library_dirs.extend(join(b, "libraries") for b in basedirs)
 
-   
-
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, "include") for b in basedirs)
 
     include_dirs = list(filter(isdir, include_dirs))
     library_dirs = list(filter(isdir, library_dirs))
-    
-    files=['libmkl_intel_ilp64','libmkl_core','libmkl_intel_thread']
-    
-    if osname=='nt':
-        extension='lib'
-        compileline=' /DMKL_ILP64 /DNDEBUG /O3'
-        linkline="{paths}"
+
+    files = ['libmkl_intel_ilp64', 'libmkl_core', 'libmkl_intel_thread']
+
+    if osname == 'nt':
+        extension = 'lib'
+        compileline = ' /DMKL_ILP64 /DNDEBUG /O3'
+        linkline = "{paths}"
     else:
-        extension='a'
-        linkline="-Wl,{paths} -lpthread -lm"
-        compileline="-DNDEBUG -O3 -DMKL_ILP64"
-    
-    paths=[]
+        extension = 'a'
+        linkline = "-Wl,{paths} -lpthread -lm"
+        compileline = "-DNDEBUG -O3 -DMKL_ILP64"
+
+    paths = []
     for f in files:
         for d in library_dirs:
-                c=f'{d}/{f}.{extension}'
-                if exists(c):
-                    paths.append(c)
-                    break
- 
+            c = f'{d}/{f}.{extension}'
+            if exists(c):
+                paths.append(c)
+                break
+
     print(f'found {files} -> {paths}')
-        
+
     try:
         from Cython.Build import cythonize
 
@@ -72,11 +71,7 @@ def configuration():
         include_dirs=include_dirs,
         library_dirs=library_dirs,
         extra_compile_args=compileline.split(" "),
-        extra_link_args = linkline.format(paths=' '.join(paths)).split(" ")
-    
-            
-        
-        
+        extra_link_args=linkline.format(paths=' '.join(paths)).split(" "),
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
@@ -101,17 +96,7 @@ def setup_package():
         description="idi simulation and reconstruction",
         platforms=["Linux", "Mac OS-X"],
         python_requires=">=3.6",
-        install_requires=[
-            "numpy",
-            "cython",
-            "numba",
-            "numexpr",
-            "scipy",
-            "jinja2",
-            "mkl-service",
-            "matplotlib",
-            "h5py",
-        ],
+        install_requires=["numpy", "cython", "numba", "numexpr", "scipy", "jinja2", "mkl-service", "matplotlib", "h5py",],
         package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         configuration=configuration,
