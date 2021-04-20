@@ -4,7 +4,7 @@ cdef extern from 'mkl.h' nogil:
     ctypedef struct MKL_Complex16:
         double real
         double imag   
-    void vzMulByConj(int n, const MKL_Complex16*, const MKL_Complex16*,MKL_Complex16*) nogil
+    void vzMulByConj(long long n, const MKL_Complex16*, const MKL_Complex16*,MKL_Complex16*) nogil
     int vmlGetErrStatus() nogil
     int vmlSetErrStatus(int) nogil
 
@@ -44,7 +44,7 @@ cpdef int autocorrelate3(double[:, :, ::1] input):
     if not error: error = mkl_dfti.DftiComputeForward(hand, x)
 
     if not error:
-        #abs (inplace), will not work if N1*N2*(N3//2+1) > intmax
+        #abs (inplace), will not work if N1*N2*(N3//2+1) > intmax and MKL_INT is 32bit
         #xc = <MKL_Complex16*>x
         #vzMulByConj(N1*N2*(N3//2+1),<const MKL_Complex16*> xc,<const MKL_Complex16*> xc,xc)
 
