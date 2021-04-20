@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from os.path import join, exists, dirname, realpath, isdir
+from os.path import join, exists, dirname, realpath, abspath, isdir
 from os import environ, listdir, name as osname
 from sys import prefix, path
 import setuptools  # noqa # TODO
@@ -27,20 +27,24 @@ def configuration():
     library_dirs.extend(join(b, "lib") for b in basedirs)
     library_dirs.extend(join(b, "lib64") for b in basedirs)
     library_dirs.extend(join(b, "libraries") for b in basedirs)
+    library_dirs.extend(join(b, "Library/lib") for b in basedirs)
+    library_dirs.extend(join(b, "Library/bin") for b in basedirs)
 
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, "include") for b in basedirs)
+    include_dirs.extend(join(b, "Library/include") for b in basedirs)
 
-    include_dirs = list(filter(isdir, include_dirs))
-    library_dirs = list(filter(isdir, library_dirs))
+    include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
+    library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
 
     files = ['libmkl_intel_ilp64', 'libmkl_core', 'libmkl_intel_thread']
 
     if osname == 'nt':
         extension = 'lib'
         compileline = ' /DMKL_ILP64 /DNDEBUG /O2'
-        print('base', basedirs)
-        print('include', include_dirs)
+        print('basedirs', basedirs)
+        print('include_dirs', include_dirs)
+        print('library_dirs', library_dirs)
         
         linkline = "{paths}"
     else:
@@ -51,7 +55,7 @@ def configuration():
     paths = []
     for f in files:
         for d in library_dirs:
-            c = f'{d}/{f}.{extension}'
+            c = join(d,f'{f}.{extension}')
             if exists(c):
                 paths.append(c)
                 break
