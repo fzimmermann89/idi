@@ -2,6 +2,7 @@
 from os.path import join, exists, dirname, realpath, abspath, isdir
 from os import environ, listdir, name as osname
 from sys import prefix, path
+import platform.system
 import setuptools  # noqa # TODO
 
 
@@ -38,21 +39,26 @@ def configuration():
     include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
     library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
 
-    files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_intel_thread']
-
     if osname == 'nt':
+        files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_intel_thread']
         libextension = 'lib'
         libprefix = ''
-        compileline = ' /DMKL_ILP64 /DNDEBUG /O2'
+        compileline = ' /DMKL_ILP64 /DNDEBUG /O2 /openmp:llvm'
         print('basedirs', basedirs)
         print('include_dirs', include_dirs)
         print('library_dirs', library_dirs)
-
         linkline = "{paths}"
-    else:
+    elif platform.system() == 'Darwin':
+        files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_sequential']
         libextension = 'a'
         libprefix = 'lib'
         linkline = "-Wl,{paths} -lpthread -lm"
+        compileline = "-DNDEBUG -O3 -DMKL_ILP64"
+    else:
+        files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_gnu_thread']
+        libextension = 'a'
+        libprefix = 'lib'
+        linkline = "-Wl,{paths} -lpthread -lm -lomp5"
         compileline = "-DNDEBUG -O3 -DMKL_ILP64"
 
     paths = []
