@@ -37,25 +37,27 @@ def configuration():
     include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
     library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
 
-    files = ['libmkl_intel_ilp64', 'libmkl_core', 'libmkl_intel_thread']
+    files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_intel_thread']
 
     if osname == 'nt':
-        extension = 'lib'
+        libextension = 'lib'
+        libprefix = ''
         compileline = ' /DMKL_ILP64 /DNDEBUG /O2'
         print('basedirs', basedirs)
         print('include_dirs', include_dirs)
         print('library_dirs', library_dirs)
-        
+
         linkline = "{paths}"
     else:
         extension = 'a'
+        libprefix = 'lib'
         linkline = "-Wl,{paths} -lpthread -lm"
         compileline = "-DNDEBUG -O3 -DMKL_ILP64"
 
     paths = []
     for f in files:
         for d in library_dirs:
-            c = join(d,f'{f}.{extension}')
+            c = join(d, f'{libprefix}{f}.{extension}')
             if exists(c):
                 paths.append(c)
                 break
