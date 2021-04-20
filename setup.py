@@ -38,7 +38,10 @@ def configuration():
 
     if osname == 'nt':
         extension = 'lib'
-        compileline = ' /DMKL_ILP64 /DNDEBUG /O3'
+        compileline = ' /DMKL_ILP64 /DNDEBUG /O2'
+        print('base', basedirs)
+        print('include', include_dirs)
+        
         linkline = "{paths}"
     else:
         extension = 'a'
