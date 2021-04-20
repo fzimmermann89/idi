@@ -80,7 +80,6 @@ def configuration():
         if not osname == "nt":
             libs.extend(["pthread"])
 
-
     try:
         from Cython.Build import cythonize
 
