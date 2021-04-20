@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-from os.path import join, exists, dirname, realpath, isdir
-from os import environ, listdir
+from os.path import join, exists, dirname, realpath, abspath, isdir
+from os import environ, listdir, name as osname
 from sys import prefix, path
+import platform.system
 import setuptools  # noqa # TODO
 
 
@@ -13,13 +14,13 @@ def configuration():
 
     config = Configuration("idi", "")
     srcdir = join(dirname(realpath(__file__)), "idi")
-    mkl_info = get_info("mkl")
 
     basedirs = list(
         OrderedDict.fromkeys(
             realpath(p)
-            for p in [join(dirname(numpy.__file__), *(4 * [".."])), prefix]
+            for p in [join(dirname(numpy.__file__), *(4 * [".."])), join(dirname(numpy.__file__), *(3 * [".."])), prefix]
             + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
+            + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(p, "..") for p in environ["PATH"].split(":")]
         )
     )
@@ -28,35 +29,47 @@ def configuration():
     library_dirs.extend(join(b, "lib") for b in basedirs)
     library_dirs.extend(join(b, "lib64") for b in basedirs)
     library_dirs.extend(join(b, "libraries") for b in basedirs)
-
-    if mkl_info:
-        include_dirs.extend(mkl_info.get("include_dirs"))
-        libs = mkl_info.get("libraries", ["mkl_rt"])
-    else:
-        found_mkl = False
-        found_mkl_name = "mkl_rt"
-        for d in library_dirs:
-            try:
-                for f in listdir(d):
-                    if f == "mkl_rt.dll" or f == "mkl_rt.so":
-                        found_mkl = True
-                        found_mkl_name = "mkl_rt"
-                    elif "mkl_rt.so." in f and not found_mkl:
-                        found_mkl_name = ":" + f
-                        found_mkl = True
-            except FileNotFoundError:
-                continue
-        libs = ["pthread", found_mkl_name]
+    library_dirs.extend(join(b, "Library/lib") for b in basedirs)
+    library_dirs.extend(join(b, "Library/bin") for b in basedirs)
 
     include_dirs.extend(default_include_dirs)
     include_dirs.extend(join(b, "include") for b in basedirs)
+    include_dirs.extend(join(b, "Library/include") for b in basedirs)
 
-    include_dirs = list(filter(isdir, include_dirs))
-    library_dirs = list(filter(isdir, library_dirs))
+    include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
+    library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
 
-    # print('libs', libs)
-    # print('libdirs:', library_dirs)
-    # print('includedirs:', include_dirs)
+    if osname == 'nt':
+        files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_intel_thread']
+        libextension = 'lib'
+        libprefix = ''
+        compileline = ' /DMKL_ILP64 /DNDEBUG /O2 /openmp:llvm'
+        print('basedirs', basedirs)
+        print('include_dirs', include_dirs)
+        print('library_dirs', library_dirs)
+        linkline = "{paths}"
+    elif platform.system() == 'Darwin':
+        files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_sequential']
+        libextension = 'a'
+        libprefix = 'lib'
+        linkline = "-Wl,{paths} -lpthread -lm"
+        compileline = "-DNDEBUG -O3 -DMKL_ILP64"
+    else:
+        files = ['mkl_intel_ilp64', 'mkl_core', 'mkl_gnu_thread']
+        libextension = 'a'
+        libprefix = 'lib'
+        linkline = "-Wl,{paths} -lpthread -lm -lomp5"
+        compileline = "-DNDEBUG -O3 -DMKL_ILP64"
+
+    paths = []
+    for f in files:
+        for d in library_dirs:
+            c = join(d, f'{libprefix}{f}.{libextension}')
+            if exists(c):
+                paths.append(c)
+                break
+
+    print(f'found {files} -> {paths}')
 
     try:
         from Cython.Build import cythonize
@@ -71,10 +84,10 @@ def configuration():
     config.add_extension(
         name="reconstruction.autocorrelate3",
         sources=sources,
-        libraries=libs,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        extra_compile_args=["-DNDEBUG", "-O3"],
+        extra_compile_args=compileline.split(" "),
+        extra_link_args=linkline.format(paths=' '.join(paths)).split(" "),
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
@@ -99,19 +112,7 @@ def setup_package():
         description="idi simulation and reconstruction",
         platforms=["Linux", "Mac OS-X"],
         python_requires=">=3.6",
-        install_requires=[
-            "numpy",
-            "cython",
-            "numba",
-            "numexpr",
-            "scipy",
-            "jinja2",
-            "mkl-service",
-            "matplotlib",
-            "h5py",
-            "mkl",
-            "mkl-include",
-        ],
+        install_requires=["numpy", "cython", "numba", "numexpr", "scipy", "jinja2", "mkl-service", "matplotlib", "h5py"],
         package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         configuration=configuration,

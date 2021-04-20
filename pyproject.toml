@@ -3,4 +3,4 @@ requires-python = ">=3.6"
 
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools", "oldest-supported-numpy", "Cython", "mkl==2019", "mkl-include==2019"]
+requires = ["setuptools", "oldest-supported-numpy", "Cython", "mkl-static", "mkl-include"]
