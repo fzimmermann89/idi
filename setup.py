@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from os.path import join, exists, dirname, realpath, abspath, isdir
 from os import environ, listdir
+from os import name as osname
 from sys import prefix, path
 import setuptools  # noqa # TODO
 
@@ -73,7 +74,10 @@ def configuration():
                     break
             except FileNotFoundError:
                 continue
-        libs = ["pthread", found_mkl_name]
+        libs = [found_mkl_name]
+        if not osname == 'nt':
+            libs.extend('pthread')
+        
 
     # print('libs', libs)
     # print('libdirs:', library_dirs)
