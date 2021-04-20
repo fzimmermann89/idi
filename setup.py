@@ -76,7 +76,7 @@ def configuration():
                 continue
         libs = [found_mkl_name]
         if not osname == 'nt':
-            libs.extend('pthread')
+            libs.extend(['pthread'])
         
 
     # print('libs', libs)
