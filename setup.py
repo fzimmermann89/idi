@@ -96,7 +96,7 @@ def setup_package():
         description="idi simulation and reconstruction",
         platforms=["Linux", "Mac OS-X"],
         python_requires=">=3.6",
-        install_requires=["numpy", "cython", "numba", "numexpr", "scipy", "jinja2", "mkl-service", "matplotlib", "h5py",],
+        install_requires=["numpy", "cython", "numba", "numexpr", "scipy", "jinja2", "mkl-service", "matplotlib", "h5py"],
         package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         configuration=configuration,
