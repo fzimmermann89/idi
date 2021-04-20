@@ -83,7 +83,7 @@ def configuration():
         libraries=libs,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
-        extra_compile_args=["-DNDEBUG", "-O3","-DMKL_ILP64],
+        extra_compile_args=["-DNDEBUG", "-O3","-DMKL_ILP64"],
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
