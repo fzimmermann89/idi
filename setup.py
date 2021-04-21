@@ -133,7 +133,7 @@ def setup_package():
     except ImportError:
         from setuptools import setup
         config = {"name": "idi"}
-    
+
     metadata = dict(
         version=get_version("idi/__init__.py"),
         maintainer="zimmf",
