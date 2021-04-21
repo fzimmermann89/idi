@@ -1,7 +1,7 @@
 import numpy as _np
 import numba as _numba
 import numexpr as _ne
-from ..util import fastlen, atleastnd, intersect2d
+from ..util import fastlen, atleastnd, intersect2d, alignedarray
 import itertools as _it
 import warnings as _w
 
@@ -18,14 +18,20 @@ except ImportError:
         return 0
 
 
-def corr(input, z, verbose=False):
+def corr(input, z, sampling=None, verbose=False):
     """
     calculated 3d correlation of 2d input array sampled at distance z using fft.
     assumes center of input to be center of image
     if input is 3d, the result will be the sum along the first dimension.
+    Parameters:
+    z: Detector distance in pixels
+    sampling: q resoltion - None (default) -> use center pixel q size
+                          - 0: smallest step in qx and qy
+                          - number -> centerpixel / number
+                          - 3 numbers -> seperate centerpixel/number in qx,qy,qz
     """
 
-    def _prepare(input, z):
+    def _prepare(input, z, sampling):
         """
         transform centered 2d input sampled at distance z to 3d k-space
         """
@@ -35,24 +41,30 @@ def corr(input, z, verbose=False):
         y -= input.shape[1] / 2.0
         d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
         qx, qy, qz = [(k / d * z) for k in (x, y, z)]
-        #     qz=0 # for debugging disable qz correction
-        #     qx=x # for debugging disable qz correction
-        #     qy=y # for debugging disable qz correction
-        #     qstep=min(abs(qy[0,1]-qy[0,0]),abs(qx[1,0]-qx[0,0])) #(more) correct, but slower. should think about correct oversampling
-        #     qx, qy, qz = [(k / qstep) for k in (qx, qy, qz)] #(more) correct, but slower
+
+        if sampling is not None:
+            sampling = _np.array(sampling)
+            if sampling.size == 1:
+                if sampling == 0:
+                    sampling = 1 / min(abs(qy[1, 1] - qy[0, 0]), abs(qx[1, 1] - qx[0, 0]))  # (more) correct, but slower. should think about correct oversampling
+                qx, qy, qz = ((k * sampling) for k in (qx, qy, qz))
+            elif sampling.size == 3:
+                qx, qy, qz = ((k * s) for k, s in zip((qx, qy, qz), sampling))
+            else:
+                raise ValueError('sampling should be None or 1 or 3 numbers')
+
         qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
         qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
-        #     print(qlenx, qleny, qlenz)
-        ret = _np.zeros((qlenz, qleny, qlenx + 2), dtype=_np.float64)  # additonal padding in qx for inplace fft
+        ret = alignedarray((qlenz, qleny, qlenx + 2), dtype=_np.float64, alignment=64, zero=True)  # additonal padding in qx for inplace fft
         _np.add.at(ret, (qz, qy, qx), input)
         #     ret[kz1,ky1,kx1]=input #only if no double assignment
         return ret
 
-    def _corr(input, z):
+    def _corr(input, z, sampling):
         """
         wrapper for autocorrelate3, removes redundant slices in first dimension
         """
-        tmp = _prepare(input, z)
+        tmp = _prepare(input, z, sampling)
         err = autocorrelate3(tmp)
         if err:
             raise RuntimeError(f'cython autocorrelations failed with error code {err}')
@@ -61,9 +73,9 @@ def corr(input, z, verbose=False):
     if input.ndim == 2:
         if verbose:
             print('.', end=' ', flush=True)
-        return _corr(input, z)
+        return _corr(input, z, sampling)
     elif input.ndim == 3:
-        s = _prepare(_np.zeros_like(input[0, ...]), z).shape
+        s = _prepare(_np.zeros_like(input[0, ...]), z, sampling).shape
         res = _np.zeros((s[0] // 2, s[1], s[2]))
         for n, inp in enumerate(input):
             if verbose:
@@ -129,8 +141,7 @@ class correlator_tiles:
 
     def __enter__(self):
         if self._tmp is None:
-            tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
-            _np.subtract(tmp, 0, out=tmp)  # force allocation
+            tmp = alignedarray((self._qlen[0], self._qlen[1], self._qlen[2] + 2), zero=True)
             self._tmp = tmp
         if self.accum is None:
             accum = _np.zeros((self.qlenz, self._qlen[1], self._qlen[2] + 2))
@@ -150,8 +161,7 @@ class correlator_tiles:
         if self.finished:
             raise GeneratorExit('already finished')
         if self._tmp is None:
-            tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
-            _np.subtract(tmp, 0, out=tmp)  # force allocation
+            tmp = alignedarray((self._qlen[0], self._qlen[1], self._qlen[2] + 2), zero=True)
             self._tmp = tmp
         else:
             _zero(self._tmp)
@@ -292,7 +302,7 @@ class correlator:
         return view that will be destroyed on next call, should be copied!
         """
         if self._tmp is None:
-            self._tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+            self._tmp = alignedarray((self._qlen[0], self._qlen[1], self._qlen[2] + 2), zero=True)
         if isinstance(input, _np.ndarray):
             return next(self._corr((input,), maxqz))
         else:
@@ -300,7 +310,7 @@ class correlator:
 
     def __enter__(self):
         if self._tmp is None:
-            self._tmp = _np.zeros((self._qlen[0], self._qlen[1], self._qlen[2] + 2))
+            self._tmp = alignedarray((self._qlen[0], self._qlen[1], self._qlen[2] + 2), zero=True)
         return self
 
     def __exit__(self, *args):
