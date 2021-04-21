@@ -448,3 +448,22 @@ def isfile(string):
         return os.path.abspath(string)
     else:
         raise FileNotFoundError(string)
+        
+
+def alignedarray(shape, dtype=_np.float64, alignment=64, zero=False):
+    """
+    Create an aligned array
+    :param shape: shape of the array
+    :param dtype: dtype of the array
+    :param alignment: alignment in bytes
+    :param zero: if True, the array will be zero'd
+    :returns: aligned array
+    """
+    dtype = _np.dtype(dtype)
+    nbytes = _np.prod(shape) * dtype.itemsize
+    buf = _np.empty(nbytes + alignment, dtype=_np.uint8)
+    start_index = -buf.ctypes.data % alignment
+    array = buf[start_index : start_index + nbytes].view(dtype).reshape(shape)
+    if zero:
+        array[:] = 0
+    return array
