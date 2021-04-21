@@ -7,12 +7,15 @@ _The code is a mess, undocumented and only certain code paths are tested._
 # IDI - INCOHERENT DIFFRACTION IMAGING
 
 [![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/4824)
-![tests](https://github.com/fzimmermann89/idi/actions/workflows/test.yml/badge.svg) ![Singularity]
-[![Build Status](https://www.travis-ci.com/fzimmermann89/idi.svg?branch=master)](https://www.travis-ci.com/fzimmermann89/idi)
+![tests](https://github.com/fzimmermann89/idi/actions/workflows/test.yml/badge.svg) 
+![Build Status](https://www.travis-ci.com/fzimmermann89/idi.svg?branch=master)
 
 Singularity Image now at [library://fzimmermann89/idi/idi](https://cloud.sylabs.io/library/_container/607b669a4ad4aa1fdea0c43c)
+
 Conda Pacakges at [zimmf/idi](https://anaconda.org/zimmf/idi)
+
 PIP Source at [idi](https://pypi.org/project/idi/)
+
 Wheels at [Releases](https://github.com/fzimmermann89/idi/releases/latest)
 
 content of the repo   
