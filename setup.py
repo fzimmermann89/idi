@@ -89,7 +89,7 @@ def configuration():
         have_cython = False
         sources = [join(srcdir, "reconstruction", "autocorrelate.c")]
         if not exists(sources[0]):
-            raise ValueError(str(e) + ". " + "Cython is required to build the initial .c file.")
+            print("Cython is required to build ft autocorrelation")
     config.add_extension(
         name="reconstruction.autocorrelate3",
         sources=sources,
@@ -113,11 +113,29 @@ def configuration():
     return config
 
 
+def get_version(rel_path):
+    import os.path
+    import codecs
+
+    here = os.path.abspath(os.path.dirname(__file__))
+    with codecs.open(os.path.join(here, rel_path), "r") as fp:
+        for line in fp.read().splitlines():
+            if line.startswith("__version__"):
+                delim = '"' if '"' in line else "'"
+                return line.split(delim)[1]
+    raise RuntimeError("Unable to find version string.")
+
+
 def setup_package():
-    from numpy.distutils.core import setup
-    import idi as app
+    try:
+        from numpy.distutils.core import setup
+        config = configuration().todict()
+    except ImportError:
+        from setuptools import setup
+        config = {"name": "idi"}
     
     metadata = dict(
+        version=get_version("idi/__init__.py"),
         maintainer="zimmf",
         description="idi simulation and reconstruction",
         platforms=["Linux", "Mac OS-X"],
@@ -136,10 +154,9 @@ def setup_package():
             "mkl-include",
         ],
         package_data={"": ["*.cu"]},
-        version=app.__version__,
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
-        configuration=configuration,
         test_suite="tests",
+        **config
     )
     setup(**metadata)
 
