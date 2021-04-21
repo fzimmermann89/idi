@@ -46,7 +46,8 @@ def corr(input, z, sampling=None, verbose=False):
             sampling = _np.array(sampling)
             if sampling.size == 1:
                 if sampling == 0:
-                    sampling = 1 / min(abs(qy[1, 1] - qy[0, 0]), abs(qx[1, 1] - qx[0, 0]))  # (more) correct, but slower. should think about correct oversampling
+                    # (more) correct, but slower. should think about correct oversampling
+                    sampling = 1 / min(abs(qy[1, 1] - qy[0, 0]), abs(qx[1, 1] - qx[0, 0]))
                 qx, qy, qz = ((k * sampling) for k in (qx, qy, qz))
             elif sampling.size == 3:
                 qx, qy, qz = ((k * s) for k, s in zip((qx, qy, qz), sampling))

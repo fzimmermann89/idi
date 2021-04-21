@@ -448,7 +448,7 @@ def isfile(string):
         return os.path.abspath(string)
     else:
         raise FileNotFoundError(string)
-        
+
 
 def alignedarray(shape, dtype=_np.float64, alignment=64, zero=False):
     """

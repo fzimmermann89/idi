@@ -69,7 +69,7 @@ class basic(unittest.TestCase):
         from idi.util import abs2, abs2c
 
         self.assertAlmostEqual(abs2(1j + 1), 2)
-        t = np.array(1 - 1j, dtype=np.complex)
+        t = np.array(1 - 1j, dtype=np.complex128)
         self.assertAlmostEqual(abs2c(t), 2.0)
         self.assertFalse(np.iscomplex(abs2c(t)), 2.0)
         self.assertTrue(np.iscomplexobj(abs2c(t)), 2.0)
@@ -401,7 +401,7 @@ class array(unittest.TestCase):
 
         t = alignedarray((2, 17), alignment=128, zero=True)
         self.assertEqual(t.shape, (2, 17))
-        self.assertEqual(t.ctype.data % 128, 0)
+        self.assertEqual(t.ctypes.data % 128, 0)
 
 
 class accum(unittest.TestCase):
