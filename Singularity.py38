@@ -246,16 +246,18 @@ echo 'install idi' && pip install git+https://github.com/fzimmermann89/idi --no-
 
 #cleanup
 wait
-conda clean -a -y
+conda clean -a -f -y
 pip cache purge
-rm -rf /root/.conda
-rm -rf /root/.npm
-rm -rf /root/.cache
-rm -rf /tmp/npm*
-rm -rf /tmp/texlive*
-rm -rf /tmp/yarn*
-rm -rf /var/cache/*
-rm -f /anaconda-post.log
+npm cache clean --force
+jupyter lab clean
+rm -rf /root/.conda | true
+rm -rf /root/.npm | true
+rm -rf /root/.cache | true
+rm -rf /tmp/npm* | true
+rm -rf /tmp/texlive* | true
+rm -rf /tmp/yarn* | true
+rm -rf /var/cache/* | true
+rm -f /anaconda-post.log | true
 touch /INSIDE_SINGULARITY_IDI_IMAGE
 echo '####ALL DONE####'
 
