@@ -251,7 +251,8 @@ echo 'install idi' && pip install git+https://github.com/fzimmermann89/idi --no-
 
 #cleanup
 wait
-conda clean -a -y #-f
+conda clean -a -y -f
+jlpm cache clean
 pip cache purge
 npm cache clean --force
 jupyter lab clean
