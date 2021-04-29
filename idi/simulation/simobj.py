@@ -377,7 +377,7 @@ class crystal(simobj):
             if sigma != 0:
                 atoms += rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
 
-        return atoms - _np.max(atoms, axis=0) / 2.0
+        return atoms - (_np.min(atoms, axis=0) + _np.max(atoms, axis=0)) / 2.0
 
     def updatePos(self):
         pos = self._allpos
@@ -508,3 +508,80 @@ class grating(simobj):
 
     def _rotate(self, rotmatrix):
         self._pos = _np.matmul(rotmatrix, self._pos.T, order='F').T
+
+        
+class membrane(simobj):
+    """
+    Tubes on a layer, such as a ALD coated AAO membrane
+    """
+    def __init__(
+        self,
+        E,
+        poreradius=1,
+        interporedistance=10,
+        porelength=1,
+        excitation=1,
+        layerthickness=0,
+        fwhm=200,
+        rotangles=(0, 0, 0),
+        rndOrientation=False,
+    ):
+        self._poreradius = poreradius
+        self._interporedistance = interporedistance
+        self._porelength = porelength
+        self._layerthickness = layerthickness
+        self._fwhm = fwhm
+        self._rndOrientation = rndOrientation
+
+        if _np.any(rotangles):
+            self._rotmatrix = _rotation(*rotangles)
+        else:
+            self._rotmatrix = False
+
+        self._pores = self._getporepos(interporedistance, (2 * fwhm, 2 * fwhm))
+        self._p = _np.exp(_np.sum(-self._pores[:, :2] ** 2 * 4 * _np.log(2) / fwhm ** 2, axis=1))
+        porevolume = porelength * _np.pi * poreradius ** 2
+        self._Natomspore = int(_np.sum(porevolume * excitation * self._p))
+        self._Natomslayer = int(_np.pi * fwhm ** 2 / _np.log(16) * layerthickness * excitation)
+        Natoms = int(self._Natomspore + self._Natomslayer)
+        self._p /= _np.sum(self._p)
+
+        super().__init__(E, Natoms)
+
+    def updatePos(self):
+        which = self.rng.choice(len(self._pores), self._Natomspore, p=self._p)
+        spos = self._pores[which]
+        spos[:, -1] = self.rng.uniform(self._layerthickness, self._layerthickness + self._porelength, self._Natomspore)
+        lpos = _np.concatenate(
+            (
+                self.rng.normal(0, (self._fwhm / (_np.sqrt(2 * _np.log(2)) * 2)), size=(self._Natomslayer, 2)),
+                self.rng.uniform(0, self._layerthickness, size=(self._Natomslayer, 1)),
+            ),
+            1,
+        )
+        pos = _np.concatenate((spos, lpos), 0)
+        spos = None
+        lpos = None
+
+        if _np.any(self._rndOrientation):
+            if _np.size(self._rndOrientation) == 3:
+                rotmatrix = _axisrotation(_np.array(self._rndOrientation, dtype=_np.float64), self.rng.uniform(0, 2 * pi))
+            else:
+                rotmatrix = _random_rotation(self.rng)
+            if self._rotmatrix is not False:
+                rotmatrix = self._rotmatrix @ rotmatrix
+        else:
+            rotmatrix = self._rotmatrix
+        if rotmatrix is not False:
+            _np.matmul(pos, rotmatrix.T, out=pos)
+
+        self._pos = pos
+
+    def _getporepos(self, interporedistance, r):
+        lconst = (interporedistance, interporedistance, 0)
+        unitcell = (0, 0, 0)
+        langle = _np.array((90, 90, 120)) * pi / 180.0
+        repeats = (int(4 / _np.sqrt(3) * r[0] / interporedistance), int(4 / _np.sqrt(3) * r[1] / interporedistance), 1)
+        pos = crystal._lattice(lconst, langle, unitcell, repeats)
+        pos = pos[_np.linalg.norm(pos[:, :2] / _np.array(r), axis=1) < 1]
+        return pos        
