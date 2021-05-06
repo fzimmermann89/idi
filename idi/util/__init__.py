@@ -11,6 +11,7 @@ import numexpr as _ne
 import itertools as _it
 from functools import lru_cache
 
+
 def radial_profile(data, center=None, calcStd=False, os=1):
     """
     calculates a ND radial profile of data around center. will ignore nans
@@ -212,7 +213,9 @@ def atleastnd(array, n):
         array = _np.array(array)
     return array[tuple((n - array.ndim) * [None] + [...])]
 
-@lru_cache
+
+@args2tuple
+@lru_cache(maxsize=None)
 def fastlen(x, factors=(2, 3, 5, 7, 11)):
     """
     return N>=x conisting only of the prime factors given as factors
@@ -255,7 +258,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
                             4116, 4125, 4158, 4200, 4224, 4235, 4312, 4320, 4356, 4374, 4375
     )) # noqa
     # fmt: on
-    if factors != (2, 3, 5, 7, 11) or _np.any(x > 4375):
+    if factors != (2, 3, 5, 7, 11) or _np.any(_np.greater(x, 4375)):
         # slow fallback
         fastlens = _np.unique(
             [

@@ -44,10 +44,12 @@ def asgen(fn=None):
 def parallel(fn=None):
     from collections import deque
     import time
+
     try:
         from pathos.multiprocessing import Pool
     except ImportError:
         import warnings
+
         warnings.warn('no pathos available, be careful with parallel decorator and pickling errors.')
         from multiprocessing import Pool
 
@@ -78,3 +80,16 @@ def chain(*fns):
 
 def group(iterable, n):
     return zip(*([iter(iterable)] * n))
+
+
+def args2tuple(function):
+    import numpy
+
+    def wrapper(*args, **kwargs):
+        args = [tuple(x) if type(x) == list else x for x in args]
+        kwargs = {k: tuple(x) if type(x) == list else x for k, x in kwargs.items()}
+        args = [tuple(x.ravel()) if type(x) == numpy.ndarray else x for x in args]
+        kwargs = {k: tuple(x.ravel()) if type(x) == numpy.ndarray else x for k, x in kwargs.items()}
+        return function(*args, **kwargs)
+
+    return wrapper
