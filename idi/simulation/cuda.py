@@ -9,7 +9,7 @@ code = (_Path(__file__).parent / 'sim.cu').read_text()
 def _pinned(shape, dtype):
     size = int(_np.prod(shape))
     mem = _cp.cuda.alloc_pinned_memory(size * _np.dtype(dtype).itemsize)
-    ret = _np.frombuffer(mem, dtype, size).reshape(shape)
+    ret = _np.frombuffer(mem, dtype, size).reshape(shape, order='C')
     return ret
 
 
@@ -58,8 +58,8 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings="double", maximg=
     module = _cp.RawModule(code=code, backend="nvcc", options=tuple(["--std=c++11", "-O3", "--restrict"] + options))
     kernel = module.get_function(kernelname)
 
-    d_wf = _cp.zeros((Ndet[0], Ndet[1]), dtype=outtype)
-    d_atoms = _cp.zeros((simobject.N, 4), intype)
+    d_wf = _cp.zeros((Ndet[0], Ndet[1]), dtype=outtype, order='C')
+    d_atoms = _cp.zeros((simobject.N, 4), intype, order='C')
     h_atoms = _pinned((simobject.N, 4), intype)
 
     def _gen():

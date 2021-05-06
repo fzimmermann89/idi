@@ -74,7 +74,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     a = [_cp.zeros(N, atype) for i in range(2 * threads)]
     pt = _cp.array([i.data.ptr for i in t], _np.uint64)
     pa = _cp.array([i.data.ptr for i in a], _np.uint64)
-    data = _cp.array(simobject.get(), inouttype)
+    data = _cp.array(simobject.get(), inouttype, order='C')
     times = _cp.array(_np.random.randn(simobject.N) * (pulsewidth / 2.35), inouttype)
     # _cp.random.seed(_np.random.randint(2**64-1,dtype=_np.uint64))
     # times = (_cp.random.randn(N,dtype=_np.float64)*(pulsewidth/2.35)).astype(inouttype) #cave: this uses different seed as numpy
