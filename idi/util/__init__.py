@@ -9,7 +9,7 @@ import numpy as _np
 import scipy.ndimage as _snd
 import numexpr as _ne
 import itertools as _it
-
+from functools import lru_cache
 
 def radial_profile(data, center=None, calcStd=False, os=1):
     """
@@ -212,7 +212,7 @@ def atleastnd(array, n):
         array = _np.array(array)
     return array[tuple((n - array.ndim) * [None] + [...])]
 
-
+@lru_cache
 def fastlen(x, factors=(2, 3, 5, 7, 11)):
     """
     return N>=x conisting only of the prime factors given as factors
