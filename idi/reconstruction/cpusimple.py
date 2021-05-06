@@ -21,7 +21,7 @@ def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     fftshape = [_fastlen(2 * input.shape[ax]) for ax in axes]
     if norm:
         input = input * (1 / input.mean(axis=[i for i in range(input.ndim) if i not in axes] or None))
-    ret = fft(input, fftshape)
+    ret = fft(input, fftshape, axes=axes)
     ret = _np.abs(ret) ** 2
     # _ne.evaluate('(ret*conj(ret))', out=ret, casting='same_kind')
     ret = ifft(ret, axes=axes)
