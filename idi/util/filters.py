@@ -35,6 +35,32 @@ def filter_std(image, size, sigma=1):
         res = ~res
     return res
 
+def std(image, size):
+    """
+    a moving std calculation on an nd image
+    """
+    import numpy as np
+    import ctypes
+    import scipy.ndimage as ndi
+    from numba import cfunc, carray
+    from numba.core.types import intc, intp, float64, voidptr, CPointer
+    from scipy import LowLevelCallable
+
+    @cfunc(intc(CPointer(float64), intp, CPointer(float64), voidptr), fastmath=True)
+    def _std(values_ptr, len_values, result):
+        values = carray(values_ptr, (len_values,), dtype=float64)
+        accumx = 0
+        accumx2 = 0
+        for x in values:
+            accumx += x
+            accumx2 += x * x
+        mean = accumx / len_values
+        std = np.sqrt((accumx2 / len_values) - mean ** 2)
+        result[0] = std
+        return 1
+    res = ndi.generic_filter(image, LowLevelCallable(_std.ctypes), size)
+    return res
+
 
 def fftfilter_mean(image, size, norm=False):
     strel = _np.ones(image.ndim * [size]) / size ** image.ndim
