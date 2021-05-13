@@ -1,3 +1,10 @@
+try:
+    import mkl as _mkl
+
+    _vml_threads = _mkl.domain_get_max_threads('vml')
+except:
+    _mkl = None
+
 from .accum import *
 from .filters import *
 from .funchelper import *
@@ -470,3 +477,7 @@ def alignedarray(shape, dtype=_np.float64, alignment=64, zero=False):
     if zero:
         array[:] = 0
     return array
+
+
+if _mkl is not None:
+    _mkl.domain_set_num_threads(_vml_threads, 'vml')  # numexpr messes with vml thread number

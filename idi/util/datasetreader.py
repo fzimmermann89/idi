@@ -104,9 +104,11 @@ class datasetreader:
         """
         this function will run in separete processes to read the data into the cache
         """
-        import mkl
-
-        mkl.set_num_threads_local(1)
+        try:
+            import mkl
+            mkl.set_num_threads_local(1)
+        except:
+            pass
 
         if willread is not None:
             readall = False
