@@ -7,7 +7,7 @@ import warnings
 
 
 @contextlib.contextmanager
-def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
+def corrfunction(shape, z, maxq, xcenter=None, ycenter=None, return_gpu=False):
     """
     GPU based radial Autocorrelation with q correction
 
@@ -116,10 +116,11 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             if dq < qmax:
                 _numba.cuda.atomic.add(out, (saveblock, dq), _numba.float64(val))
 
-        def reduce(vals):
-            for i in range(1, vals.shape[0]):
-                vals[0, _numba.cuda.threadIdx.x] += vals[i, _numba.cuda.threadIdx.x]
-                vals[i, _numba.cuda.threadIdx.x] = 0
+        def reduce(vals, out):
+            if _numba.cuda.threadIdx.x < qmax:
+                out[_numba.cuda.threadIdx.x] = vals[0, _numba.cuda.threadIdx.x]
+                for i in range(1, vals.shape[0]):
+                    out[_numba.cuda.threadIdx.x] += vals[i, _numba.cuda.threadIdx.x]
 
         def zero(vals):
             _numba.cuda.syncthreads()
@@ -129,7 +130,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         jkernel = jkernel[[(1, Nr, qmax), (int(2 * qmax + 1), 1, 1), stream]]
         jzero = _numba.cuda.jit("void(float64[:,:])")(zero)
         jzero = jzero[(doutput.shape[0]), (doutput.shape[1]), stream]
-        jreduce = _numba.cuda.jit("void(float64[:,:])")(reduce)
+        jreduce = _numba.cuda.jit("void(float64[:,:],float64[:])")(reduce)
         jreduce = jreduce[1, doutput.shape[1], stream]
 
         def corr(input):
@@ -138,12 +139,15 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
             """
             if stream is None:
                 raise ValueError("already closed, use within with statement")
-            with stream.auto_synchronize():
-                dvals = cuda.to_device(input.astype(_np.float32), stream)
-                jzero(doutput)
-                jkernel(dqx, dqy, dqz, dvals, doutput)
-                jreduce(doutput)
-            return doutput[0, :qmax].copy_to_host(stream=stream).astype(_np.float64)
+            dvals = cuda.to_device(input.astype(_np.float32), stream)
+            jzero(doutput)
+            jkernel(dqx, dqy, dqz, dvals, doutput)
+            out = cuda.device_array(int(qmax), stream=stream)
+            jreduce(doutput, out)
+            if return_gpu:
+                return out
+            else:
+                return out.copy_to_host(stream=stream)
 
         yield corr
     finally:
