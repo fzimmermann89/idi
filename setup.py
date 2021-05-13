@@ -82,9 +82,12 @@ def configuration():
 
         sources = [join(srcdir, "reconstruction", "autocorrelate3.pyx")]
         have_cython = True
-    except ImportError as e:
+        if not exists(sources[0]):
+            print('pyx missing')
+            raise FileNotFoundError
+    except (ImportError, FileNotFoundError) as e:
         have_cython = False
-        sources = [join(srcdir, "reconstruction", "autocorrelate.c")]
+        sources = [join(srcdir, "reconstruction", "autocorrelate3.c")]
         if not exists(sources[0]):
             print("Cython is required to build ft autocorrelation")
     config.add_extension(

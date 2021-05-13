@@ -1,0 +1,4 @@
+include pyproject.toml
+include autocorrelate3.pyx
+include mkl_dfti.pxd
+include README.md
