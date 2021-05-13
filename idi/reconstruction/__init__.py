@@ -1,4 +1,4 @@
-__all__ = ['hitcor', 'hitcorrad', 'cpucor', 'cpucorrad', 'cucor', 'cucorrad', 'cpusimple', 'cusimple', 'ft']
+__all__ = ['hitcor', 'hitcorrad', 'cpucor', 'cpucorrad', 'cucor', 'cucorrad', 'cpusimple', 'cusimple', 'ft', 'singleshotnorm']
 
 import mkl as _mkl
 import numba.cuda as _nbcuda
@@ -9,7 +9,7 @@ _w.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 _vml_threads = _mkl.domain_get_max_threads('vml')
 
-from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common  # noqa
+from . import hitcor, hitcorrad, cpucor, cpucorrad, cpusimple, common, singleshotnorm  # noqa
 
 # mkl fft
 try:
