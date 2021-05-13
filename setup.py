@@ -4,6 +4,7 @@ from os import environ, listdir
 from os import name as osname
 from sys import prefix, path
 import setuptools  # noqa # TODO
+from distutils.command.sdist import sdist
 
 
 def configuration():
@@ -17,16 +18,12 @@ def configuration():
     import numpy
 
     config = Configuration("idi", "")
-    srcdir = join(dirname(realpath(__file__)), "idi")
+    srcdir = './idi'  # join(dirname(realpath(__file__)), "idi")
     mkl_info = get_info("mkl")
     basedirs = list(
         OrderedDict.fromkeys(
             realpath(p)
-            for p in [
-                join(dirname(numpy.__file__), *(4 * [".."])),
-                join(dirname(numpy.__file__), *(3 * [".."])),
-                prefix,
-            ]
+            for p in [join(dirname(numpy.__file__), *(4 * [".."])), join(dirname(numpy.__file__), *(3 * [".."])), prefix,]
             + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(p, "..") for p in environ["PATH"].split(":")]
@@ -100,7 +97,6 @@ def configuration():
     )
     if have_cython:
         config.ext_modules = cythonize(config.ext_modules)
-
     config.packages.append("idi")
     config.package_dir["idi"] = "./idi"
     config.packages.append("idi.simulation")
@@ -129,35 +125,28 @@ def get_version(rel_path):
 def setup_package():
     try:
         from numpy.distutils.core import setup
+
         config = configuration().todict()
     except ImportError:
         from setuptools import setup
+
         config = {"name": "idi"}
 
     metadata = dict(
         version=get_version("idi/__init__.py"),
         maintainer="zimmf",
+        maintainer_email='fzimmermann89+idi@gmail.com',
         description="idi simulation and reconstruction",
         platforms=["Linux", "Mac OS-X"],
         python_requires=">=3.6",
-        install_requires=[
-            "numpy",
-            "cython",
-            "numba",
-            "numexpr",
-            "scipy",
-            "jinja2",
-            "mkl-service",
-            "matplotlib",
-            "h5py",
-            "mkl",
-            "mkl-include",
-        ],
+        install_requires=["numpy", "cython", "numba", "numexpr", "scipy", "jinja2", "mkl-service", "matplotlib", "h5py", "mkl", "mkl-include",],
         package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         test_suite="tests",
+        cmdclass={'sdist': sdist},
         **config
     )
+
     setup(**metadata)
 
     return None
