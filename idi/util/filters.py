@@ -35,6 +35,7 @@ def filter_std(image, size, sigma=1):
         res = ~res
     return res
 
+
 def std(image, size):
     """
     a moving std calculation on an nd image
@@ -58,6 +59,7 @@ def std(image, size):
         std = np.sqrt((accumx2 / len_values) - mean ** 2)
         result[0] = std
         return 1
+
     res = ndi.generic_filter(image, LowLevelCallable(_std.ctypes), size)
     return res
 
