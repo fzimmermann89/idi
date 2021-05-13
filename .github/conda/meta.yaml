@@ -27,6 +27,7 @@ requirements:
     - mkl
     - h5py
     - numba
+    - mkl-service
 
 
 
