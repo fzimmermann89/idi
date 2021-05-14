@@ -52,25 +52,35 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
 
         del zd, x, y, d
 
+        use_shared = Nc <= 1024
+
         def kernel(zd, val, out):
             refr = _numba.int32(_numba.cuda.blockIdx.y)
             offsetr = _numba.int32(_numba.cuda.blockIdx.z)
-            # offsetc=numba.cuda.threadIdx.x-qmax
-            refzd = _numba.cuda.shared.array(Nc, _numba.float32)
-            refv = _numba.cuda.shared.array(Nc, _numba.float32)
-            tzd = _numba.cuda.shared.array(Nc, _numba.float32)
-            tv = _numba.cuda.shared.array(Nc, _numba.float32)
             tr = _numba.int32(refr + offsetr)
             if not (0 <= tr < Nr and 0 <= refr < Nr):
                 return
-            loadid = _numba.int32(_numba.cuda.threadIdx.x)
-            _numba.cuda.syncthreads()
-            while loadid < Nc:
-                refzd[loadid] = zd[refr, loadid]
-                refv[loadid] = val[refr, loadid]
-                tzd[loadid] = zd[tr, loadid]
-                tv[loadid] = val[tr, loadid]
-                loadid += _numba.cuda.blockDim.x
+            # offsetc=numba.cuda.threadIdx.x-qmax
+            if use_shared:
+                refzd = _numba.cuda.shared.array(Nc, _numba.float32)
+                refv = _numba.cuda.shared.array(Nc, _numba.float32)
+                tzd = _numba.cuda.shared.array(Nc, _numba.float32)
+                tv = _numba.cuda.shared.array(Nc, _numba.float32)
+
+                loadid = _numba.int32(_numba.cuda.threadIdx.x)
+                _numba.cuda.syncthreads()
+                while loadid < Nc:
+                    refzd[loadid] = zd[refr, loadid]
+                    refv[loadid] = val[refr, loadid]
+                    tzd[loadid] = zd[tr, loadid]
+                    tv[loadid] = val[tr, loadid]
+                    loadid += _numba.cuda.blockDim.x
+            else:
+                refzd = zd[refr, :]
+                refv = val[refr, :]
+                tzd = zd[tr, :]
+                tv = val[tr, :]
+
             _numba.cuda.syncthreads()
             tr2 = _numba.float32(tr) - xcenter
             refr2 = _numba.float32(refr) - xcenter
