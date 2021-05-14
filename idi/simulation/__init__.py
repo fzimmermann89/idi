@@ -4,7 +4,7 @@ try:
     import mkl as _mkl
 
     _vml_threads = _mkl.domain_get_max_threads('vml')
-except:
+except ImportError:
     _mkl = None
 
 from . import cpu, simobj, time, simple

@@ -107,7 +107,7 @@ class datasetreader:
         try:
             import mkl
             mkl.set_num_threads_local(1)
-        except:
+        except ImportError:
             pass
 
         if willread is not None:
