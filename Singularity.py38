@@ -144,7 +144,7 @@ echo "installing conda extensions"
 conda activate
 conda install -q -y "python=3.8"
 conda install -q -y -c conda-forge mamba conda "zstd<1.5"
-mamba install -q -y simplejson colorama   protobuf requests "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba "mkl>=2020" cython  "jupyterlab=2.2"  jupyter scikit-image appdirs mako scikit-learn "python>=3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort "mkl-include>=2020" fastrlock six setuptools cmake
+mamba install -q -y simplejson colorama   protobuf requests "numexpr>=2.7.2" "numpy>=1.17" hdf5 scipy "jedi=0.17" numba "mkl>=2020" cython  "jupyterlab<3"  jupyter scikit-image appdirs mako scikit-learn "python==3.8" seaborn pandas line_profiler black ninja colorama memory_profiler isort "mkl-include>=2020" fastrlock six setuptools cmake sympy
 mamba install -q -y -c anaconda -c  conda-forge -c plotly gpustat colorful "h5py>3,<3.2" lmfit ipympl pathos "nodejs>=14"  ptvsd xeus-python pytools nbdime "pip>=20.1" jupyter-dash ipyvolume "jupyter-server-proxy<3" six openssl "jedi<0.18" ffmpeg
 conda clean -a -y &
 
