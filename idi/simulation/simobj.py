@@ -596,7 +596,7 @@ class membrane(simobj):
 
 
 
-class foil(sim.simobj.simobj):
+class foil(simobj):
     """
     A foil parallel to the detector, excited under an angle
     """
