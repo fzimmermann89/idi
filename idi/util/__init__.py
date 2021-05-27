@@ -97,7 +97,8 @@ def centered_part(arr, newshape):
     """
     newshape = _np.asarray(newshape)
     currshape = _np.array(arr.shape)
-    startind = (currshape - newshape) // 2
+    newshape = _np.minimum(newshape, currshape)
+    startind = (_np.ceil((currshape - newshape) / 2)).astype(int)
     endind = startind + newshape
     myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
     return arr[tuple(myslice)]
