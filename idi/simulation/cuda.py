@@ -13,7 +13,7 @@ def _pinned(shape, dtype):
     return ret
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings="double", maximg=_np.inf, *args, **kwargs):
+def simulate_gen(simobject, Ndet, pixelsize, detz, k = None, settings="double", maximg=_np.inf, *args, **kwargs):
     """
     returns an array of simulated wavefields
     parameters:
@@ -21,9 +21,9 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings="double", maximg=
     Ndet: pixels on the detector
     pixelsize: size of one pixel in same unit as simobjects unit (usally um)
     detz: detector distance in same unit as simobjects unit (usally um)
-    k: angular wavenumber
+    k: angular wavenumber, if None (default) get from simobject
     settings: string, default: double_ff_nodist can contain
-        single: use single precision
+        single: use single precision (else: double precission)
         nf:     use near field
         scale: apply 1/r intensity scaling
         secondorder: use second order in far field approximation (Fresnel)
@@ -32,7 +32,8 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings="double", maximg=
     init: do full initialisation and asynch start of first calculation on generator creation
     maximg: generate StopIteration after maximg images.
     """
-
+    if k is None:
+        k = simobject.k
     if "single" in settings:
         intype, outtype, kernelname = _np.float32, _np.complex64, "wfkernelf"
     else:

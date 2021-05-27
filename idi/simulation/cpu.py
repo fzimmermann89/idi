@@ -80,7 +80,7 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, nodist=True, nf=False):
     return kernel
 
 
-def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings='', verbose=False, *args, **kwargs):
+def simulate(Nimg, simobject, Ndet, pixelsize, detz, k=None, settings='', verbose=False, *args, **kwargs):
     """
     returns an array of simulated wavefields
     parameters:
@@ -90,12 +90,13 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings='', verbose=Fal
     Ndet: pixels on the detector
     pixelsize: size of one pixel in same unit as simobjects unit (usually um)
     detz: detector distance in same unit as simobjects unit (usually um)
-    k: angular wavenumber
+    k: angular wavenumber, if None use simobject.k
     settings: string
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     """
-
+    if k is None:
+        k = simobject.k
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=_np.complex128)
@@ -109,7 +110,7 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings='', verbose=Fal
     return result
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings='', *args, **kwargs):
+def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings='', *args, **kwargs):
     """
     returns a generator that yields simulated wavefields
     parameters:
@@ -118,12 +119,13 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, settings='', *args, **kwar
     Ndet: pixels on the detector
     pixelsize: size of one pixel in same unit as simobjects unit (usually um)
     detz: detector distance in same unit as simobjects unit (usually um)
-    k: angular wavenumber
+    k: angular wavenumber, if None use simobject.k
     settings: string
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     """
-
+    if k is None:
+        k = simobject.k
     nodist = 'scale' not in settings
     nf = 'nf' in settings
 
