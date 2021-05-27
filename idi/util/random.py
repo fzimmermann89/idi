@@ -139,7 +139,7 @@ def random_rotation(rng=None, amount=1):
     return M
 
 
-def rndtruncexp(l, b, N, rng=None):
+def rndtruncexp(lam, b, N, rng=None):
     '''
     Draw from a truncated exponential distribution
     '''
@@ -147,5 +147,5 @@ def rndtruncexp(l, b, N, rng=None):
     if rng is None:
         rng = _np.random.default_rng()
     r = rng.random(N)
-    _ne.evaluate('-log1p(r*expm1(-b/l))*l', out=r)
+    _ne.evaluate('-log1p(r*expm1(-b/lam))*lam', out=r)
     return r

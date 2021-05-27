@@ -13,7 +13,7 @@ def _pinned(shape, dtype):
     return ret
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k = None, settings="double", maximg=_np.inf, *args, **kwargs):
+def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", maximg=_np.inf, *args, **kwargs):
     """
     returns an array of simulated wavefields
     parameters:

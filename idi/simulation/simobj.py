@@ -595,7 +595,6 @@ class membrane(simobj):
         return pos
 
 
-
 class foil(simobj):
     """
     A foil parallel to the detector, excited under an angle

@@ -284,8 +284,8 @@ class array(unittest.TestCase):
     def test_centeredpart(self):
         from idi.util import centered_part
 
-        t = np.arange(20).reshape(4, 5)
-        testing.assert_array_equal(centered_part(t, (2, 2)), np.array([[6, 7], [11, 12]]))
+        t = np.arange(80).reshape(4, 4, 5)
+        testing.assert_array_equal(centered_part(t, (1, 2, 2)), np.array([[[47, 48], [52, 53]]]))
 
     def test_list2array(self):
         from idi.util import list2array
@@ -357,11 +357,7 @@ class array(unittest.TestCase):
         t = np.ones((4, 4), bool)
         self.assertEqual(rebin(t, 2, "min").dtype, bool)
         testing.assert_array_equal(
-            rebin(
-                t,
-                2,
-            ),
-            np.ones((2, 2)),
+            rebin(t, 2,), np.ones((2, 2)),
         )
 
         t = np.ones((20, 2, 2))
