@@ -103,7 +103,10 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         jkernel = _numba.cuda.jit("void(float32[:,:],float32[:,:],float32[:,:,:])", fastmath=True)(kernel)
         jkernel = jkernel[(1, Nr, qmax), (qmax, 1, 1), stream]
         jassemble = _numba.cuda.jit("void(float32[:,:,:])", fastmath=True)(assemble)
-        jassemble = jassemble[(doutput.shape[0], doutput.shape[1], 1), (1, 1, doutput.shape[2] // 2), stream]
+        if doutput.shape[2]>64:
+            jassemble = jassemble[(doutput.shape[0], doutput.shape[1], 2), (1, 1, doutput.shape[2] // 4), stream]
+        else:
+            jassemble = jassemble[(doutput.shape[0], doutput.shape[1], 1), (1, 1, doutput.shape[2] // 2), stream]
 
         def corr(input):
             """
