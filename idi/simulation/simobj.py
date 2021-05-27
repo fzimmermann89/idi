@@ -13,6 +13,7 @@ from ..util import rndIcosahedron as _rndIcosahedron
 from ..util import rndSphere as _rndSphere
 from ..util import rotation as _rotation
 from ..util import gnorm as _gnorm
+from ..util import rndtruncexp as _rndtruncexp
 
 from numpy import pi
 from gc import collect as _gc
@@ -592,3 +593,43 @@ class membrane(simobj):
         pos = crystal._lattice(lconst, langle, unitcell, repeats)
         pos = pos[_np.linalg.norm(pos[:, :2] / _np.array(r), axis=1) < 1]
         return pos
+
+
+
+class foil(sim.simobj.simobj):
+    """
+    A foil parallel to the detector, excited under an angle
+    """
+
+    def __init__(self, E, excitation, thickness, fwhm, attenuationlength=_np.inf, rho=2, rotangles=(0, 0, 0)):
+        from scipy.special import gamma
+        from math import log, exp
+
+        self.fwhm, self.rho = _np.array((1, 1)) * fwhm, _np.array((1, 1)) * rho
+        self.attenuationlength = attenuationlength
+        self.excitation = excitation
+        self.thickness = thickness
+        self._rotmatrix = _rotation(*rotangles)
+        N = int(
+            _np.product(self.fwhm * gamma(1 + 1 / rho) * log(2) ** (-1 / rho))
+            * (
+                thickness
+                if _np.isinf(attenuationlength)
+                else (attenuationlength - attenuationlength / exp((thickness / self._rotmatrix[-1, -1]) / attenuationlength))
+            )
+            * excitation
+        )
+        super().__init__(E, N)
+        self._resetproperties = ['fwhm', 'rho', 'excitation', 'attenuationlength', 'thickness', 'rotangles']
+
+    def updatePos(self):
+        if self._rotmatrix is False:
+            self._rotmatrix = _np.eye(3)
+        self._pos = _np.zeros((self.N, 3))
+        if _np.all(self.rho == 2):
+            xy = self.rng.normal(scale=(self.fwhm / 2.355), size=(self.N, 2))
+        else:
+            xy = _rndgennorm((0, 0), self.fwhm, self.rho, (self.N, 2), self.rng)
+        self._pos[:, :2] = ((self._rotmatrix[:-1, :-1].T @ xy.T) / _np.linalg.det(self._rotmatrix[:-1, :-1])).T
+        depth = (_rndtruncexp(self.attenuationlength, self.thickness / self._rotmatrix[-1, -1], self.N))[None, :] * self._rotmatrix[:, -1:]
+        self._pos += depth.T
