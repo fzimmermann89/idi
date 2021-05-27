@@ -30,7 +30,7 @@ class accumulator:
         if self._mean is None:
             with _np.errstate(divide='ignore', invalid='ignore'):
                 self._mean = value / count
-                self._mean[~_np.isfinite(self._mean)] = 0
+                self._mean[~_np.isfinite(self._mean) & ~_np.isnan(value)] = 0
             self._nvar = _np.zeros_like(value)
             self._n = _np.array(count, self._mean.dtype)
             if self._maxmin is True:
