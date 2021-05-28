@@ -1,12 +1,12 @@
 import cupy as _cp
 import numpy as _np
 from pathlib import Path as _Path
-
+from ..util import rotation as _rotation
 
 code = (_Path(__file__).parent / 'simtime.cu').read_text()
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='mixed', threads=None):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='mixed', threads=None):
     """
     Time dependent simulation with decaying amplitudes.
     simobject: simobject to use for simulation (in lengthunit)
@@ -16,12 +16,15 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     c: speed of light in (lengthunit/timeunit)
     tau: decay time (in timeunit)
     pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
+    pulsedirection: direction of the excitation pulse (x,y,z)
     settings: string, can contain
         double,single,mixed - precision
         nf - for nearfield form
         scale - do 1/r intensity scaling
     first call with new settings might recompile and take a few seconds
+    detangles: (theta,phi) angles of detector rotation around origin
     """
+    from math import cos, sin
 
     if 'double' in settings:
         nametmp, namesim = "tempsized", "simulated"
@@ -62,6 +65,10 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
         ),
         inouttype,
     )
+    if _np.any(detangles):
+        M = _cp.array(_rotation(*detangles, 0))
+        det = det @ M.T
+
     pdet = _cp.array([i.data.ptr for i in det], _np.uint64)
 
     tmpout = _cp.zeros(1, _np.int64)

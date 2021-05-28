@@ -46,6 +46,7 @@ __device__ __forceinline__ void sc(double  x, double* sptr, double* cptr) {
   sincos(x, sptr, cptr);
 }
 
+/* Transformation to complex amplitue and arrival time for each emitter*/
 template <typename T,typename Tt> struct trans1nf {
   typedef typename Vec<T, 2>::type T2;
   typedef typename Vec<T, 3>::type T3;
@@ -81,6 +82,8 @@ template <typename T,typename Tt> struct trans1nf {
   }
 };
 
+/* Transformation to complex amplitue and arrival time for each emitter, far field approximation */
+
 template <typename T,typename Tt> struct trans1ff {
   typedef typename Vec<T, 2>::type T2;
   typedef typename Vec<T, 3>::type T3;
@@ -115,7 +118,7 @@ template <typename T,typename Tt> struct trans1ff {
 };
 
 
-
+/* Integral from t0 to t1 */
 template <typename T, typename Tt> struct trans2 {
   typedef typename Vec<T, 2>::type T2;
   Tt invtauhalf;
@@ -128,6 +131,7 @@ template <typename T, typename Tt> struct trans2 {
   }
 };
 
+/* Operator in sum */
 template <typename T, typename Tt> struct decayop {
   typedef typename Vec<T, 2>::type T2;
   Tt tau;
@@ -144,7 +148,7 @@ template <typename T, typename Tt> struct decayop {
 };
 
 
-
+/* Get size for temp buffers */
 template <typename Ta, typename Tt>
 __forceinline__ __device__ void
 _tempsize(long long n, size_t *output) {
@@ -195,6 +199,7 @@ _simulate(const typename Vec<Ta, 4>::type *__restrict__ pos, const Ta *__restric
   if (isFlat) {
     cudaStream_t stream;
     cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+      
     for (int id=threadIdx.x;id<threads;id+=blockDim.x){
         void* d_temp_storage = d_temp_storages[id];
         const Ta3* det = dets[id];
@@ -203,22 +208,29 @@ _simulate(const typename Vec<Ta, 4>::type *__restrict__ pos, const Ta *__restric
         Ta2* a0 = as[2*id];
         Ta2* a1 = as[2*id+1];
         Ta* result = results[id];
+        
         trans1<Ta,Tt> opt1(*det, k, c);
         decayop<Ta,Tt> opd(tau);
         trans2<Ta,Tt> opt2(tau);
+        
         const auto data = thrust::make_zip_iterator(thrust::make_tuple(thrust::device_ptr<const Ta4>{pos}, thrust::device_ptr<const Ta>{times}));
         cub::DoubleBuffer<Tt> b_t(t0, t1);
         cub::DoubleBuffer<Ta2> b_a(a0, a1);
         auto out1 = thrust::make_zip_iterator(thrust::make_tuple(t0, a0));
         thrust::transform(thrust::cuda::par.on(stream), data, data + n, out1, opt1);
+        
         cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes, b_t, b_a, n, 0, 8*sizeof(Tt), stream);
+        
         auto in = thrust::make_zip_iterator(thrust::make_tuple(b_t.Current(), b_a.Current()));
         auto out = thrust::make_zip_iterator(thrust::make_tuple(b_t.Alternate(), b_a.Alternate()));
         cub::DeviceScan::InclusiveScan(d_temp_storage, temp_storage_bytes, in, out, opd, n, stream);
+        
         b_t.selector = b_t.selector ^ 1;
         b_a.selector = b_a.selector ^ 1;
+        
         auto transit = thrust::make_transform_iterator(thrust::make_zip_iterator(thrust::make_tuple(b_a.Current(), b_t.Current(), b_t.Current() + 1)), opt2);
         Ta res = thrust::reduce(thrust::cuda::par.on(stream), transit, transit + n - 1);
+        
         cudaDeviceSynchronize();
         __syncthreads();
         *result = (res + ab2(b_a.Current()[n - 1])) * (tau / 2.);

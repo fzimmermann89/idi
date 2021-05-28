@@ -1,10 +1,12 @@
 import numba as _numba
 import numpy as _np
 import numexpr as _ne
+from ..util import rotation as _rotation
 
 
 @_numba.njit(parallel=True)
 def _decaysum(a, t, tau):
+    # reference without scan
     x = _np.zeros_like(a)
     for j in _numba.prange(x.shape[0]):
         x[j, 0] = a[j, 0]
@@ -33,9 +35,9 @@ def _integral(amp, t0, tau):
     return _np.sum(-tau / 2 * i[:, :-1] * _np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings=''):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings=''):
     """
-    Time dependent simulation with decaying amplitudes (cpu version).
+    Time dependent simulation with decaying amplitudes (cpu version with few optimisations).
     simobject: simobject to use for simulation (in lengthunit)
     pixelsize: pixelsize (in lengthunit)
     detz: Detector-sample distance
@@ -46,6 +48,8 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     settings: string, can contain
         scale - do 1/r intensity scaling
     """
+
+    from math import sin, cos
 
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
@@ -58,19 +62,18 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, settings='
     blocksize = min(4, (n & (~(n - 1))))
 
     dets = _np.array(
-        _np.meshgrid(
-            pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)),
-            pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)),
-            detz
-        )
-    ).T
+        _np.meshgrid(pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), detz)
+    ).T.reshape(-1, 3)
+    if _np.any(detangles):
+        dets = dets @ _rotation(*detangles, 0).T
+
     res = _np.zeros(Ndet[0] * Ndet[1]).reshape(-1, blocksize)
     data = simobject.get()
     times = _np.random.randn(simobject.N) * (pulsewidth / 2.35)
 
     for j, det in enumerate(dets.reshape(-1, blocksize, 3)):
         d = _np.linalg.norm(det, axis=-1)[:, None]
-        q = (det / d)
+        q = det / d
         q[..., -1] -= 1
         phases = data[:, 3]
         s = _np.inner(q, data[:, :3])  # path difference

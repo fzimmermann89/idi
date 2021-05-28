@@ -21,7 +21,9 @@
 #else
     #define phaseop phasenf
 #endif
-
+#ifndef nodetrot
+    #define nodetrot 0
+#endif
 template <typename T, int cn> struct Vec;
 template <> struct Vec<float, 2> {typedef float2 type; static __device__ __host__ __forceinline__ type make(float a, float b) {return make_float2(a,b);}};
 template <> struct Vec<double, 2> {typedef double2 type; static __device__ __host__ __forceinline__ type make(double a, double b) {return make_double2(a,b);}};
@@ -100,14 +102,26 @@ template < typename Ti, typename To >
 struct wfkernel {
     typedef typename Vec < To, 2 > ::type To2;
     typedef typename Vec < Ti, 4 > ::type Ti4;
-    __device__ __forceinline__ void operator()(To2 __restrict__ * ret, Ti4 const __restrict__ * atoms, double detz, double pixelsize, double k, int maxx, int maxy, int Natoms) const {
+    __device__ __forceinline__ void operator()(To2 __restrict__ * ret, Ti4 const __restrict__ * atoms, const double * __restrict__ M, double detdist, double pixelsize, double k, int maxx, int maxy, int Natoms) const {
         int x = posx, y = posy;
         if ((x < maxx) && (y < maxy)) {
-            double detx = (x - maxx / 2) * pixelsize;
-            double dety = (y - maxy / 2) * pixelsize;
+            double _detx = (x - maxx / 2) * pixelsize;
+            double _dety = (y - maxy / 2) * pixelsize;
+            double detx, dety, detz;
+            if (nodetrot) {
+                 detx = _detx;
+                 dety = _dety;
+                 detz = detdist;
+            }
+            else {
+                 detx = M[0]*_detx + M[1]*_dety + M[2]*detdist;
+                 dety = M[3]*_detx + M[4]*_dety + M[5]*detdist;
+                 detz = M[6]*_detx + M[7]*_dety + M[8]*detdist;
+            }
             To accumx = 0, accumy = 0, cx = 0, cy = 0;
             auto op = phaseop < Ti, To > (detx, dety, detz, k);
             for (int i = 0; i < Natoms; i++) {
+                /* hot loop */
                 Ti4 atom = __ldg( & atoms[i]);
 
                 auto phase = op(atom);
@@ -127,11 +141,11 @@ struct wfkernel {
 };
 
 extern "C"
-__global__ void wfkernelf(float2 * __restrict__ ret, const float4 * __restrict__ atoms, double detz, double pixelsize, double k, int maxx, int maxy, int Natoms) {
-    wfkernel < float, float > ()(ret, atoms, detz, pixelsize, k, maxx, maxy, Natoms);
+__global__ void wfkernelf(float2 * __restrict__ ret, const float4 * __restrict__ atoms, const double * __restrict__  M, double detdist, double pixelsize, double k, int maxx, int maxy, int Natoms) {
+    wfkernel < float, float > ()(ret, atoms, M, detdist, pixelsize, k, maxx, maxy, Natoms);
 };
 
 extern "C"
-__global__ void wfkerneld(double2 * __restrict__ ret, const double4 * __restrict__ atoms, double detz, double pixelsize, double k, int maxx, int maxy, int Natoms) {
-    wfkernel < double, double > ()(ret, atoms, detz, pixelsize, k, maxx, maxy, Natoms);
+__global__ void wfkerneld(double2 * __restrict__ ret, const double4 * __restrict__ atoms, const double * __restrict__  M, double detdist, double pixelsize, double k, int maxx, int maxy, int Natoms) {
+    wfkernel < double, double > ()(ret, atoms, M, detdist, pixelsize, k, maxx, maxy, Natoms);
 };

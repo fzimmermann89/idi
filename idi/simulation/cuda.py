@@ -1,7 +1,7 @@
 import numpy as _np
 import cupy as _cp
 from pathlib import Path as _Path
-
+from ..util import rotation as _rotation
 
 code = (_Path(__file__).parent / 'sim.cu').read_text()
 
@@ -13,7 +13,7 @@ def _pinned(shape, dtype):
     return ret
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", maximg=_np.inf, *args, **kwargs):
+def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", maximg=_np.inf, detangles=(0, 0), *args, **kwargs):
     """
     returns an array of simulated wavefields
     parameters:
@@ -29,8 +29,8 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
         secondorder: use second order in far field approximation (Fresnel)
         nofast: no fast math
         unknown options will be silently ignored.
-    init: do full initialisation and asynch start of first calculation on generator creation
     maximg: generate StopIteration after maximg images.
+    detangles: (theta,phi) angles of detector rotation around origin
     """
     if k is None:
         k = simobject.k
@@ -51,6 +51,12 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
 
+    if _np.any(detangles):
+        M = _cp.array(_rotation(*detangles, 0), _np.float64)
+    else:
+        M = _cp.eye(3)
+        options += ["-Dnodetrot"]
+
     threadsperblock = (16, 16, 1)
     blockspergrid_x = int(_np.ceil(Ndet[0] / threadsperblock[0]))
     blockspergrid_y = int(_np.ceil(Ndet[1] / threadsperblock[1]))
@@ -66,7 +72,9 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
     def _gen():
         h_atoms[:, :3], h_atoms[:, 3:] = simobject.get2()
         d_atoms.set(h_atoms)
-        kernel(blockspergrid, threadsperblock, (d_wf, d_atoms, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)))
+        kernel(
+            blockspergrid, threadsperblock, (d_wf, d_atoms, M, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N))
+        )
         count = 1
         while True:
             if count == maximg:
@@ -80,7 +88,7 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
                 kernel(
                     blockspergrid,
                     threadsperblock,
-                    (d_wf, d_atoms, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)),
+                    (d_wf, d_atoms, M, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)),
                 )
                 yield ret
             count += 1
@@ -88,7 +96,7 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
     return _gen()
 
 
-def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings="double", verbose=True, *args, **kwargs):
+def simulate(Nimg, simobject, Ndet, pixelsize, detz, k=None, settings="double", verbose=True, detangles=(0, 0), *args, **kwargs):
     """
     returns an array of simulated wavefields
     parameters:
@@ -105,10 +113,11 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k, settings="double", verbo
         secondorder: use second order in far field approximation (Fresnel)
         nofast: no fast math
         unknown options will be silently ignored.
+    detangles: (theta,phi) angles of detector rotation around origin
     """
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
-    gen = simulate_gen(simobject, Ndet, pixelsize, detz, k, settings=settings, init=True, maximg=Nimg)
+    gen = simulate_gen(simobject, Ndet, pixelsize, detz, k, settings=settings, maximg=Nimg, detangles=detangles)
     result = _np.empty((Nimg, Ndet[0], Ndet[1]), _np.complex128)
     try:
         for i, img in enumerate(gen):
