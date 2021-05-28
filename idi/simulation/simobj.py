@@ -28,7 +28,7 @@ class simobj(_abc.ABC):
     baseclass
     """
 
-    rng = _np.random.default_rng(_np.random.randint(2 ** 63))
+    rng = _np.random.default_rng(_np.random.randint(2 << 60))
     _pos = None
     _resetproperties = []
     _rotmatrix = None
@@ -597,38 +597,57 @@ class membrane(simobj):
 
 class foil(simobj):
     """
-    A foil parallel to the detector, excited under an angle
+    A foil with optional attenuation length
     """
 
-    def __init__(self, E, excitation, thickness, fwhm, attenuationlength=_np.inf, rho=2, rotangles=(0, 0, 0)):
-        from scipy.special import gamma
+    def __init__(self, E, excitation, thickness, fwhm, attenuationlength=_np.inf, rho=(2, 2), rotangles=(0, 0, 0)):
         from math import log, exp
+        from scipy.special import gamma
 
-        self.fwhm, self.rho = _np.array((1, 1)) * fwhm, _np.array((1, 1)) * rho
-        self.attenuationlength = attenuationlength
-        self.excitation = excitation
-        self.thickness = thickness
         self._rotmatrix = _rotation(*rotangles)
+        self._rotangles = rotangles
+        self._thickness = thickness
+        self._attenuationlength = attenuationlength
+        self._fwhm = (fwhm * _np.array((1, 1)))[:, None]
+        self._rho = (rho * _np.array((1, 1)))[:, None]
         N = int(
-            _np.product(self.fwhm * gamma(1 + 1 / rho) * log(2) ** (-1 / rho))
+            _np.product(self._fwhm * gamma(1 + 1 / self._rho) * log(2) ** (-1 / self._rho))
             * (
-                thickness
+                thickness / self._rotmatrix[-1, -1]
                 if _np.isinf(attenuationlength)
                 else (attenuationlength - attenuationlength / exp((thickness / self._rotmatrix[-1, -1]) / attenuationlength))
             )
             * excitation
         )
         super().__init__(E, N)
-        self._resetproperties = ['fwhm', 'rho', 'excitation', 'attenuationlength', 'thickness', 'rotangles']
 
     def updatePos(self):
-        if self._rotmatrix is False:
-            self._rotmatrix = _np.eye(3)
-        self._pos = _np.zeros((self.N, 3))
-        if _np.all(self.rho == 2):
-            xy = self.rng.normal(scale=(self.fwhm / 2.355), size=(self.N, 2))
+        if _np.all(self._rho == 2):
+            self._pos = _np.matmul(self._rotmatrix[:, :-1], self.rng.normal(0, self._fwhm / 2.35, (2, self.N)), order='F').T
         else:
-            xy = _rndgennorm((0, 0), self.fwhm, self.rho, (self.N, 2), self.rng)
-        self._pos[:, :2] = ((self._rotmatrix[:-1, :-1].T @ xy.T) / _np.linalg.det(self._rotmatrix[:-1, :-1])).T
-        depth = (_rndtruncexp(self.attenuationlength, self.thickness / self._rotmatrix[-1, -1], self.N))[None, :] * self._rotmatrix[:, -1:]
-        self._pos += depth.T
+            self._pos = _np.matmul(self._rotmatrix[:, :-1], _rndgennorm(0, self._fwhm, self._rho, (2, self.N)), order='F').T
+        if _np.isfinite(self.attenuationlength):
+            self._pos[:, -1] += _rndtruncexp(self._attenuationlength, self._thickness / self._rotmatrix[-1, -1], self.N)
+        else:
+            self._pos[:, -1] += self.rng.uniform(0, self._thickness / self._rotmatrix[-1, -1], self.N)
+
+    # make everything readonly, as changing anything would change N
+    @property
+    def fwhm(self):
+        return self._fwhm.ravel()
+
+    @property
+    def thickness(self):
+        return self._thickness
+
+    @property
+    def rho(self):
+        return self._rho.ravel()
+
+    @property
+    def attenuationlength(self):
+        return self._attenuationlength
+
+    @property
+    def rotangles(self):
+        return self._rotangles
