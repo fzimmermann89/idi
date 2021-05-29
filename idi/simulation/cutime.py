@@ -66,7 +66,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
         inouttype,
     )
     if _np.any(detangles):
-        M = _cp.array(_rotation(*detangles, 0))
+        M = _cp.array(_rotation(*detangles, 0), inouttype)
         det = det @ M.T
 
     pdet = _cp.array([i.data.ptr for i in det], _np.uint64)
