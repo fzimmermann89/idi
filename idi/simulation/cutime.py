@@ -6,7 +6,7 @@ from ..util import rotation as _rotation
 code = (_Path(__file__).parent / 'simtime.cu').read_text()
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='mixed', threads=None):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='mixed', threads=None, *args, **kwargs):
     """
     Time dependent simulation with decaying amplitudes.
     simobject: simobject to use for simulation (in lengthunit)
@@ -98,3 +98,30 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
         )
     _cp.cuda.get_current_stream().synchronize()
     return output.get().reshape(Ndet)
+
+
+def simulate_gen(
+    simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='mixed', threads=None, maximg=_np.inf, *args, **kwargs
+):
+    """
+    Time dependent simulation with decaying amplitudes.
+    simobject: simobject to use for simulation (in lengthunit)
+    pixelsize: pixelsize (in lengthunit)
+    detz: Detector-sample distance
+    k: angular wave number (in 1/lengthunit)
+    c: speed of light in (lengthunit/timeunit)
+    tau: decay time (in timeunit)
+    pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
+    pulsedirection: direction of the excitation pulse (x,y,z)
+    settings: string, can contain
+        double,single,mixed - precision
+        nf - for nearfield form
+        scale - do 1/r intensity scaling
+    detangles: (theta,phi) angles of detector rotation around origin
+    """
+
+    # as each simulation is slow compared to setup, we dont currently do any work ahead and just call simulate()
+    i = 0
+    while i < maximg:
+        yield simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles, settings, threads, *args, **kwargs)
+        i += 1

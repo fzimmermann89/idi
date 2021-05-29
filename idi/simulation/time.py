@@ -35,7 +35,7 @@ def _integral(amp, t0, tau):
     return _np.sum(-tau / 2 * i[:, :-1] * _np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings=''):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='', *args, **kwargs):
     """
     Time dependent simulation with decaying amplitudes (cpu version with few optimisations).
     simobject: simobject to use for simulation (in lengthunit)
@@ -71,10 +71,11 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     data = simobject.get()
     times = _np.random.randn(simobject.N) * (pulsewidth / 2.35)
 
+    # this could be parallelised
     for j, det in enumerate(dets.reshape(-1, blocksize, 3)):
         d = _np.linalg.norm(det, axis=-1)[:, None]
         q = det / d
-        q[..., -1] -= 1
+        q[..., -1] -= 1  # incoming beam along z direction
         phases = data[:, 3]
         s = _np.inner(q, data[:, :3])  # path difference
         e = _ne.evaluate(eq)  # complex e field
@@ -82,3 +83,24 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
         res[j] = _integral(e, t, tau)
     res = res.reshape(Ndet[0], Ndet[1])
     return res
+
+
+def simulate_gen(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='', maximg=_np.inf, *args, **kwargs):
+    """
+    Time dependent simulation with decaying amplitudes (cpu version with few optimisations).
+    simobject: simobject to use for simulation (in lengthunit)
+    pixelsize: pixelsize (in lengthunit)
+    detz: Detector-sample distance
+    k: angular wave number (in 1/lengthunit)
+    c: speed of light in (lengthunit/timeunit)
+    tau: decay time (in timeunit)
+    pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
+    settings: string, can contain
+        scale - do 1/r intensity scaling
+    """
+
+    # as each simulation is slow compared to setup, we dont currently do any work ahead and just call simulate()
+    i = 0
+    while i < maximg:
+        yield simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles, settings, *args, **kwargs)
+        i += 1
