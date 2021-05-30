@@ -16,6 +16,19 @@ def _decaysum(a, t, tau):
     return x
 
 
+@numba.njit(parallel=True)
+def _psort(a, b):
+    '''
+    idx = np.argsort(a, axis=-1)
+    a = a[np.arange(a.shape[0])[:, None], idx]
+    b = b[np.arange(a.shape[0])[:, None], idx]
+    '''
+    for i in numba.prange(len(a)):
+        ids = np.argsort(a[i])
+        a[i, :] = a[i][ids]
+        b[i, :] = b[i][ids]
+
+
 def _ab2(x):
     return x.imag ** 2 + x.real ** 2
 
@@ -24,18 +37,15 @@ def _integral(amp, t0, tau):
     """
     integrates the exponential decay of |x|^2 with supports t0 and decay tau
     """
-
-    idx = _np.argsort(t0, axis=-1)
     t0s = _np.atleast_2d(t0)
-    t0s = t0s[_np.arange(t0s.shape[0])[:, None], idx]
     amps = _np.atleast_2d(amp)
-    amps = amps[_np.arange(amps.shape[0])[:, None], idx]
+    _psort(t0s, amps)
     i = _ab2(_decaysum(amps, t0s, tau))
     td = _np.diff(t0s, axis=-1)
     return _np.sum(-tau / 2 * i[:, :-1] * _np.expm1(-2 * td / tau), axis=-1) + tau / 2 * i[:, -1]
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='', *args, **kwargs):
+def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='', threads=None, *args, **kwargs):
     """
     Time dependent simulation with decaying amplitudes (cpu version with few optimisations).
     simobject: simobject to use for simulation (in lengthunit)
@@ -47,6 +57,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
     settings: string, can contain
         scale - do 1/r intensity scaling
+    threads: blocksize to do multiple pixels at once (memory tradeoff)
     """
 
     from math import sin, cos
@@ -58,8 +69,10 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     else:
         eq = 'exp(-1j*(s*k-phases))'
     n = _np.prod(Ndet)
-    # do highest power of two of n <=4 pixels at once. tradeoff between memory allocations and call overhead.
-    blocksize = min(4, (n & (~(n - 1))))
+    if threads is None:
+        threads = 4
+    # do highest power of two of n <= threads pixels at once. tradeoff between memory allocations and call overhead.
+    blocksize = min(threads, (n & (~(n - 1))))
 
     dets = _np.array(
         _np.meshgrid(pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), detz)
@@ -71,7 +84,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     data = simobject.get()
     times = _np.random.randn(simobject.N) * (pulsewidth / 2.35)
 
-    # this could be parallelised
+    # this could be parallelised but array sharing might be annoying to implement, so either mpi run everything or be happy with the threaded parts
     for j, det in enumerate(dets.reshape(-1, blocksize, 3)):
         d = _np.linalg.norm(det, axis=-1)[:, None]
         q = det / d
@@ -85,7 +98,9 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     return res
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='', maximg=_np.inf, *args, **kwargs):
+def simulate_gen(
+    simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='', maximg=_np.inf, threads=None, *args, **kwargs
+):
     """
     Time dependent simulation with decaying amplitudes (cpu version with few optimisations).
     simobject: simobject to use for simulation (in lengthunit)
@@ -97,10 +112,11 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detang
     pulsewidth: FWHM of gaussian exciation pulse (in timeunit)
     settings: string, can contain
         scale - do 1/r intensity scaling
+    threads: blocksize to do multiple pixels at once (memory tradeoff)
     """
 
     # as each simulation is slow compared to setup, we dont currently do any work ahead and just call simulate()
     i = 0
     while i < maximg:
-        yield simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles, settings, *args, **kwargs)
+        yield simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles, settings, threads, *args, **kwargs)
         i += 1
