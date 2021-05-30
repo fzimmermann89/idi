@@ -16,15 +16,15 @@ def _decaysum(a, t, tau):
     return x
 
 
-@numba.njit(parallel=True)
+@_numba.njit(parallel=True)
 def _psort(a, b):
     '''
     idx = np.argsort(a, axis=-1)
     a = a[np.arange(a.shape[0])[:, None], idx]
     b = b[np.arange(a.shape[0])[:, None], idx]
     '''
-    for i in numba.prange(len(a)):
-        ids = np.argsort(a[i])
+    for i in _numba.prange(len(a)):
+        ids = _np.argsort(a[i])
         a[i, :] = a[i][ids]
         b[i, :] = b[i][ids]
 
