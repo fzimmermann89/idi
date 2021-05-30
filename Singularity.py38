@@ -212,6 +212,7 @@ EOF3
 
 
 #pip
+echo 'installing pnumpy from pip' && pip install pnumpy
 echo "installing pycuda from pip" && CFLAGS=-std=c++11 CXXFLAGS=-std=c++11  LIBRARY_PATH=/usr/local/cuda/lib64/stubs CPATH=/usr/local/cuda/include CUDA_ROOT=/usr/local/cuda pip install pycuda
 echo 'installing cupy from pip' && pip install cupy-cuda102  &
 
