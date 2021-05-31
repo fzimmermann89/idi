@@ -25,10 +25,11 @@ def corr(input, z, sampling=None, verbose=False):
     if input is 3d, the result will be the sum along the first dimension.
     Parameters:
     z: Detector distance in pixels
-    sampling: q resoltion - None (default) -> use center pixel q size
+    sampling: q resolution - None (default) -> use center pixel q size
                           - 0: smallest step in qx and qy
                           - number -> centerpixel / number
                           - 3 numbers -> seperate centerpixel/number in qx,qy,qz
+    Adds pixel values that map to the same q volume.
     """
 
     def _prepare(input, z, sampling):
@@ -56,9 +57,14 @@ def corr(input, z, sampling=None, verbose=False):
 
         qx, qy, qz = [_np.rint(k - _np.min(k)).astype(int, copy=False) for k in (qx, qy, qz)]
         qlenx, qleny, qlenz = [fastlen(2 * (_np.max(k) + 1)) for k in (qx, qy, qz)]
-        ret = alignedarray((qlenz, qleny, qlenx + 2), dtype=_np.float64, alignment=64, zero=True)  # additonal padding in qx for inplace fft
-        _np.add.at(ret, (qz, qy, qx), input)
-        #     ret[kz1,ky1,kx1]=input #only if no double assignment
+        ret = _np.bincount(
+            _np.ravel_multi_index((qz.ravel(), qy.ravel(), qx.ravel()), (qlenz, qleny, qlenx + 2)),  # additional padding in qx for inplace fft
+            input.ravel(),
+            minlength=qlenz * qleny * (qlenx + 2),
+        ).reshape((qlenz, qleny, qlenx + 2))
+        # ret = alignedarray((qlenz, qleny, qlenx + 2), dtype=_np.float64, alignment=64, zero=True)  # additional padding in qx for inplace fft
+        # _np.add.at(ret, (qz, qy, qx), input)
+        #     ret[qx,qy,qz]=input #only if no double assignment
         return ret
 
     def _corr(input, z, sampling):
