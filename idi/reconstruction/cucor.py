@@ -44,7 +44,7 @@ def corrfunction(shape, z, maxq, xcenter=None, ycenter=None):
         d = _np.sqrt(x ** 2 + y ** 2 + z ** 2)
         zd = _np.array((z / d), _np.float32, order="C")
         maxdqz = _numba.int32(math.ceil(z * (_np.max(zd) - _np.min(zd)))) | 1
-        cz = _numba.float32(z)
+        cz = _numba.float32(float(z))
 
         with stream.auto_synchronize():
             dzd = _numba.cuda.to_device(zd, stream)
