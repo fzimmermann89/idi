@@ -576,21 +576,56 @@ axes = [
     [6, 0, -4],
 ]
 
-axesactive = (
-    [-4, 2, 2],
-    [2, -4, 2],
-    [0, -4, 0],
-    [0, 4, 0],
-    [4, 0, 0],
-    [-4, 0, 0],
-    [0, 2, 2],
-    [2, 0, 2],
-    [-2, 2, 0],
-    [0, -2, 2],
-    [-2, 0, 2],
-    [2, -2, 0],
-    [1, -1, 1],
-    [-1, 1, 1],
+axesactive = tuple(
+    [
+        list(active)
+        for active in set(
+            [  # GaAs 1
+                (-1, 1, 1),
+                (-1, -1, 1),
+                (1, -1, 1),
+                (-2, -2, 0),
+                (2, -2, 0),
+                (2, 2, 0),
+                (-2, 2, 0),
+                (3, 1, 1),
+                (-3, -1, 1),
+                (-1, -3, 1),
+                (2, 2, 4),
+                (-2, 2, 4),
+                (-2, -2, 4),
+                (2, -2, 4),
+                (0, -4, 4),
+                (0, 4, 4),
+                (4, 0, 4),
+                (-4, 0, 4),
+            ]
+            + [  # GaAs 2
+                (0, 2, 2),
+                (2, -2, 0),
+                (-2, 0, 2),
+                (2, 2, 0),
+                (0, -2, 2),
+                (-2, 2, 0),
+                (2, 0, 2),
+                (-2, -2, 0),
+                (0, 4, 4),
+                (-4, 0, 4),
+                (4, 0, 4),
+                (0, -4, 4),
+                (-1, 3, 3),
+                (3, 1, 3),
+                (-1, -3, 3),
+                (1, 3, 3),
+                (-3, -1, 3),
+                (1, -3, 3),
+                (2, 0, 6),
+                (0, -2, 6),
+                (0, 2, 6),
+                (-2, 0, 6),
+            ]
+        )
+    ]
 )
 
 
@@ -632,6 +667,12 @@ class Kossel(QMainWindow, kosselui.Ui_MainWindow):
         self.clearButton.clicked.connect(self.clear_data)
         self.loadButton.clicked.connect(self.load_file)
         self.peakButton.clicked.connect(self.find_peaks)
+
+        ## Not implemented
+        self.peakButton.setEnabled(False)
+        self.thresholdSlider.setEnabled(False)
+        self.saveButton.setEnabled(False)
+
         self.fitButton.clicked.connect(self.fit_data)
         self.datasetCombo.currentTextChanged.connect(self.plot_bg)
         self.removeBackgroundBox.stateChanged.connect(self.plot_bg)
@@ -767,6 +808,7 @@ class Kossel(QMainWindow, kosselui.Ui_MainWindow):
             self.datasetCombo.clear()
             self.datasetCombo.addItems(inputfile.keys())
             self.inputfile = inputfile
+            self.plot_bg()
         except Exception as e:
             print("error opening file:", e)
 
@@ -879,10 +921,10 @@ class Kossel(QMainWindow, kosselui.Ui_MainWindow):
                         if 10 < points[0][i] < (self.N0 - 20) and 10 < points[1][i] < (self.N1 - 100):
                             self.plotpoints[label][2] = self.plotarea.canvas.ax.text(points[1][i] + 5, points[0][i] + 5, s=label, c=s[0])
                             break
-                        else:
-                            self.plotpoints[label][2] = self.plotarea.canvas.ax.text(
-                                np.clip(points[1][i] + 5, 20, self.N1 - 20), np.clip(points[0][i] + 5, 20, self.N0 - 100), s=label, c=s[0]
-                            )
+                    else:
+                        self.plotpoints[label][2] = self.plotarea.canvas.ax.text(
+                            np.clip(points[1][i] + 5, 20, self.N1 - 20), np.clip(points[0][i] + 5, 20, self.N0 - 100), s=label, c=s[0]
+                        )
 
         self.plotarea.canvas.ax.set_xlim(0, self.N1)
         self.plotarea.canvas.ax.set_ylim(self.N0, 0)
