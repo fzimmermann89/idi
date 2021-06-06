@@ -9,7 +9,7 @@ from scipy.spatial.transform import Rotation
 import skimage.morphology as skm
 import kosselui
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidgetItem, QMessageBox
 
 import numexpr as ne
 
@@ -671,8 +671,8 @@ class Kossel(QMainWindow, kosselui.Ui_MainWindow):
         ## Not implemented
         self.peakButton.setEnabled(False)
         self.thresholdSlider.setEnabled(False)
-        self.saveButton.setEnabled(False)
 
+        self.saveButton.clicked.connect(self.save)
         self.fitButton.clicked.connect(self.fit_data)
         self.datasetCombo.currentTextChanged.connect(self.plot_bg)
         self.removeBackgroundBox.stateChanged.connect(self.plot_bg)
@@ -784,6 +784,18 @@ class Kossel(QMainWindow, kosselui.Ui_MainWindow):
                 self.plotarea.canvas.ax.set_ylim(self.N0, 0)
 
         self.plotarea.canvas.draw_idle()
+
+    def save(self):
+        filename, _ = QFileDialog.getSaveFileName(self, "save plot", "", "pdf (*.pdf)")
+        if filename:
+            try:
+                self.plotarea.canvas.ax.get_figure().savefig(filename)
+            except Exception:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Saving failed")
+                msg.setWindowTitle("Error")
+                retval = msg.exec_()
 
     def setclim(self):
         clim = np.array(self.rangeSlider.getRange()) / 100
