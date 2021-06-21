@@ -67,3 +67,28 @@ def chunkediter(dataset, sel=slice(None), readsize=16, outsize=1):
         tmp = _np.array(dataset[ids.start : ids.stop : ids.step])
         for j in range(0, len(tmp), outsize):
             yield tmp[j : j + outsize][0] if outsize == 1 else tmp[j : j + outsize]
+
+
+def joinVDS(infilenames, outfilename):
+    """
+    creates a new h5py with virtual datasets of all datasets in infilenames[0] with ndim>1
+    concatenates these datasets from all files in infilenames
+    """
+    layouts = {}
+
+    def createlayout(name, obj):
+        if isinstance(obj, h5py.Dataset) and len(obj.shape) > 1:
+            layouts[name] = h5py.VirtualLayout(shape=(0, *obj.shape[1:]), maxshape=(None, *obj.shape[1:]), dtype=obj.dtype)
+
+    with h5py.File(infilenames[0], "r") as firstfile:
+        firstfile.visititems(createlayout)  # instead of enumerating the file to visit subgroups
+
+    for filename in infilenames:
+        with h5py.File(filename, "r") as currentfile:
+            for key, layout in layouts.items():
+                vsource = h5py.VirtualSource(currentfile[key])
+                layout.shape = (layout.shape[0] + vsource.shape[0], *layout.shape[1:])
+                layout[-vsource.shape[0] :, ...] = vsource[:]
+    with h5py.File(outfilename, "w", libver="latest") as outfile:
+        for key, layout in layouts.items():
+            outfile.create_virtual_dataset(key, layout, fillvalue=None)
