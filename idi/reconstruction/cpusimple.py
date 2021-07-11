@@ -10,7 +10,7 @@ from ..util import fastlen as _fastlen
 #     return ret
 
 
-def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.irfftn), **kwargs):
+def corr(input, axes=(-2, -1), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.irfftn), **kwargs):
     """
     simple autocorrelation of input along axes (default: last two)
     axes: axes to correlate along, defaults to last two
@@ -20,11 +20,11 @@ def corr(input, axes=(-1, -2), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     axes = sorted([input.ndim + a if a < 0 else a for a in axes])
     fftshape = [_fastlen(2 * input.shape[ax]) for ax in axes]
     if norm:
-        input = input * (1 / input.mean(axis=[i for i in range(input.ndim) if i not in axes] or None))
+        input = input * (1 / input.mean(axis=tuple([i for i in range(input.ndim) if i not in axes]) or None))
     ret = fft(input, fftshape, axes=axes)
     ret = _np.abs(ret) ** 2
     # _ne.evaluate('(ret*conj(ret))', out=ret, casting='same_kind')
-    ret = ifft(ret, axes=axes)
+    ret = ifft(ret, axes=axes[::-1])
     ret = _np.fft.fftshift(ret, axes=axes)[
         tuple((Ellipsis, *(slice(ps // 2 - input.shape[ax], ps // 2 + input.shape[ax]) for ax, ps in zip(axes, fftshape))))
     ]
