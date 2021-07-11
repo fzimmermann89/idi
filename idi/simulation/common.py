@@ -18,7 +18,10 @@ def chargesharing(img, s, ns=0):
     """
 
     if not s > 0:
-        return img
+        if ns == 0:
+            return img
+        else:
+            return img * (1 + ns * _np.random.randn(*img.shape))
 
     w = int(_np.ceil(2 * s))
     hits = _np.repeat(_np.indices(img.shape).reshape(2, -1), img.astype(int).ravel(), axis=1).T + _np.array((w, w))
