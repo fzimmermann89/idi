@@ -7,6 +7,7 @@ import numba.cuda
 class basic(unittest.TestCase):
     def test_import(self):
         import warnings
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
             import idi.reconstruction
@@ -156,6 +157,16 @@ class cpu_test(unittest.TestCase):
         gn = ss.correlate(np.ones_like(t), np.ones_like(t), 'full', 'fft')
         g = gc / gn
         g[gn < 0.9] = np.nan
+        testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
+
+        t = np.stack((t, t))
+        c = cpusimple.corr(t, axes=(-2, -1),fftfunctions=[np.fft.fftn, np.fft.ifftn])[0]
+        g = ss.correlate(t[0], t[0], 'full', 'fft')
+        testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
+
+        t = t.swapaxes(0, -1)
+        c = cpusimple.corr(t, axes=(0, 1))[...,0]
+        g = ss.correlate(t[...,0], t[...,0], 'full', 'fft')
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
 
 

@@ -17,14 +17,14 @@ def corr(input, axes=(-2, -1), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     norm: do normalisation along non correlation axes and normalise for pair count
     """
     fft, ifft = fftfunctions
-    axes = sorted([input.ndim + a if a < 0 else a for a in axes])
     fftshape = [_fastlen(2 * input.shape[ax]) for ax in axes]
+    fftaxes = None if set(axes) == {-1, -2} and input.ndim == 2 else axes
     if norm:
         input = input * (1 / input.mean(axis=tuple([i for i in range(input.ndim) if i not in axes]) or None))
-    ret = fft(input, fftshape, axes=axes)
-    ret = _np.abs(ret) ** 2
+    ret = fft(input, fftshape, axes=fftaxes)
+    ret = ret * ret.conj()
     # _ne.evaluate('(ret*conj(ret))', out=ret, casting='same_kind')
-    ret = ifft(ret, axes=axes[::-1])
+    ret = ifft(ret, axes=fftaxes)
     ret = _np.fft.fftshift(ret, axes=axes)[
         tuple((Ellipsis, *(slice(ps // 2 - input.shape[ax], ps // 2 + input.shape[ax]) for ax, ps in zip(axes, fftshape))))
     ]
