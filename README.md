@@ -1,7 +1,6 @@
 
 CAVE: Hic sunt dracones
 
-_The code is a mess, undocumented and only certain code paths are tested._
 
 
 # IDI - INCOHERENT DIFFRACTION IMAGING
