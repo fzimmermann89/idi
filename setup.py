@@ -124,7 +124,25 @@ def get_version(rel_path):
                 return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
 
-
+def get_metadata():
+    """Extracts project metadata from pyproject.toml."""
+    import os
+    import tomli
+    
+    pyproject_path = os.path.join(os.path.dirname(__file__), "pyproject.toml")
+    with open(pyproject_path, "rb") as f:
+        pyproject = tomli.load(f)
+    
+    project = pyproject["project"]
+    return {
+        "name": project["name"],
+        "description": project["description"],
+        "maintainer": project["authors"][0]["name"],
+        "maintainer_email": project["authors"][0]["email"],
+        "python_requires": project["requires-python"],
+        "install_requires": project["dependencies"],
+    }
+    
 def setup_package():
     try:
         from numpy.distutils.core import setup
@@ -132,22 +150,19 @@ def setup_package():
         config = configuration().todict()
     except ImportError:
         from setuptools import setup
+        config={}
 
-        config = {"name": "idi"}
 
     metadata = dict(
         version=get_version("idi/__init__.py"),
-        maintainer="zimmf",
-        maintainer_email='fzimmermann89+idi@gmail.com',
-        description="idi simulation and reconstruction",
-        platforms=["Linux", "Mac OS-X"],
-        python_requires=">=3.6",
-        install_requires=["numpy", "cython", "numba", "numexpr", "scipy", "jinja2", "mkl-service", "matplotlib", "h5py", "mkl", "mkl-include"],
         package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         test_suite="tests",
         cmdclass={'sdist': sdist},
-        **config
+        packages=["idi"],
+        package_dir={"": "."},
+        **config,
+        **get_metadata(),
     )
 
     setup(**metadata)
