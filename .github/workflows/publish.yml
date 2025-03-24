@@ -73,8 +73,8 @@ jobs:
         with:
           python-version: '3.9'
           
-      - name: Install numpy and cython
-        run:  python -m pip install numpy  cython
+      - name: Install numpy, tomli, and cython
+        run:  python -m pip install numpy cython tomli
 
       - name: Build sdist
         run: python setup.py sdist
