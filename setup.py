@@ -1,163 +1,161 @@
-#!/usr/bin/env python
-from os.path import join, exists, dirname, realpath, abspath, isdir
-from os import environ, listdir, pathsep
-from os import name as osname
-from sys import prefix, path
-import setuptools  # noqa # TODO
-from distutils.command.sdist import sdist
+#!/usr/bin/env python3
+import os
+import re
+import sys
+from pathlib import Path
+from setuptools import setup, Extension, find_packages
+from setuptools.command.sdist import sdist  # Python 3.12 compatible sdist
+from Cython.Build import cythonize
+import tomli
+import numpy
 
 
-def configuration():
-    from numpy.distutils.misc_util import Configuration
-    from numpy.distutils.system_info import (
-        get_info,
-        default_include_dirs,
-        default_lib_dirs,
-    )
-    from collections import OrderedDict
-    import numpy
+# -----------------------------------------------------------------------------
+# Heuristics for include and library directories
+def find_include_and_lib_dirs():
+    numpy_dir = Path(numpy.__file__).resolve()
+    sys_prefix = Path(sys.prefix).resolve()
 
-    config = Configuration("idi", "")
-    srcdir = "./idi"
-    mkl_info = get_info("mkl")
-    basedirs = list(
-        OrderedDict.fromkeys(
-            p
-            for p in [
-                join(dirname(numpy.__file__), *(4 * [".."])),
-                join(dirname(numpy.__file__), *(3 * [".."])),
-                prefix,
-            ]
-            + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
-            + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
-            + [join(p, "..") for p in environ["PATH"].split(pathsep)]
-        )
-    )
-    include_dirs = [
-        srcdir,
-        "/usr/include",
-        "/usr/local/include",
-        "/usr/include/x86_64-linux-gnu",
-        "/usr/include/i386-linux-gnu",
-        "/usr/include/arm-linux-gnueabihf",
-        "/usr/include/clang",
-        "/usr/include/c++",
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
-        "/System/Library/Frameworks",
-        "C:/MinGW/include",
-        "C:/msys64/mingw32/include",
-        "C:/msys64/mingw64/include",
-        "C:/Program Files (x86)/Microsoft Visual Studio/VC/Tools/MSVC/include",
-        "C:/Windows Kits/10/Include/um",
-        "C:/Windows Kits/10/Include/shared",
-        "/opt/include",
+    candidate_dirs = [
+        numpy_dir.parent.parent.parent.parent,
+        numpy_dir.parent.parent.parent,
+        sys_prefix,
     ]
-    library_dirs = default_lib_dirs
-    library_dirs.extend(join(b, "lib") for b in basedirs)
-    library_dirs.extend(join(b, "lib64") for b in basedirs)
-    library_dirs.extend(join(b, "libraries") for b in basedirs)
-    library_dirs.extend(join(b, "Library", "lib") for b in basedirs)
-    library_dirs.extend(join(b, "Library", "bin") for b in basedirs)
+    for p in sys.path:
+        if p:
+            parts = p.split("site-packages")
+            if parts and parts[0]:
+                candidate_dirs.append(Path(parts[0]) / ".." / "..")
+                candidate_dirs.append(Path(parts[0]) / "..")
+    for p in os.environ.get("PATH", "").split(os.pathsep):
+        if p:
+            candidate_dirs.append(Path(p) / "..")
 
-    include_dirs.extend(default_include_dirs)
-    include_dirs.extend(join(b, "include") for b in basedirs)
-    include_dirs.extend(join(b, "Library", "include") for b in basedirs)
-
-    # print("XXXXXXXXX")
-    # print("basedirs", basedirs)
-    # print("libdirs:", library_dirs)
-    # print("includedirs:", include_dirs)
-    # print("np", numpy.__file__)
-    # print("env", environ)
-    # print("path", path)
-    # print("prefix", prefix)
-    # print("XXXXXXXXXX")
-
-    include_dirs = [abspath(realpath(p)) for p in filter(isdir, include_dirs)]
-    library_dirs = [abspath(realpath(p)) for p in filter(isdir, library_dirs)]
-
-    if mkl_info:
-        include_dirs.extend(mkl_info.get("include_dirs"))
-        libs = mkl_info.get("libraries", ["mkl_rt"])
-    else:
-        found_mkl = False
-        found_mkl_name = "mkl_rt"
-        for d in library_dirs:
-            try:
-                for f in listdir(d):
-                    if f == "mkl_rt.dll" or f == "mkl_rt.so" or f == "mkl_rt.dylib":
-                        found_mkl = True
-                        found_mkl_name = "mkl_rt"
-                    elif "mkl_rt.so." in f and not found_mkl:
-                        found_mkl_name = ":" + f
-                        found_mkl = True
-                if found_mkl:
-                    break
-            except FileNotFoundError:
-                continue
-        libs = [found_mkl_name]
-        if not osname == "nt":
-            libs.extend(["pthread"])
+    unique_basedirs = list(dict((str(p.resolve()), p.resolve()) for p in candidate_dirs).values())
 
     try:
-        from Cython.Build import cythonize
+        from numpy.distutils.system_info import default_include_dirs, default_lib_dirs
+    except ImportError:
+        default_include_dirs, default_lib_dirs = [], []
 
-        sources = [join(srcdir, "reconstruction", "autocorrelate3.pyx")]
-        have_cython = True
-        if not exists(sources[0]):
-            print("pyx missing")
-            raise FileNotFoundError
-    except (ImportError, FileNotFoundError) as e:
-        have_cython = False
-        sources = [join(srcdir, "reconstruction", "autocorrelate3.c")]
-        if not exists(sources[0]):
-            print("Cython is required to build ft autocorrelation")
-    config.add_extension(
-        name="reconstruction.autocorrelate3",
+    library_dirs = [Path(p) for p in default_lib_dirs]
+    for b in unique_basedirs:
+        library_dirs.append(b / "lib")
+        library_dirs.append(b / "lib64")
+        library_dirs.append(b / "libraries")
+        library_dirs.append(b / "Library" / "lib")
+        library_dirs.append(b / "Library" / "bin")
+
+    include_dirs = [
+        Path("idi"),
+        Path("idi") / "reconstruction",
+        Path("/usr/include"),
+        Path("/usr/local/include"),
+        Path("/usr/include/x86_64-linux-gnu"),
+        Path("/usr/include/arm-linux-gnueabihf"),
+        Path("/usr/include/i386-linux-gnu"),
+        Path("/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include"),
+        Path("/System/Library/Frameworks"),
+    ]
+    include_dirs.extend([Path(p) for p in default_include_dirs])
+
+    for b in unique_basedirs:
+        include_dirs.append(b / "include")
+        include_dirs.append(b / "Library" / "include")
+    library_dirs = [str(p.resolve()) for p in library_dirs if p.is_dir()]
+    include_dirs = [str(p.resolve()) for p in include_dirs if p.is_dir()]
+    basedirs = [str(p.resolve()) for p in unique_basedirs if p.is_dir()]
+
+    return include_dirs, library_dirs, basedirs
+
+
+# -----------------------------------------------------------------------------
+# MKL detection heuristic
+def get_mkl_info(include_dirs, library_dirs):
+    try:
+        from numpy.distutils.system_info import get_info
+
+        mkl_info = get_info("mkl")
+    except Exception:
+        mkl_info = None
+
+    if mkl_info and "include_dirs" in mkl_info and "libraries" in mkl_info:
+        mkl_includes = mkl_info.get("include_dirs")
+        mkl_libs = mkl_info.get("libraries", ["mkl_rt"])
+        return mkl_includes, mkl_libs
+
+    found_mkl = False
+    found_mkl_name = "mkl_rt"
+    for d in library_dirs:
+        dpath = Path(d)
+        try:
+            for f in dpath.iterdir():
+                if f.name in {"mkl_rt.dll", "mkl_rt.so", "mkl_rt.dylib"}:
+                    found_mkl = True
+                    found_mkl_name = "mkl_rt"
+                elif "mkl_rt.so." in f.name and not found_mkl:
+                    found_mkl_name = ":" + f.name
+                    found_mkl = True
+            if found_mkl:
+                break
+        except Exception:
+            continue
+    libs = [found_mkl_name]
+    if os.name != "nt":
+        libs.extend(["pthread"])
+    return [], libs
+
+
+# -----------------------------------------------------------------------------
+# Build the extension module
+def get_extension():
+    base_dir = Path(__file__).parent.resolve()
+    srcdir = base_dir / "idi" / "reconstruction"
+    pyx_file = srcdir / "autocorrelate3.pyx"
+    c_file = srcdir / "autocorrelate3.c"
+
+    if pyx_file.exists():
+        sources = [str(pyx_file)]
+    elif c_file.exists():
+        sources = [str(c_file)]
+    else:
+        sys.exit("Error: cannot find source file for autocorrelate3.")
+
+    heuristic_includes, heuristic_libs, _ = find_include_and_lib_dirs()
+    include_dirs = [str(base_dir), numpy.get_include()]
+    include_dirs.extend(heuristic_includes)
+
+    mkl_includes, mkl_libs = get_mkl_info(include_dirs, heuristic_libs)
+    include_dirs.extend(mkl_includes)
+
+    extra_compile_args = ["-DNDEBUG", "-O3", "-DMKL_ILP64"]
+
+    ext = Extension(
+        name="idi.reconstruction.autocorrelate3",
         sources=sources,
-        libraries=libs,
         include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        extra_compile_args=["-DNDEBUG", "-O3", "-DMKL_ILP64"],
+        library_dirs=heuristic_libs,
+        libraries=mkl_libs,
+        extra_compile_args=extra_compile_args,
     )
-    if have_cython:
-        config.ext_modules = cythonize(
-            config.ext_modules,
-            include_path=[abspath(realpath(join(srcdir, "reconstruction")))],
-        )
-    config.packages.append("idi")
-    config.package_dir["idi"] = "./idi"
-    config.packages.append("idi.simulation")
-    config.package_dir["idi.simulation"] = "./idi/simulation"
-    config.packages.append("idi.reconstruction")
-    config.package_dir["idi.reconstruction"] = "./idi/reconstruction"
-    config.packages.append("idi.util")
-    config.package_dir["idi.util"] = "./idi/util"
-    return config
+    return ext
 
 
-def get_version(rel_path):
-    import os.path
-    import codecs
-
-    here = os.path.abspath(os.path.dirname(__file__))
-    with codecs.open(os.path.join(here, rel_path), "r") as fp:
-        for line in fp.read().splitlines():
-            if line.startswith("__version__"):
-                delim = '"' if '"' in line else "'"
-                return line.split(delim)[1]
+# -----------------------------------------------------------------------------
+# Metadata
+def get_version(rel_path="idi/__init__.py"):
+    version_file = Path(__file__).parent.resolve() / rel_path
+    content = version_file.read_text(encoding="utf-8")
+    match = re.search(r'^__version__\s*=\s*[\'"]([^\'"]+)[\'"]', content, re.M)
+    if match:
+        return match.group(1)
     raise RuntimeError("Unable to find version string.")
 
 
 def get_metadata():
-    """Extracts project metadata from pyproject.toml."""
-    import os
-    import tomli
-
-    pyproject_path = os.path.join(os.path.dirname(__file__), "pyproject.toml")
-    with open(pyproject_path, "rb") as f:
+    meta_file = Path(__file__).parent.resolve() / "pyproject.toml"
+    with meta_file.open("rb") as f:
         pyproject = tomli.load(f)
-
     project = pyproject["project"]
     return {
         "name": project["name"],
@@ -169,31 +167,23 @@ def get_metadata():
     }
 
 
+# -----------------------------------------------------------------------------
 def setup_package():
-    try:
-        from numpy.distutils.core import setup
-
-        config = configuration().todict()
-    except ImportError:
-        from setuptools import setup
-
-        config = {}
-
+    ext = get_extension()
     metadata = dict(
         version=get_version("idi/__init__.py"),
+        packages=find_packages(),
         package_data={"": ["*.cu"]},
-        scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
+        scripts=[str(Path("scripts") / "idi_sim.py"), str(Path("scripts") / "idi_simrecon.py")],
         test_suite="tests",
         cmdclass={"sdist": sdist},
-        packages=["idi"],
-        package_dir={"": "."},
+        ext_modules=cythonize(
+            [ext],
+            include_path=[str((Path(__file__).parent / "idi" / "reconstruction").resolve())],
+        ),
     )
-    metadata.update(config)
     metadata.update(get_metadata())
-
     setup(**metadata)
-
-    return None
 
 
 if __name__ == "__main__":
