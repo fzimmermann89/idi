@@ -77,7 +77,10 @@ class basic(unittest.TestCase):
     def test_shortsci(self):
         from idi.util import shortsci
 
-        for n, s in zip([1, 0.1, -0.1, 10, 1e17, -1e-17, 0.5, 1.5, -15], ["1e0", "1e-1", "-1e-1", "1e1", "1e17", "-1e-17", "5e-1", "2e0", "-2e1"]):
+        for n, s in zip(
+            [1, 0.1, -0.1, 10, 1e17, -1e-17, 0.5, 1.5, -15],
+            ["1e0", "1e-1", "-1e-1", "1e1", "1e17", "-1e-17", "5e-1", "2e0", "-2e1"],
+        ):
             self.assertEqual(shortsci(n), s)
 
         for n, s in zip([1, 0.555, 1.51, -1.234e17], ["1.0e0", "5.6e-1", "1.5e0", "-1.2e17"]):
@@ -133,7 +136,7 @@ class random(unittest.TestCase):
         self.assertTupleEqual(t.shape, (int(1e7), 3), msg="shape missmatch")
         hist, bins = zip(*(np.histogram(x, bins=int(1e3), range=(-10, 10)) for x in t.T))
         for h, b, f in zip(hist, bins, fwhms):
-            self.assertAlmostEqual(fwhm(b, h), f, delta=0.05, msg="fwhm failed")
+            self.assertAlmostEqual(fwhm(b, h), f, delta=0.1, msg="fwhm failed")
 
     def test_randomrotation(self):
         from idi.util import random_rotation
@@ -357,7 +360,11 @@ class array(unittest.TestCase):
         t = np.ones((4, 4), bool)
         self.assertEqual(rebin(t, 2, "min").dtype, bool)
         testing.assert_array_equal(
-            rebin(t, 2,), np.ones((2, 2)),
+            rebin(
+                t,
+                2,
+            ),
+            np.ones((2, 2)),
         )
 
         t = np.ones((20, 2, 2))

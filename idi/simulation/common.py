@@ -1,7 +1,11 @@
 import numpy as _np
 import numba as _numba
-import cupy as _cp
 from math import erf, sqrt
+
+try:
+    import cupy as _cp
+except ImportError:
+    _cp = None
 
 
 def randomphotons(probs, Nphotons, rng=None, dtype=float):
@@ -11,7 +15,7 @@ def randomphotons(probs, Nphotons, rng=None, dtype=float):
         if rng is None:
             rng = _np.random.default_rng(_np.random.randint(2**63))
         return rng.poisson(probs * (Nphotons / probs.sum(axis=(-2, -1), keepdims=True))).astype(dtype)
-    elif isinstance(probs, _cp.ndarray):
+    elif _cp is not None and isinstance(probs, _cp.ndarray):
         if rng is None:
             rng = _cp.random.default_rng(_np.random.randint(2**63))
         elif isinstance(rng, _np.random.Generator):

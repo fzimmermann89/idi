@@ -575,10 +575,10 @@ def plot_2d(
         if maxq < 1:
             # swith to 1/um
             qscale = 1000
-            qunit = "$\mu m^{-1}$"
+            qunit = r"$\mu m^{-1}$"
         else:
             qscale = 1
-            qunit = "$nm^{-1}$"
+            qunit = r"$nm^{-1}$"
         labeldir = 1
         for r in rings:
             q = _np.round(r * maxq, int(_np.ceil(1 - _np.log10(maxq))))
