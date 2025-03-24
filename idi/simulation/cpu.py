@@ -3,7 +3,17 @@ import numba as _numba
 from ..util import rotation as _rotation
 
 
-def get_kernel(Natoms, Ndet, pixelsize, detz, k, detangles=(0, 0), nodist=True, nf=False):
+def get_kernel(
+    Natoms,
+    Ndet,
+    pixelsize,
+    detz,
+    k,
+    detangles=(0, 0),
+    detoffset=(0, 0),
+    nodist=True,
+    nf=False,
+):
     """
     returns a cpu implementation of the wavefield, used internally
     Natoms: Number of atoms
@@ -12,6 +22,7 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, detangles=(0, 0), nodist=True, 
     detz: detector distance
     k: angular wavenumber
     detangles: (theta,phi) angles of detector rotation around origin
+    detoffset: (x,y) offset of detector center from origin
 
     returns a function with signature complex64(:,:)(out complex64(:,:), atompositionsandphases float64[:,4])
         that will write the wavefield into out
@@ -28,9 +39,11 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, detangles=(0, 0), nodist=True, 
         M = _np.eye(3)
         detrot = False
 
-    @_numba.njit(inline='always', fastmath=True)
+    @_numba.njit(inline="always", fastmath=True)
     def nfphase(atom, detx, dety, detz):
-        dist = _np.sqrt((detx - atom[0]) ** 2 + (dety - atom[1]) ** 2 + (detz - atom[2]) ** 2)
+        dist = _np.sqrt(
+            (detx - atom[0]) ** 2 + (dety - atom[1]) ** 2 + (detz - atom[2]) ** 2
+        )
         phase = (dist - detz + atom[2]) * k + atom[3]
         if nodist:
             px = _np.cos(phase)
@@ -41,7 +54,7 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, detangles=(0, 0), nodist=True, 
             py = rdist * _np.sin(phase)
         return px, py
 
-    @_numba.njit(inline='always', fastmath=True)
+    @_numba.njit(inline="always", fastmath=True)
     def ffphase(atom, qx, qy, qz, rdist):
         phase = -(atom[0] * qx + atom[1] * qy + atom[2] * qz) + atom[3]
         if nodist:
@@ -52,12 +65,16 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, detangles=(0, 0), nodist=True, 
             py = rdist * _np.sin(phase)
         return px, py
 
-    @_numba.njit('complex128[:, ::1],float64[:, ::1]', parallel=True, fastmath={'contract', 'arcp', 'ninf', 'nnan'})
+    @_numba.njit(
+        "complex128[:, ::1],float64[:, ::1]",
+        parallel=True,
+        fastmath={"contract", "arcp", "ninf", "nnan"},
+    )
     def kernel(ret, atom):
         for x in _numba.prange(maxx):
             for y in range(maxy):
-                detx = (x - maxx / 2) * pixelsize
-                dety = (y - maxy / 2) * pixelsize
+                detx = (x - maxx / 2) * pixelsize + detoffset[0]
+                dety = (y - maxy / 2) * pixelsize + detoffset[1]
                 detz = detdist
                 if detrot:
                     detx, dety, detz = M @ _np.array((detx, dety, detz))
@@ -92,7 +109,20 @@ def get_kernel(Natoms, Ndet, pixelsize, detz, k, detangles=(0, 0), nodist=True, 
     return kernel
 
 
-def simulate(Nimg, simobject, Ndet, pixelsize, detz, k=None, settings='', verbose=False, detangles=(0, 0), *args, **kwargs):
+def simulate(
+    Nimg,
+    simobject,
+    Ndet,
+    pixelsize,
+    detz,
+    k=None,
+    settings="",
+    verbose=False,
+    detangles=(0, 0),
+    detoffset=(0, 0),
+    *args,
+    **kwargs,
+):
     """
     returns an array of simulated wavefields
     parameters:
@@ -107,23 +137,38 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k=None, settings='', verbos
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     detangles: (theta,phi) angles of detector rotation around origin
+    detoffset: (x,y) offset of detector center from origin
     """
     if k is None:
         k = simobject.k
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
     result = _np.empty((Nimg, Ndet[0], Ndet[1]), dtype=_np.complex128)
-    gen = simulate_gen(simobject, Ndet, pixelsize, detz, k, settings, detangles)
+    gen = simulate_gen(
+        simobject, Ndet, pixelsize, detz, k, settings, _np.inf, detangles, detoffset
+    )
     for n in range(0, Nimg):
         if verbose:
-            print(n, end='', flush=True)
+            print(n, end="", flush=True)
         result[n] = next(gen)
         if verbose:
-            print('. ', end='', flush=True)
+            print(". ", end="", flush=True)
     return result
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings='', detangles=(0, 0), *args, **kwargs):
+def simulate_gen(
+    simobject,
+    Ndet,
+    pixelsize,
+    detz,
+    k=None,
+    settings="",
+    maximg=_np.inf,
+    detangles=(0, 0),
+    detoffset=(0, 0),
+    *args,
+    **kwargs,
+):
     """
     returns a generator that yields simulated wavefields
     parameters:
@@ -137,18 +182,31 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings='', detangle
         if it contains 'scale', 1/r  scaling is performed
         if it contains 'nf', no far field approximation is made
     detangles: (theta,phi) angles of detector rotation around origin
+    detoffset: (x,y) offset of detector center from origin
     """
     if k is None:
         k = simobject.k
-    nodist = 'scale' not in settings
-    nf = 'nf' in settings
+    nodist = "scale" not in settings
+    nf = "nf" in settings
 
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
 
     result = _np.empty((Ndet[0], Ndet[1]), dtype=_np.complex128)
-    f = get_kernel(simobject.N, Ndet, pixelsize, detz, k, nodist=nodist, nf=nf, detangles=detangles)
-    while True:
+    f = get_kernel(
+        simobject.N,
+        Ndet,
+        pixelsize,
+        detz,
+        k,
+        nodist=nodist,
+        nf=nf,
+        detangles=detangles,
+        detoffset=detoffset,
+    )
+    i = 0
+    while i < maximg:
+        i += 1
         atoms = simobject.get()
         f(result, atoms)
         yield result

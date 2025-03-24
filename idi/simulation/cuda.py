@@ -3,17 +3,30 @@ import cupy as _cp
 from pathlib import Path as _Path
 from ..util import rotation as _rotation
 
-code = (_Path(__file__).parent / 'sim.cu').read_text()
+code = (_Path(__file__).parent / "sim.cu").read_text()
 
 
 def _pinned(shape, dtype):
     size = int(_np.prod(shape))
     mem = _cp.cuda.alloc_pinned_memory(size * _np.dtype(dtype).itemsize)
-    ret = _np.frombuffer(mem, dtype, size).reshape(shape, order='C')
+    ret = _np.frombuffer(mem, dtype, size).reshape(shape, order="C")
     return ret
 
 
-def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", maximg=_np.inf, detangles=(0, 0), *args, **kwargs):
+def simulate_gen(
+    simobject,
+    Ndet,
+    pixelsize,
+    detz,
+    k=None,
+    settings="double",
+    maximg=_np.inf,
+    detangles=(0, 0),
+    detoffset=(0, 0),
+    returngpu=False,
+    *args,
+    **kwargs,
+):
     """
     returns an array of simulated wavefields
     parameters:
@@ -31,6 +44,9 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
         unknown options will be silently ignored.
     maximg: generate StopIteration after maximg images.
     detangles: (theta,phi) angles of detector rotation around origin
+    detoffset: (x,y) offset of detector center from origin
+    returngpu: return the wavefield on the gpu instead of the cpu
+
     """
     if k is None:
         k = simobject.k
@@ -52,9 +68,9 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
         Ndet = [Ndet, Ndet]
 
     if _np.any(detangles):
-        M = _cp.array(_rotation(*detangles, 0), _np.float64)
+        M = _cp.array(_rotation(*detangles, 0), _np.float32)
     else:
-        M = _cp.eye(3)
+        M = _cp.eye(3, dtype=_np.float32)
         options += ["-Dnodetrot"]
 
     threadsperblock = (16, 16, 1)
@@ -65,30 +81,56 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
     module = _cp.RawModule(code=code, backend="nvcc", options=tuple(["--std=c++11", "-O3", "--restrict"] + options))
     kernel = module.get_function(kernelname)
 
-    d_wf = _cp.zeros((Ndet[0], Ndet[1]), dtype=outtype, order='C')
-    d_atoms = _cp.zeros((simobject.N, 4), intype, order='C')
+    d_wf = _cp.zeros((Ndet[0], Ndet[1]), dtype=outtype, order="C")
+    d_atoms = _cp.zeros((simobject.N, 4), intype, order="C")
     h_atoms = _pinned((simobject.N, 4), intype)
 
     def _gen():
         h_atoms[:, :3], h_atoms[:, 3:] = simobject.get2()
         d_atoms.set(h_atoms)
         kernel(
-            blockspergrid, threadsperblock, (d_wf, d_atoms, M, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N))
+            blockspergrid,
+            threadsperblock,
+            (
+                d_wf,
+                d_atoms,
+                M,
+                _np.float32(detoffset[0]),
+                _np.float32(detoffset[1]),
+                _np.float32(detz),
+                _np.float32(pixelsize),
+                _np.float32(k),
+                int(Ndet[0]),
+                int(Ndet[1]),
+                int(simobject.N),
+            ),
         )
         count = 1
         while True:
             if count == maximg:
-                yield d_wf.get()
+                yield _cp.copy(d_wf) if returngpu else d_wf.get()
             elif count > maximg:
                 return
             else:
                 h_atoms[:, :3], h_atoms[:, 3:] = simobject.get2()
                 d_atoms.set(h_atoms)
-                ret = d_wf.get()
+                ret = _cp.copy(d_wf) if returngpu else d_wf.get()
                 kernel(
                     blockspergrid,
                     threadsperblock,
-                    (d_wf, d_atoms, M, float(detz), float(pixelsize), float(k), int(Ndet[0]), int(Ndet[1]), int(simobject.N)),
+                    (
+                        d_wf,
+                        d_atoms,
+                        M,
+                        _np.float32(detoffset[0]),
+                        _np.float32(detoffset[1]),
+                        _np.float32(detz),
+                        _np.float32(pixelsize),
+                        _np.float32(k),
+                        int(Ndet[0]),
+                        int(Ndet[1]),
+                        int(simobject.N),
+                    ),
                 )
                 yield ret
             count += 1
@@ -96,7 +138,21 @@ def simulate_gen(simobject, Ndet, pixelsize, detz, k=None, settings="double", ma
     return _gen()
 
 
-def simulate(Nimg, simobject, Ndet, pixelsize, detz, k=None, settings="double", verbose=True, detangles=(0, 0), *args, **kwargs):
+def simulate(
+    Nimg,
+    simobject,
+    Ndet,
+    pixelsize,
+    detz,
+    k=None,
+    settings="double",
+    verbose=True,
+    detangles=(0, 0),
+    detoffset=(0, 0),
+    returngpu=False,
+    *args,
+    **kwargs,
+):
     """
     returns an array of simulated wavefields
     parameters:
@@ -114,18 +170,33 @@ def simulate(Nimg, simobject, Ndet, pixelsize, detz, k=None, settings="double", 
         nofast: no fast math
         unknown options will be silently ignored.
     detangles: (theta,phi) angles of detector rotation around origin
+    detoffset: (x,y) offset of detector center from origin
+    returngpu: return the wavefield on the gpu instead of
     """
     if _np.size(Ndet) == 1:
         Ndet = [Ndet, Ndet]
-    gen = simulate_gen(simobject, Ndet, pixelsize, detz, k, settings=settings, maximg=Nimg, detangles=detangles)
+    gen = simulate_gen(
+        simobject,
+        Ndet,
+        pixelsize,
+        detz,
+        k,
+        settings=settings,
+        maximg=Nimg,
+        detangles=detangles,
+        detoffset=detoffset,
+        returngpu=returngpu,
+        *args,
+        **kwargs,
+    )
     result = _np.empty((Nimg, Ndet[0], Ndet[1]), _np.complex128)
     try:
         for i, img in enumerate(gen):
             if verbose:
-                print(i, end='. ', flush=True)
+                print(i, end=". ", flush=True)
             result[i, ...] = img
         return result
     except KeyboardInterrupt:
         if verbose:
-            print('Interrupted')
+            print("Interrupted")
         return result[:i]
