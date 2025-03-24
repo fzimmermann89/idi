@@ -3,11 +3,9 @@ requires-python = ">=3.6"
 name = "idi"
 dynamic = ["version"]
 description = "idi simulation and reconstruction"
-authors = [
-  { name = "Felix Zimmermann", email = "fzimmermann89@gmail.com" }
-]
+authors = [{ name = "Felix Zimmermann", email = "fzimmermann89@gmail.com" }]
 dependencies = [
-  "numpy",
+  "numpy<2.2",
   "cython",
   "numba",
   "numexpr",
@@ -17,11 +15,24 @@ dependencies = [
   "matplotlib",
   "h5py",
   "mkl",
-  "mkl-include"
+  "mkl-include",
+  "setuptools<60",
+  "tqdm",
 ]
 
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools", "tomli", "oldest-supported-numpy", "Cython", "mkl==2019; sys_platform == 'darwin'", "mkl; sys_platform == 'linux'", "mkl-include==2019; sys_platform != 'win32'", "mkl-devel; sys_platform == 'win32'"]
+requires = [
+  "setuptools<60",
+  "tomli",
+  "oldest-supported-numpy",
+  "Cython",
+  "mkl==2019; sys_platform == 'darwin'",
+  "mkl; sys_platform == 'linux'",
+  "mkl-include==2019; sys_platform != 'win32'",
+  "mkl-devel; sys_platform == 'win32'",
+]
 
-[tool]
+[tool.ruff]
+line-length = 130
+target-version = "py39"

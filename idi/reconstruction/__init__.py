@@ -1,10 +1,4 @@
-__all__ = ['hitcor', 'hitcorrad', 'cpucor', 'cpucorrad', 'cucor', 'cucorrad', 'cpusimple', 'cusimple', 'ft', 'singleshotnorm']
-try:
-    import mkl as _mkl
-
-    _vml_threads = _mkl.domain_get_max_threads('vml')
-except ImportError:
-    _mkl = None
+__all__ = ["hitcor", "hitcorrad", "cpucor", "cpucorrad", "cucor", "cucorrad", "cpusimple", "cusimple", "ft", "singleshotnorm"]
 
 import numba.cuda as _nbcuda
 import warnings as _w
@@ -21,7 +15,7 @@ try:
 
     _local = False
 except ImportError as e:
-    _w.warn('trying local compilation' + str(e))
+    _w.warn("trying local compilation" + str(e))
     _local = True
 
     try:
@@ -33,11 +27,11 @@ except ImportError as e:
 
         _incs = _defaultincludedirs
         _incs.append(_np_get_include())
-        _incs.append(_join(_prefix, 'include'))
-        _mklinc = _getinfo('mkl').get('include_dirs')
+        _incs.append(_join(_prefix, "include"))
+        _mklinc = _getinfo("mkl").get("include_dirs")
         if _mklinc:
             _incs.extend(_mklinc)
-        _pyx.install(setup_args={'include_dirs': _incs}, language_level=2)
+        _pyx.install(setup_args={"include_dirs": _incs}, language_level=2)
     except Exception as e:
         _w.warn("no mkl autocorrelation")
 
@@ -61,6 +55,3 @@ if not _cuda:
     simple = cpusimple
     qcor = cpucor
     qcorrad = cpucorrad
-
-if _mkl is not None:
-    _mkl.domain_set_num_threads(_vml_threads, 'vml')  # numexpr messes with vml thread number
