@@ -31,9 +31,9 @@ def radial_profile(data, center=None, calcStd=False, os=1):
     if not calcStd:
         return radialprofile
 
-    data2bin = _np.bincount(r.ravel(), (_np.nan_to_num(data ** 2)).ravel())
+    data2bin = _np.bincount(r.ravel(), (_np.nan_to_num(data**2)).ravel())
     radial2profile = data2bin / nr
-    std = _np.sqrt(radial2profile - radialprofile ** 2)
+    std = _np.sqrt(radial2profile - radialprofile**2)
     return radialprofile, std
 
 
@@ -81,7 +81,11 @@ def rebin(ndarray, n, operation="mean"):
     if not (_np.size(n) == 1 or _np.size(n) == _np.ndim(ndarray)):
         raise ValueError("n should be scalar or of same length as ndarray has dimensions")
     newshape = _np.maximum(_np.array(ndarray.shape) // n, 1)
-    return bin(_np.copy(ndarray[tuple((slice(None, s) for s in n * newshape))]), newshape, operation,)
+    return bin(
+        _np.copy(ndarray[tuple((slice(None, s) for s in n * newshape))]),
+        newshape,
+        operation,
+    )
 
 
 def centered_part(arr, newshape):
@@ -102,7 +106,7 @@ def list2array(li):
         return 1 if _np.isscalar(e) else len(e)
 
     maxlen = _np.max([_len(e) for e in li])
-    return _np.array([_np.pad(e, (0, maxlen - _len(e)), 'constant') for e in li])
+    return _np.array([_np.pad(e, (0, maxlen - _len(e)), "constant") for e in li])
 
 
 @_numba.jit()
@@ -133,14 +137,16 @@ def _find_center_jit(img, msk, x0, y0, maxr, d):
 
 
 @_numba.vectorize(
-    [_numba.float64(_numba.complex128), _numba.float32(_numba.complex64)], target="parallel",
+    [_numba.float64(_numba.complex128), _numba.float32(_numba.complex64)],
+    target="parallel",
 )
 def abs2(x):
     return x.real * x.real + x.imag * x.imag
 
 
 @_numba.vectorize(
-    [_numba.complex128(_numba.complex128), _numba.complex64(_numba.complex64)], target="parallel",
+    [_numba.complex128(_numba.complex128), _numba.complex64(_numba.complex64)],
+    target="parallel",
 )
 def abs2c(x):
     return x.real * x.real + x.imag * x.imag + 0j
@@ -181,7 +187,13 @@ def create_mask(img, lowthres=5, highthres=95, sigma=10, hotpixelstd=5):
     if hotpixelstd is not None, pixels higher then hotpixelstd times the standard deviation over masked mean will be ignored.
     """
     blured = _snd.gaussian_filter(img, sigma)
-    mask = _np.logical_or.reduce((blured < _np.nanpercentile(blured, lowthres), blured > _np.nanpercentile(blured, highthres), _np.isnan(img),))
+    mask = _np.logical_or.reduce(
+        (
+            blured < _np.nanpercentile(blured, lowthres),
+            blured > _np.nanpercentile(blured, highthres),
+            _np.isnan(img),
+        )
+    )
     sel21 = _snd.morphology.generate_binary_structure(2, 1)
     mask_cleaned = _snd.morphology.binary_dilation(mask, sel21, 2)
     mask_cleaned = _snd.morphology.binary_closing(mask_cleaned, sel21, 20)
@@ -310,16 +322,16 @@ def shortsci(number, decimals=0):
     short scientific representation of number with variable precision and no plus or leading zero (!) in exponent as string
     """
     if number == 0:
-        return '0e0'
+        return "0e0"
     elif not _np.isfinite(number):
         return str(number)
     else:
         exponent = _np.floor(_np.log10(abs(number)))
-        base = round(number / (10 ** exponent), decimals)
+        base = round(number / (10**exponent), decimals)
         if abs(base) >= 10:
             base = round(base / 10, decimals)
             exponent += 1
-        return f'{base:.{decimals}f}e{int(exponent)}'
+        return f"{base:.{decimals}f}e{int(exponent)}"
 
 
 @_numba.njit
@@ -328,7 +340,9 @@ def axisrotation(axis, theta):
     axis and angle to rotation matrix
     """
     u = axis / _np.linalg.norm(axis.astype(_np.float64))
-    return _np.cos(theta) * _np.identity(3) + _np.sin(theta) * _np.cross(_np.identity(3), u) + (1 - _np.cos(theta)) * _np.outer(u, u)
+    return (
+        _np.cos(theta) * _np.identity(3) + _np.sin(theta) * _np.cross(_np.identity(3), u) + (1 - _np.cos(theta)) * _np.outer(u, u)
+    )
 
 
 @_numba.njit
@@ -342,8 +356,16 @@ def rotation(alpha, beta, gamma):
     # yaw pitch roll
     M = _np.array(
         [
-            [cosb * cosg, sina * sinb * cosg - cosa * sing, cosa * sinb * cosg + sina * sing],
-            [cosb * sing, sina * sinb * sing + cosa * cosg, cosa * sinb * sing - sina * cosg],
+            [
+                cosb * cosg,
+                sina * sinb * cosg - cosa * sing,
+                cosa * sinb * cosg + sina * sing,
+            ],
+            [
+                cosb * sing,
+                sina * sinb * sing + cosa * cosg,
+                cosa * sinb * sing - sina * cosg,
+            ],
             [-sinb, sina * cosb, cosa * cosb],
         ]
     )
@@ -354,7 +376,11 @@ def angles(rotmatrix):
     """
     rotation matrix to angles
     """
-    return _np.arctan2(rotmatrix[2, 1], rotmatrix[2, 2]), -_np.arcsin(rotmatrix[2, 0]), _np.arctan2(rotmatrix[1, 0], rotmatrix[0, 0])
+    return (
+        _np.arctan2(rotmatrix[2, 1], rotmatrix[2, 2]),
+        -_np.arcsin(rotmatrix[2, 0]),
+        _np.arctan2(rotmatrix[1, 0], rotmatrix[0, 0]),
+    )
 
 
 def gnorm(x, fwhm, rho, axis=None):
@@ -363,9 +389,9 @@ def gnorm(x, fwhm, rho, axis=None):
     """
     s = _np.log(2) * (2 / fwhm) ** rho
     if axis is not None:
-        return _np.exp(_ne.evaluate(f'sum(-abs(x)**rho*s), axis={axis})'))
+        return _np.exp(_ne.evaluate(f"sum(-abs(x)**rho*s), axis={axis})"))
     else:
-        return _ne.evaluate('exp(-abs(x)**rho*s)')
+        return _ne.evaluate("exp(-abs(x)**rho*s)")
 
 
 def fwhm(X, Y):
@@ -422,7 +448,7 @@ def intersect2d(a: _np.ndarray, b: _np.ndarray) -> _np.ndarray:
     :param b array2
     :return array of intersecting rows
     """
-    intersect = _np.intersect1d(a.view([('', a.dtype)] * a.shape[1]), b.view([('', b.dtype)] * b.shape[1]))
+    intersect = _np.intersect1d(a.view([("", a.dtype)] * a.shape[1]), b.view([("", b.dtype)] * b.shape[1]))
     return intersect.view(a.dtype).reshape(-1, a.shape[1])
 
 
@@ -471,5 +497,3 @@ def alignedarray(shape, dtype=_np.float64, alignment=64, zero=False):
     if zero:
         array[:] = 0
     return array
-
-
