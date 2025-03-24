@@ -7,7 +7,7 @@ import setuptools  # noqa # TODO
 from distutils.command.sdist import sdist
 
 
-def path(x):
+def aspath(x):
     """for python 3.8 on github actions"""
     try:
         x = realpath(x)
@@ -33,7 +33,7 @@ def configuration():
     mkl_info = get_info("mkl")
     basedirs = list(
         OrderedDict.fromkeys(
-            path(p)
+            aspath(p)
             for p in [
                 join(dirname(numpy.__file__), *(4 * [".."])),
                 join(dirname(numpy.__file__), *(3 * [".."])),
@@ -42,7 +42,7 @@ def configuration():
             + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(p, "..") for p in environ["PATH"].split(pathsep)]
-            if path(p)
+            if aspath(p)
         )
     )
     include_dirs = [
