@@ -1,12 +1,22 @@
 import numpy as _np
 import numba as _numba
+import cupy as _cp
 from math import erf, sqrt
 
 
 def randomphotons(probs, Nphotons, rng=None, dtype=float):
-    if rng is None:
-        rng = _np.random.default_rng(_np.random.randint(2 ** 63))
-    return rng.poisson(probs * (Nphotons / probs.sum(axis=(-2, -1), keepdims=True))).astype(dtype)
+    if not _np.isfinite(Nphotons):
+        return probs
+    if isinstance(probs, _np.ndarray):
+        if rng is None:
+            rng = _np.random.default_rng(_np.random.randint(2**63))
+        return rng.poisson(probs * (Nphotons / probs.sum(axis=(-2, -1), keepdims=True))).astype(dtype)
+    elif isinstance(probs, _cp.ndarray):
+        if rng is None:
+            rng = _cp.random.default_rng(_np.random.randint(2**63))
+        elif isinstance(rng, _np.random.Generator):
+            rng = _cp.random.Generator(rng.integers(high=2**63))
+        return rng.poisson(probs * (Nphotons / probs.sum(axis=(-2, -1), keepdims=True))).astype(dtype)
 
 
 def chargesharing(img, s, ns=0):
