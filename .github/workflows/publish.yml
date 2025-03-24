@@ -42,6 +42,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: wheels-${{ matrix.os }}-${{ github.run_id }}
           path: ./wheelhouse/*.whl
           
       - name: Release
@@ -81,6 +82,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: sdist-${{ github.run_id }}
           path: dist/*.tar.gz
           
       - name: Release
@@ -98,7 +100,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: artifact
+          name: sdist-${{ github.run_id }}
           path: dist
       - run: ls -R dist
       - run: rm -f dist/*.whl
@@ -116,7 +118,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macOS-10.15, windows-latest]
+        os: [ubuntu-20.04, windows-latest]
     defaults:
       run:
         shell: bash -l {0}
@@ -139,6 +141,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          name: wheels-${{ matrix.os }}-${{ github.run_id }}
           path: dist
 
       - name: Setup Python
@@ -159,12 +162,12 @@ jobs:
       - name: Build packages
         run: |
           conda install anaconda-client conda-build -y 
-          python .github/conda/wheel2conda.py dist/artifact
+          python .github/conda/wheel2conda.py "dist/wheels-${{ matrix.os }}-${{ github.run_id }}"
           
       - run: ls -R dist
       
       - name: Upload
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
-        run: anaconda upload dist/artifact/output/*.tar.bz2 --force
+        run: anaconda upload  "dist/wheels-${{ matrix.os }}-${{ github.run_id }}/output/*.tar.bz2" --force
 
