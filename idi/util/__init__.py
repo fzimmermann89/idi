@@ -473,5 +473,3 @@ def alignedarray(shape, dtype=_np.float64, alignment=64, zero=False):
     return array
 
 
-if _mkl is not None:
-    _mkl.domain_set_num_threads(_vml_threads, 'vml')  # numexpr messes with vml thread number
