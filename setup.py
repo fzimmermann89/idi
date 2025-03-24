@@ -18,18 +18,40 @@ def configuration():
     import numpy
 
     config = Configuration("idi", "")
-    srcdir = './idi'  # join(dirname(realpath(__file__)), "idi")
+    srcdir = "./idi"
     mkl_info = get_info("mkl")
     basedirs = list(
         OrderedDict.fromkeys(
             realpath(p)
-            for p in [join(dirname(numpy.__file__), *(4 * [".."])), join(dirname(numpy.__file__), *(3 * [".."])), prefix]
+            for p in [
+                join(dirname(numpy.__file__), *(4 * [".."])),
+                join(dirname(numpy.__file__), *(3 * [".."])),
+                prefix,
+            ]
             + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(p, "..") for p in environ["PATH"].split(":")]
         )
     )
-    include_dirs = [srcdir]
+    include_dirs = [
+        srcdir,
+        "/usr/include",
+        "/usr/local/include",
+        "/usr/include/x86_64-linux-gnu",
+        "/usr/include/i386-linux-gnu",
+        "/usr/include/arm-linux-gnueabihf",
+        "/usr/include/clang",
+        "/usr/include/c++",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
+        "/System/Library/Frameworks",
+        "C:/MinGW/include",
+        "C:/msys64/mingw32/include",
+        "C:/msys64/mingw64/include",
+        "C:/Program Files (x86)/Microsoft Visual Studio/VC/Tools/MSVC/include",
+        "C:/Windows Kits/10/Include/um",
+        "C:/Windows Kits/10/Include/shared",
+        "/opt/include",
+    ]
     library_dirs = default_lib_dirs
     library_dirs.extend(join(b, "lib") for b in basedirs)
     library_dirs.extend(join(b, "lib64") for b in basedirs)
@@ -83,7 +105,7 @@ def configuration():
         sources = [join(srcdir, "reconstruction", "autocorrelate3.pyx")]
         have_cython = True
         if not exists(sources[0]):
-            print('pyx missing')
+            print("pyx missing")
             raise FileNotFoundError
     except (ImportError, FileNotFoundError) as e:
         have_cython = False
@@ -99,7 +121,10 @@ def configuration():
         extra_compile_args=["-DNDEBUG", "-O3", "-DMKL_ILP64"],
     )
     if have_cython:
-        config.ext_modules = cythonize(config.ext_modules)
+        config.ext_modules = cythonize(
+            config.ext_modules,
+            include_path=[abspath(realpath(join(srcdir, "reconstruction")))],
+        )
     config.packages.append("idi")
     config.package_dir["idi"] = "./idi"
     config.packages.append("idi.simulation")
@@ -108,7 +133,6 @@ def configuration():
     config.package_dir["idi.reconstruction"] = "./idi/reconstruction"
     config.packages.append("idi.util")
     config.package_dir["idi.util"] = "./idi/util"
-
     return config
 
 
@@ -124,15 +148,16 @@ def get_version(rel_path):
                 return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
 
+
 def get_metadata():
     """Extracts project metadata from pyproject.toml."""
     import os
     import tomli
-    
+
     pyproject_path = os.path.join(os.path.dirname(__file__), "pyproject.toml")
     with open(pyproject_path, "rb") as f:
         pyproject = tomli.load(f)
-    
+
     project = pyproject["project"]
     return {
         "name": project["name"],
@@ -142,7 +167,8 @@ def get_metadata():
         "python_requires": project["requires-python"],
         "install_requires": project["dependencies"],
     }
-    
+
+
 def setup_package():
     try:
         from numpy.distutils.core import setup
@@ -150,20 +176,20 @@ def setup_package():
         config = configuration().todict()
     except ImportError:
         from setuptools import setup
-        config={}
 
+        config = {}
 
     metadata = dict(
         version=get_version("idi/__init__.py"),
         package_data={"": ["*.cu"]},
         scripts=["scripts/idi_sim.py", "scripts/idi_simrecon.py"],
         test_suite="tests",
-        cmdclass={'sdist': sdist},
+        cmdclass={"sdist": sdist},
         packages=["idi"],
         package_dir={"": "."},
-        **config,
-        **get_metadata(),
     )
+    metadata.update(config)
+    metadata.update(get_metadata())
 
     setup(**metadata)
 
