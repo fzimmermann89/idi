@@ -3,10 +3,24 @@ import numpy as _np
 from pathlib import Path as _Path
 from ..util import rotation as _rotation
 
-code = (_Path(__file__).parent / 'simtime.cu').read_text()
+code = (_Path(__file__).parent / "simtime.cu").read_text()
 
 
-def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='mixed', threads=None, *args, **kwargs):
+def simulate(
+    simobject,
+    Ndet,
+    pixelsize,
+    detz,
+    k,
+    c,
+    tau,
+    pulsewidth,
+    detangles=(0, 0),
+    settings="mixed",
+    threads=None,
+    *args,
+    **kwargs,
+):
     """
     Time dependent simulation with decaying amplitudes.
     simobject: simobject to use for simulation (in lengthunit)
@@ -26,23 +40,29 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     """
     from math import cos, sin
 
-    if 'double' in settings:
+    if "double" in settings:
         nametmp, namesim = "tempsized", "simulated"
         ttype, atype, inouttype = _np.float64, _np.complex128, _np.float64
-    elif 'single' in settings:
+    elif "single" in settings:
         nametmp, namesim = "tempsizef", "simulatef"
         ttype, atype, inouttype = _np.float32, _np.complex64, _np.float32
     else:  # mixed
         nametmp, namesim = "tempsizedf", "simulatedf"
         ttype, atype, inouttype = _np.float32, _np.complex128, _np.float64
     options = []
-    if 'nf' in settings:
-        options += ['-Dusenf']
-    if 'scale' not in settings:
-        options += ['-Dnodist']
-    options += ['-dc', '--std=c++11', '--expt-relaxed-constexpr', '-O3', '--use_fast_math']
+    if "nf" in settings:
+        options += ["-Dusenf"]
+    if "scale" not in settings:
+        options += ["-Dnodist"]
+    options += [
+        "-dc",
+        "--std=c++11",
+        "--expt-relaxed-constexpr",
+        "-O3",
+        "--use_fast_math",
+    ]
 
-    module = _cp.RawModule(code=code, backend='nvcc', options=tuple(options))
+    module = _cp.RawModule(code=code, backend="nvcc", options=tuple(options))
     ftempsize = module.get_function(nametmp)
     fsimulate = module.get_function(namesim)
     N = simobject.N
@@ -60,9 +80,13 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
         Ndet = [Ndet, Ndet]
 
     det = _cp.array(
-        _np.array(_np.meshgrid(pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)), pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)), detz)).T.reshape(
-            -1, 3
-        ),
+        _np.array(
+            _np.meshgrid(
+                pixelsize * (_np.arange(Ndet[0]) - (Ndet[0] / 2)),
+                pixelsize * (_np.arange(Ndet[1]) - (Ndet[1] / 2)),
+                detz,
+            )
+        ).T.reshape(-1, 3),
         inouttype,
     )
     if _np.any(detangles):
@@ -71,9 +95,10 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
 
     pdet = _cp.array([i.data.ptr for i in det], _np.uint64)
 
-    tmpout = _cp.zeros(1, _np.int64)
+    tmpout = _cp.zeros(2, _np.int64)
     ftempsize(grid=(1,), block=(1,), args=(N, tmpout))
-    tempsize = int(tmpout.get()[0])
+    _cp.cuda.get_current_stream().synchronize()
+    tempsize = int(_np.max(tmpout.get()))
     temp = [_cp.zeros(tempsize // 8 + 1, _np.int64) for i in range(threads)]
     ptemp = _cp.array([i.data.ptr for i in temp], _np.uint64)
 
@@ -81,7 +106,7 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
     a = [_cp.zeros(N, atype) for i in range(2 * threads)]
     pt = _cp.array([i.data.ptr for i in t], _np.uint64)
     pa = _cp.array([i.data.ptr for i in a], _np.uint64)
-    data = _cp.array(simobject.get(), inouttype, order='C')
+    data = _cp.array(simobject.get(), inouttype, order="C")
     times = _cp.array(_np.random.randn(simobject.N) * (pulsewidth / 2.35), inouttype)
     # _cp.random.seed(_np.random.randint(2**64-1,dtype=_np.uint64))
     # times = (_cp.random.randn(N,dtype=_np.float64)*(pulsewidth/2.35)).astype(inouttype) #cave: this uses different seed as numpy
@@ -94,14 +119,41 @@ def simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=
         fsimulate(
             grid=(1,),
             block=(cthreads,),
-            args=(data, times, pdet[start:end], float(tau), float(c), float(k), int(N), int(cthreads), pt, pa, tempsize, ptemp, poutput[start:end],),
+            args=(
+                data,
+                times,
+                pdet[start:end],
+                float(tau),
+                float(c),
+                float(k),
+                int(N),
+                int(cthreads),
+                pt,
+                pa,
+                tempsize,
+                ptemp,
+                poutput[start:end],
+            ),
         )
     _cp.cuda.get_current_stream().synchronize()
     return output.get().reshape(Ndet)
 
 
 def simulate_gen(
-    simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles=(0, 0), settings='mixed', threads=None, maximg=_np.inf, *args, **kwargs
+    simobject,
+    Ndet,
+    pixelsize,
+    detz,
+    k,
+    c,
+    tau,
+    pulsewidth,
+    detangles=(0, 0),
+    settings="mixed",
+    threads=None,
+    maximg=_np.inf,
+    *args,
+    **kwargs,
 ):
     """
     Time dependent simulation with decaying amplitudes.
@@ -123,5 +175,19 @@ def simulate_gen(
     # as each simulation is slow compared to setup, we dont currently do any work ahead and just call simulate()
     i = 0
     while i < maximg:
-        yield simulate(simobject, Ndet, pixelsize, detz, k, c, tau, pulsewidth, detangles, settings, threads, *args, **kwargs)
+        yield simulate(
+            simobject,
+            Ndet,
+            pixelsize,
+            detz,
+            k,
+            c,
+            tau,
+            pulsewidth,
+            detangles,
+            settings,
+            threads,
+            *args,
+            **kwargs,
+        )
         i += 1

@@ -1,6 +1,6 @@
 #include <math.h>
 #include <stdio.h>
-#include <cupy/cub/cub/cub.cuh>
+#include <cub/cub.cuh>
 #include <thrust/device_vector.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
@@ -137,7 +137,7 @@ template <typename T, typename Tt> struct decayop {
   Tt tau;
   __device__ __forceinline__ decayop(T t) { tau =(Tt) t; }
   CUB_RUNTIME_FUNCTION __forceinline__ thrust::tuple<Tt, T2>
-  operator()(thrust::tuple<Tt, T2> &lhs, thrust::tuple<Tt, T2> &rhs) const {
+  operator()(const thrust::tuple<Tt, T2> &lhs, const thrust::tuple<Tt, T2> &rhs) const {
     auto tl = thrust::get<0>(lhs);
     auto tr = thrust::get<0>(rhs);
     auto al = thrust::get<1>(lhs);
@@ -153,29 +153,25 @@ template <typename Ta, typename Tt>
 __forceinline__ __device__ void
 _tempsize(long long n, size_t *output) {
     typedef typename Vec<Ta, 2>::type Ta2;
-  if (firstThread){
-      size_t temp_storage_bytes_sort = 0;
-      size_t temp_storage_bytes_scan = 0;
-      void *d_temp_storage = NULL;
-      Tt *keys = NULL;
-      Ta2 *values = NULL;
-      cub::DoubleBuffer<Tt> b_keys(keys, keys);
-      cub::DoubleBuffer<Ta2> b_values(values, values);
-      cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes_sort, b_keys, b_values, n);
-      auto in = thrust::make_zip_iterator(thrust::make_tuple(b_keys.Current(), b_values.Current()));
-      auto out = thrust::make_zip_iterator(thrust::make_tuple(b_keys.Alternate(), b_values.Alternate()));
-      decayop<Ta,Tt> op(1.);
-      cub::DeviceScan::InclusiveScan(d_temp_storage, temp_storage_bytes_scan, in, out, op, n);
-      cudaDeviceSynchronize();
-      *output = max(temp_storage_bytes_sort, temp_storage_bytes_scan);
-  }
+    auto temp_storage_bytes_sort = output[0];
+    auto temp_storage_bytes_scan = output[1];
+    void *d_temp_storage = NULL;
+    Tt *keys = NULL;
+    Ta2 *values = NULL;
+    cub::DoubleBuffer<Tt> b_keys(keys, keys);
+    cub::DoubleBuffer<Ta2> b_values(values, values);
+    cub::DeviceRadixSort::SortPairs(d_temp_storage, temp_storage_bytes_sort, b_keys, b_values, n, 0, sizeof(Tt) * 8);
+    auto in = thrust::make_zip_iterator(thrust::make_tuple(b_keys.Current(), b_values.Current()));
+    auto out = thrust::make_zip_iterator(thrust::make_tuple(b_keys.Alternate(), b_values.Alternate()));
+    decayop<Ta, Tt> op(1.);
+    cub::DeviceScan::InclusiveScan(d_temp_storage, temp_storage_bytes_scan, in, out, op, n);
 }
 
-extern "C" __global__ void
+extern "C" __global__  void
 tempsized(long long n, size_t *output){
   _tempsize<double,double>(n, output);
 }
-extern "C" __global__ void
+extern "C" __global__  void
 tempsizef(long long n, size_t *output){
   _tempsize<float,float>(n, output);
 }
@@ -184,6 +180,14 @@ tempsizedf(long long n, size_t *output){
   _tempsize<double,float>(n, output);
 }
 
+__device__ __attribute__((used)) void (*dummy_tempsizef_ptr)(long long, size_t*) = tempsizef;
+__device__ __attribute__((used)) void (*dummy_tempsized_ptr)(long long, size_t*) = tempsized;  
+__device__ __attribute__((used)) void (*dummy_tempsizedf_ptr)(long long, size_t*) = tempsizedf;
+
+template <typename Ta>
+__global__ void compute_result_kernel(Ta* result, Ta res, typename Vec<Ta,2>::type last_val, Ta tau) {
+  *result = (res + ab2(last_val)) * (tau / 2.);
+}
 
 template <typename Ta, typename Tt>
 __forceinline__ __device__ void
@@ -230,17 +234,16 @@ _simulate(const typename Vec<Ta, 4>::type *__restrict__ pos, const Ta *__restric
         
         auto transit = thrust::make_transform_iterator(thrust::make_zip_iterator(thrust::make_tuple(b_a.Current(), b_t.Current(), b_t.Current() + 1)), opt2);
         Ta res = thrust::reduce(thrust::cuda::par.on(stream), transit, transit + n - 1);
-        
-        cudaDeviceSynchronize();
         __syncthreads();
-        *result = (res + ab2(b_a.Current()[n - 1])) * (tau / 2.);
+        compute_result_kernel<Ta><<<1, 1, 0, stream>>>(result, res, b_a.Current()[n - 1], tau);
+
     }
   }
 }
 
 /* Float inputs and calculations */
 extern "C"
-__global__ void
+__global__  void
 simulatef(const float4 *__restrict__ pos, const float *__restrict__ times, const float3 *__restrict__ *__restrict__ dets,
           double tau, double c, double k, long long n, long long threads,
           float * __restrict__ * __restrict__ ts, float2 * __restrict__ * __restrict__  as,
@@ -252,7 +255,7 @@ simulatef(const float4 *__restrict__ pos, const float *__restrict__ times, const
 
 /* Double inputs and calculations */
 extern "C"
-__global__ void
+__global__  void
 simulated(const double4 *__restrict__ pos, const double *__restrict__ times, const double3 *__restrict__ *__restrict__ dets,
           double tau, double c, double k, long long n, long long threads,
           double * __restrict__ * __restrict__ ts, double2 * __restrict__ * __restrict__  as,
@@ -264,7 +267,7 @@ simulated(const double4 *__restrict__ pos, const double *__restrict__ times, con
 
 /* Double inputs and mixed precision calculations, good tradeoff between performance and precision*/
 extern "C"
-__global__ void
+__global__  void
 simulatedf(const double4 *__restrict__ pos, const double *__restrict__ times, const double3 *__restrict__ *__restrict__ dets,
           double tau, double c, double k, long long n, long long threads,
           float * __restrict__ * __restrict__ ts, double2 * __restrict__ * __restrict__  as,
@@ -273,3 +276,40 @@ simulatedf(const double4 *__restrict__ pos, const double *__restrict__ times, co
           {
           _simulate<double,float>(pos, times, dets, tau, c, k, n, threads, ts, as, temp_storage_bytes, d_temp_storages, results);
           }
+
+// Global device pointers to force the kernels to be retained.
+__device__ __attribute__((used))
+void (*dummy_simulatef_ptr)(const float4 *__restrict__,
+                            const float *__restrict__,
+                            const float3 *__restrict__ *__restrict__,
+                            double, double, double,
+                            long long, long long,
+                            float * __restrict__ * __restrict__,
+                            float2 * __restrict__ * __restrict__,
+                            size_t,
+                            void *__restrict__ *__restrict__,
+                            float * __restrict__ * __restrict__) = simulatef;
+
+__device__ __attribute__((used))
+void (*dummy_simulated_ptr)(const double4 *__restrict__,
+                            const double *__restrict__,
+                            const double3 *__restrict__ *__restrict__,
+                            double, double, double,
+                            long long, long long,
+                            double * __restrict__ * __restrict__,
+                            double2 * __restrict__ * __restrict__,
+                            size_t,
+                            void *__restrict__ *__restrict__,
+                            double * __restrict__ * __restrict__) = simulated;
+
+__device__ __attribute__((used))
+void (*dummy_simulatedf_ptr)(const double4 *__restrict__,
+                             const double *__restrict__,
+                             const double3 *__restrict__ *__restrict__,
+                             double, double, double,
+                             long long, long long,
+                             float * __restrict__ * __restrict__,
+                             double2 * __restrict__ * __restrict__,
+                             size_t,
+                             void *__restrict__ *__restrict__,
+                             double * __restrict__ * __restrict__) = simulatedf;
