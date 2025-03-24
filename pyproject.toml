@@ -5,7 +5,7 @@ dynamic = ["version"]
 description = "idi simulation and reconstruction"
 authors = [{ name = "Felix Zimmermann", email = "fzimmermann89@gmail.com" }]
 dependencies = [
-  "numpy",
+  "numpy<2.2",
   "cython",
   "numba",
   "numexpr",
