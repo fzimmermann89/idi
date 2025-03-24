@@ -497,3 +497,155 @@ def alignedarray(shape, dtype=_np.float64, alignment=64, zero=False):
     if zero:
         array[:] = 0
     return array
+
+
+def pixel2q(pixel, E, detz_um, pixelsize_um):
+    """
+    returns q in reciprocal nm
+    E_ev: photon Energy in eV
+    detz: detector distance in um
+    pixelsize: detector pixelsize in um
+    """
+    qstep_nm = pixelsize_um / detz_um * (2 * _np.pi) / (1240 / E)
+    return pixel * qstep_nm
+
+
+def q2pixel(q, E, detz, pixelsize):
+    """
+    return pixel on the detector/in the correlation
+    q: q in reciprocal nm
+    E_ev: photon Energy in eV
+    detz: detector distance in um
+    pixelsize: detector pixelsize in um
+    """
+    qstep_nm = pixelsize / detz * (2 * _np.pi) / (1240 / E)
+    return q / qstep_nm
+
+
+def plot_2d(
+    image,
+    mask_center=True,
+    mask_cross=False,
+    crop=(32, 32),
+    E=None,
+    detz=None,
+    pixelsize=75,
+    ax=None,
+    colorbar=True,
+    rings=(),
+    cmap="magma",
+    title="",
+    q_ticks=True,
+    **kwargs,
+):
+    """
+    plots an image.
+    mask_center (default true): mask the center cross
+    only if E(ev), detz(um) and pixelsize(um) are all not None, q circles cam be added and q_ticks can be set
+    ax: axis to plot to, if None, gca()
+    colorbar: add colorbar
+    rings: relative radius of the q circles to add
+    other kwargs will be passed to matshow, e.g. vmin/vmax/cmap
+    cmap: colormap
+    title: title of the plot
+    q_ticks: if True, q-ticks will be added, else pixel-ticks
+    returns the axis
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle
+
+    if crop is not None:
+        image = centered_part(image, crop)
+
+    if mask_cross:
+        i = image.copy()
+        centered_part(i, (3, 1))[:] = _np.nan
+        centered_part(i, (1, 3))[:] = _np.nan
+    elif mask_center:
+        i = image.copy()
+        centered_part(i, (1, 1))[:] = _np.nan
+    else:
+        i = image
+    if ax is None:
+        ax = plt.gca()
+    plot = ax.matshow(i, cmap=cmap, **kwargs)
+    hasq = not any(x is None for x in (E, pixelsize, detz))
+    if hasq:
+        maxq = pixel2q(max(i.shape) / 2, E, detz, pixelsize)
+        if maxq < 1:
+            # swith to 1/um
+            qscale = 1000
+            qunit = "$\mu m^{-1}$"
+        else:
+            qscale = 1
+            qunit = "$nm^{-1}$"
+        labeldir = 1
+        for r in rings:
+            q = _np.round(r * maxq, int(_np.ceil(1 - _np.log10(maxq))))
+            p = q2pixel(q, E, detz, pixelsize)
+            circ = Circle(
+                _np.array(i.shape) // 2,
+                p,
+                fill=False,
+                linestyle=":",
+                alpha=1,
+                color="white",
+            )
+            ax.add_patch(circ)
+            ax.text(
+                i.shape[0] / 2 + p / _np.sqrt(2),
+                i.shape[0] / 2 + labeldir * p / _np.sqrt(2),
+                f"{q * qscale}{qunit}",
+                fontsize="x-small",
+                va="center",
+                color="white",
+            )
+            labeldir *= -1
+
+        Nx, Ny = i.shape
+        ax.set_xticks([*range(0, Nx - 1, Nx // 4), Nx - 1])
+        ax.set_yticks([*range(0, Ny - 1, Ny // 4), Ny - 1])
+        if q_ticks and not any(x is None for x in (E, pixelsize, detz)):
+            ax.xaxis.set_major_formatter(lambda x, pos: f"{qscale * (pixel2q(x - (Nx // 2), E, detz, pixelsize)):.2G}")
+            ax.yaxis.set_major_formatter(lambda y, pos: f"{qscale * (pixel2q(y - (Ny // 2), E, detz, pixelsize)):.2G}")
+            ax.set_xlabel(f"({qunit})")
+            ax.set_ylabel(f"({qunit})")
+        else:
+            ax.xaxis.set_major_formatter(lambda x, pos: f"{int(x - Nx // 2)}")
+            ax.yaxis.set_major_formatter(lambda y, pos: f"{int(y - Ny // 2)}")
+
+    if colorbar:
+        plt.colorbar(plot, ax=ax)
+    if title:
+        ax.set_title(title)
+    return ax
+
+
+def plot_radialprofile(image, mask_center=True, E=None, detz=None, pixelsize=75, ax=None, **kwargs):
+    """
+    plots the radial profile of image.
+    mask_center (default true): mask the center cross
+    if E(ev), detz(um) and pixelsize(um) are all not None, a q-axis will be added
+    ax: axis to plot to, if None, gca()
+    returns the axis
+    """
+    import matplotlib.pyplot as plt
+
+    if mask_center:
+        i = image.copy()
+        centered_part(i, (3, 1))[:] = _np.nan
+        centered_part(i, (1, 3))[:] = _np.nan
+    else:
+        i = image
+    if ax is None:
+        ax = plt.gca()
+    r = radial_profile(i)
+    pixel_x = _np.arange(0, len(r))
+    ax.plot(pixel_x, r, **kwargs)
+    if not any(x is None for x in (E, pixelsize, detz)):
+        q_x = pixel2q(pixel_x, E, detz, pixelsize)
+        ax2 = ax.twiny()
+        ax2.plot(q_x, _np.repeat(_np.nan, len(q_x)))
+        ax2.set_xlabel("$nm^{-1}$")
+    ax.set_xlabel("px")
+    return ax
