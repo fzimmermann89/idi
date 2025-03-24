@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from os.path import join, exists, dirname, realpath, abspath, isdir
-from os import environ, listdir
+from os import environ, listdir, pathsep
 from os import name as osname
 from sys import prefix, path
 import setuptools  # noqa # TODO
@@ -41,7 +41,7 @@ def configuration():
             ]
             + [join(*p, *(2 * [".."])) for p in [p.split("site-packages")[:-1] for p in path] if p]
             + [join(*p, "..") for p in [p.split("site-packages")[:-1] for p in path] if p]
-            + [join(p, "..") for p in environ["PATH"].split(":")]
+            + [join(p, "..") for p in environ["PATH"].split(pathsep)]
             if path(p)
         )
     )
