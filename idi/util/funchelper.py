@@ -28,19 +28,6 @@ def asgen(fn=None):
     return asgen_return(fn)
 
 
-# def aslengen(fn=None):
-#     class lengen(object):
-#         def __init__(self, gen, length):
-#             self.gen = gen
-#             self.length = length
-#
-#         def __len__(self):
-#             return self.length
-#
-#         def __iter__(self):
-#             return self.gen
-
-
 def parallel(fn=None):
     from collections import deque
     import time
@@ -50,7 +37,7 @@ def parallel(fn=None):
     except ImportError:
         import warnings
 
-        warnings.warn('no pathos available, be careful with parallel decorator and pickling errors.')
+        warnings.warn("no pathos available, be careful with parallel decorator and pickling errors.")
         from multiprocessing import Pool
 
     def parallel_return(fn):
@@ -83,13 +70,13 @@ def group(iterable, n):
 
 
 def args2tuple(function):
-    import numpy
+    from numpy import ndarray
 
     def wrapper(*args, **kwargs):
-        args = [tuple(x) if type(x) == list else x for x in args]
-        kwargs = {k: tuple(x) if type(x) == list else x for k, x in kwargs.items()}
-        args = [tuple(x.ravel()) if type(x) == numpy.ndarray else x for x in args]
-        kwargs = {k: tuple(x.ravel()) if type(x) == numpy.ndarray else x for k, x in kwargs.items()}
+        args = [tuple(x) if isinstance(x, list) else x for x in args]
+        kwargs = {k: tuple(x) if isinstance(x, list) else x for k, x in kwargs.items()}
+        args = [tuple(x.ravel()) if isinstance(x, ndarray) else x for x in args]
+        kwargs = {k: tuple(x.ravel()) if isinstance(x, ndarray) else x for k, x in kwargs.items()}
         return function(*args, **kwargs)
 
     return wrapper

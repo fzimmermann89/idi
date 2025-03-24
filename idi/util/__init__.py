@@ -1,10 +1,3 @@
-try:
-    import mkl as _mkl
-
-    _vml_threads = _mkl.domain_get_max_threads('vml')
-except ImportError:
-    _mkl = None
-
 from .accum import *
 from .filters import *
 from .funchelper import *
@@ -270,7 +263,7 @@ def fastlen(x, factors=(2, 3, 5, 7, 11)):
         # slow fallback
         fastlens = _np.unique(
             [
-                _np.product(_np.array(factors) ** _np.array(i).astype(float))
+                _np.prod(_np.array(factors) ** _np.array(i).astype(float))
                 for i in _it.product(*(range(int(2 + _np.log(_np.max(x)) / _np.log(k))) for k in factors))
             ]
         )

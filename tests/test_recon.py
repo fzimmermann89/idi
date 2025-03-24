@@ -47,13 +47,15 @@ class ft_test(unittest.TestCase):
             y, x = np.meshgrid(np.arange(shape[1], dtype=np.float64), np.arange(shape[0], dtype=np.float64))
             x -= offset[0]
             y -= offset[1]
-            d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+            d = np.sqrt(x**2 + y**2 + z**2)
             return np.array([(k / d * z) for k in (z, y, x)])
 
         z = 16
         N0, N1 = 8, 8
         off = 1
-        qs = np.stack([_qs((N0, N1), z, (i, j)).T for i, j in itertools.product([-off, N0 + off], [-off, N1 + off])]).reshape(4, -1, 3)
+        qs = np.stack([_qs((N0, N1), z, (i, j)).T for i, j in itertools.product([-off, N0 + off], [-off, N1 + off])]).reshape(
+            4, -1, 3
+        )
         mean = np.ones((4, N0 * N1))
         maskout = np.zeros((4, N0 * N1), bool)
 
@@ -78,7 +80,7 @@ class ft_test(unittest.TestCase):
         pass
 
 
-@unittest.skipIf(not numba.cuda.is_available(), 'no cuda available')
+@unittest.skipIf(not numba.cuda.is_available(), "no cuda available")
 class gpu_test(unittest.TestCase):
     def test_cucor(self):
         from idi.reconstruction import cucor
@@ -107,13 +109,13 @@ class gpu_test(unittest.TestCase):
 
         t = np.arange(32 * 16).reshape(32, 16).astype(float)
         c = cusimple.corr(t)
-        g = ss.correlate(t, t, 'full', 'fft')
+        g = ss.correlate(t, t, "full", "fft")
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
 
         t = np.arange(15 * 33).reshape(15, 33).astype(float)
         c = cusimple.corr(t, norm=True)
-        gc = ss.correlate(t / t.mean(), t / t.mean(), 'full', 'fft')
-        gn = ss.correlate(np.ones_like(t), np.ones_like(t), 'full', 'fft')
+        gc = ss.correlate(t / t.mean(), t / t.mean(), "full", "fft")
+        gn = ss.correlate(np.ones_like(t), np.ones_like(t), "full", "fft")
         g = gc / gn
         g[gn < 0.9] = np.nan
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
@@ -148,25 +150,25 @@ class cpu_test(unittest.TestCase):
 
         t = np.arange(32 * 16).reshape(32, 16).astype(float)
         c = cpusimple.corr(t)
-        g = ss.correlate(t, t, 'full', 'fft')
+        g = ss.correlate(t, t, "full", "fft")
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
 
         t = np.arange(15 * 33).reshape(15, 33).astype(float)
         c = cpusimple.corr(t, fftfunctions=[scipy.fft.rfftn, scipy.fft.irfftn], norm=True)
-        gc = ss.correlate(t / t.mean(), t / t.mean(), 'full', 'fft')
-        gn = ss.correlate(np.ones_like(t), np.ones_like(t), 'full', 'fft')
+        gc = ss.correlate(t / t.mean(), t / t.mean(), "full", "fft")
+        gn = ss.correlate(np.ones_like(t), np.ones_like(t), "full", "fft")
         g = gc / gn
         g[gn < 0.9] = np.nan
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
 
         t = np.stack((t, t))
-        c = cpusimple.corr(t, axes=(-2, -1),fftfunctions=[np.fft.fftn, np.fft.ifftn])[0]
-        g = ss.correlate(t[0], t[0], 'full', 'fft')
+        c = cpusimple.corr(t, axes=(-2, -1), fftfunctions=[np.fft.fftn, np.fft.ifftn])[0]
+        g = ss.correlate(t[0], t[0], "full", "fft")
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
 
         t = t.swapaxes(0, -1)
-        c = cpusimple.corr(t, axes=(0, 1))[...,0]
-        g = ss.correlate(t[...,0], t[...,0], 'full', 'fft')
+        c = cpusimple.corr(t, axes=(0, 1))[..., 0]
+        g = ss.correlate(t[..., 0], t[..., 0], "full", "fft")
         testing.assert_allclose(c[1:, 1:], g, atol=1e-7)
 
 
@@ -194,5 +196,5 @@ class singleshotnorm_test(unittest.TestCase):
         self.assertTupleEqual(self.correlator.shape_result, (127, 127))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
