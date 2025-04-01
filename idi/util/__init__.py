@@ -649,3 +649,29 @@ def plot_radialprofile(image, mask_center=True, E=None, detz=None, pixelsize=75,
         ax2.set_xlabel("$nm^{-1}$")
     ax.set_xlabel("px")
     return ax
+
+
+def gaussian2d_principal(sx: float, sy: float, rho: float) -> tuple[float, float, float]:
+    """Calculates principal std devs and rotation angle (rad) of a 2d gaussian. Assumes valid inputs."""
+    t1 = sx**2 + sy**2
+    t2 = _np.sqrt(max(0, (sx**2 - sy**2) ** 2 + (2 * rho * sx * sy) ** 2))
+    sigma_1 = _np.sqrt(0.5 * (t1 + t2))
+    sigma_2 = _np.sqrt(0.5 * (t1 - t2))
+    if _np.isclose(sx, sy):
+        theta = 0
+    else:
+        theta = 0.5 * _np.arctan2(2 * rho * sx * sy, sx**2 - sy**2)
+
+    return sigma_1, sigma_2, theta
+
+
+def gaussian2d_bivariate(s1: float, s2: float, theta: float) -> tuple[float, float, float]:
+    """Calculates (sigma_x, sigma_y, rho) of a 2d gaussian. Assumes valid inputs."""
+    sigma_x = _np.sqrt(max(0, (s1**2) * (_np.cos(theta) ** 2) + (s2**2) * (_np.sin(theta) ** 2)))
+    sigma_y = _np.sqrt(max(0, (s1**2) * (_np.sin(theta) ** 2) + (s2**2) * (_np.cos(theta) ** 2)))
+    if _np.isclose(sigma_x * sigma_y, 0):
+        rho = 0.0
+    else:
+        rho = (s1**2 - s2**2) * _np.sin(theta) * _np.cos(theta) / (sigma_x * sigma_y)
+        rho = _np.clip(rho, -1.0, 1.0)
+    return sigma_x, sigma_y, rho
