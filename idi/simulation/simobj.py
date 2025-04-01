@@ -69,9 +69,7 @@ class simobj(_abc.ABC):
         if not 0 < ndim <= 3:
             raise ValueError
         pos, phase = self.get2()
-        ind = _np.rint(
-            (pos[:, :ndim] - _np.min(pos[:, :ndim], axis=0, keepdims=True)) / dx
-        ).astype(int)
+        ind = _np.rint((pos[:, :ndim] - _np.min(pos[:, :ndim], axis=0, keepdims=True)) / dx).astype(int)
         s = _np.array(ind.max(0)) + 1
         pads = _np.array([_fastlen(i) for i in s])
         ind += (pads - s) // 2
@@ -202,9 +200,7 @@ class multisphere(simobj):
             pos2[n[i - 1] : min(len(pos2), n[i]), :] += pos1[i, :]
         pos2[n[-1] :, :] += pos1[-1, :]
 
-    def __init__(
-        self, E, Natoms=1e6, rsphere=10, fwhm=200, rho=2, spacing=1, Nspheres=_np.inf
-    ):
+    def __init__(self, E, Natoms=1e6, rsphere=10, fwhm=200, rho=2, spacing=1, Nspheres=_np.inf):
         """
         Multiple Spheres
         Parameters:
@@ -220,11 +216,7 @@ class multisphere(simobj):
         self.fwhm, self.rho = _np.array(fwhm), _np.array(rho)
         self.rndPos = True
         self._debug = None
-        N = (
-            int(-Natoms * _np.mean([len(self._spherepos()) for i in range(10)]))
-            if Natoms < 0
-            else Natoms
-        )
+        N = int(-Natoms * _np.mean([len(self._spherepos()) for i in range(10)])) if Natoms < 0 else Natoms
         super().__init__(E, N)
         self._resetproperties = [
             "rndPos",
@@ -236,9 +228,7 @@ class multisphere(simobj):
         ]
 
     def _spherepos(self):
-        return _pds(
-            1.2 * self.fwhm, 2 * (self.rsphere + self.spacing), ndim=3, N=self._Nspheres
-        )
+        return _pds(1.2 * self.fwhm, 2 * (self.rsphere + self.spacing), ndim=3, N=self._Nspheres)
 
     def updatePos(self):
         """
@@ -258,9 +248,7 @@ class multisphere(simobj):
         n = self.rng.poisson(p * (self._N / _np.sum(p)))
         missing = self._N - _np.sum(n)
         while missing:
-            ids = self.rng.choice(
-                len(n), int(abs(missing)), replace=True, p=p / (_np.sum(p))
-            )
+            ids = self.rng.choice(len(n), int(abs(missing)), replace=True, p=p / (_np.sum(p)))
             _np.add.at(n, ids, _np.sign(missing))
             n[n < 0] = 0
             missing = self._N - _np.sum(n)
@@ -309,9 +297,7 @@ class hcpsphere(multisphere):
 
     def _spherepos(self):
         if self._hcp is None or self.sigma:
-            Nhcp = self.Nhcp or _np.ceil(
-                5 * self.fwhm / (self.a * _np.array([2.0, 0.86, 1.63]))
-            ).astype(int)
+            Nhcp = self.Nhcp or _np.ceil(5 * self.fwhm / (self.a * _np.array([2.0, 0.86, 1.63]))).astype(int)
             lconst = [self.a, self.a, 1.633 * self.a]
             unitcell = [[0, 0, 0], [1.0 / 3, 2.0 / 3, 1.0 / 2]]
             langle = _np.array([90, 90, 120]) * pi / 180.0
@@ -451,12 +437,7 @@ class crystal(simobj):
             atoms += rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
 
         for j in range(3):
-            atoms = _np.concatenate(
-                [
-                    atoms + (basis[j] * k).astype(_np.float32)[_np.newaxis, :]
-                    for k in range(repeats[j])
-                ]
-            )
+            atoms = _np.concatenate([atoms + (basis[j] * k).astype(_np.float32)[_np.newaxis, :] for k in range(repeats[j])])
             if sigma != 0:
                 atoms += rng.uniform(0, sigma, atoms.shape).astype(_np.float32)
 
@@ -499,9 +480,7 @@ class crystal(simobj):
         idx = []
 
         while missing:
-            new = self.rng.choice(
-                len(self._allpos), min(missing, len(self._allpos)), replace=False, p=p
-            )
+            new = self.rng.choice(len(self._allpos), min(missing, len(self._allpos)), replace=False, p=p)
             idx.append(new)
             missing -= len(new)
         idx = _np.concatenate(idx)
@@ -603,9 +582,7 @@ class grating(simobj):
                 (0.5 + 2 / rhofocusx) * fwhmx,
                 min(self.linewidth, self.spacingwidth) / 10,
             )
-            p = _lines(
-                self._x, self.linewidth, self.spacingwidth, self.rholine
-            ) * _gnorm(self._x, fwhmx, rhofocusx)
+            p = _lines(self._x, self.linewidth, self.spacingwidth, self.rholine) * _gnorm(self._x, fwhmx, rhofocusx)
             self._c = _np.cumsum(p)
             self._c = self._c / self._c[-1]
         rhofocusyz = self.rho if _np.isscalar(self.rho) else _np.array(self.rho[1:])
@@ -653,14 +630,10 @@ class membrane(simobj):
             self._rotmatrix = False
 
         self._pores = self._getporepos(interporedistance, (4 * fwhm, 4 * fwhm))
-        self._p = _np.exp(
-            _np.sum(-(self._pores[:, :2] ** 2) * (4 * _np.log(2) / fwhm**2), axis=1)
-        )
+        self._p = _np.exp(_np.sum(-(self._pores[:, :2] ** 2) * (4 * _np.log(2) / fwhm**2), axis=1))
         porevolume = porelength * _np.pi * (poreradius**2 - poreinnerradius**2)
         self._Natomspore = int(_np.sum(porevolume * excitation * self._p))
-        self._Natomslayer = int(
-            _np.pi * fwhm**2 / _np.log(16) * layerthickness * excitation
-        )
+        self._Natomslayer = int(_np.pi * fwhm**2 / _np.log(16) * layerthickness * excitation)
         Natoms = int(self._Natomspore + self._Natomslayer)
         self._p /= _np.sum(self._p)
 
@@ -670,47 +643,32 @@ class membrane(simobj):
         if self._pos is None:
             self._pos = _np.empty((self.N, 3))
         self._pos[: self._Natomspore, 1] = _np.sqrt(
-            self.rng.random(self._Natomspore)
-            * (self._poreradius**2 - self._poreinnerradius**2)
-            + self._poreinnerradius**2
+            self.rng.random(self._Natomspore) * (self._poreradius**2 - self._poreinnerradius**2) + self._poreinnerradius**2
         )  # r
-        self._pos[: self._Natomspore, 2] = self.rng.uniform(
-            0, 2 * _np.pi, self._Natomspore
-        )  # theta
-        self._pos[: self._Natomspore, 0] = self._pos[: self._Natomspore, 1] * _np.cos(
-            self._pos[: self._Natomspore, 2]
-        )
-        self._pos[: self._Natomspore, 1] = self._pos[: self._Natomspore, 1] * _np.sin(
-            self._pos[: self._Natomspore, 2]
-        )
+        self._pos[: self._Natomspore, 2] = self.rng.uniform(0, 2 * _np.pi, self._Natomspore)  # theta
+        self._pos[: self._Natomspore, 0] = self._pos[: self._Natomspore, 1] * _np.cos(self._pos[: self._Natomspore, 2])
+        self._pos[: self._Natomspore, 1] = self._pos[: self._Natomspore, 1] * _np.sin(self._pos[: self._Natomspore, 2])
         self._pos[: self._Natomspore, 2] = self.rng.uniform(
             self._layerthickness,
             self._layerthickness + self._porelength,
             self._Natomspore,
         )
-        offset = self.rng.uniform(
-            -self._interporedistance / 2, self._interporedistance / 2, 2
-        ).astype(_np.float32)
+        offset = self.rng.uniform(-self._interporedistance / 2, self._interporedistance / 2, 2).astype(_np.float32)
         self._p = _np.exp(
             _np.sum(
-                -((self._pores[:, :2] - offset) ** 2)
-                * (4 * _np.log(2) / self._fwhm**2),
+                -((self._pores[:, :2] - offset) ** 2) * (4 * _np.log(2) / self._fwhm**2),
                 axis=1,
             )
         )
         self._p /= _np.sum(self._p)
 
-        self._pos[: self._Natomspore, :] += self._pores[
-            self.rng.choice(len(self._pores), self._Natomspore, p=self._p)
-        ]
+        self._pos[: self._Natomspore, :] += self._pores[self.rng.choice(len(self._pores), self._Natomspore, p=self._p)]
         self._pos[self._Natomspore :, :2] = self.rng.normal(
             0,
             (self._fwhm / (_np.sqrt(2 * _np.log(2)) * 2)),
             size=(self._Natomslayer, 2),
         )
-        self._pos[self._Natomspore :, 2] = self.rng.uniform(
-            0, self._layerthickness, self._Natomslayer
-        )
+        self._pos[self._Natomspore :, 2] = self.rng.uniform(0, self._layerthickness, self._Natomslayer)
         self._pos[self._Natomspore :, :2] += offset
 
         if _np.any(self._rndOrientation):
@@ -771,11 +729,7 @@ class foil(simobj):
             * (
                 thickness / self._rotmatrix[-1, -1]
                 if _np.isinf(attenuationlength)
-                else (
-                    attenuationlength
-                    - attenuationlength
-                    / exp((thickness / self._rotmatrix[-1, -1]) / attenuationlength)
-                )
+                else (attenuationlength - attenuationlength / exp((thickness / self._rotmatrix[-1, -1]) / attenuationlength))
             )
             * excitation
         )
@@ -801,9 +755,7 @@ class foil(simobj):
                 self.N,
             )
         else:
-            self._pos[:, -1] += self.rng.uniform(
-                0, self._thickness / self._rotmatrix[-1, -1], self.N
-            )
+            self._pos[:, -1] += self.rng.uniform(0, self._thickness / self._rotmatrix[-1, -1], self.N)
 
     # make everything readonly, as changing anything would change N
     @property
@@ -825,3 +777,27 @@ class foil(simobj):
     @property
     def rotangles(self):
         return self._rotangles
+
+
+class fake_view_from_position(simobj):
+    """simobject that is rotated such that its cdi matches the idi from a different direction"""
+
+    def __init__(self, simobj, detx, dety, detz):
+        object.__setattr__(self, "_simobj", simobj)
+        rotmatrix = _rotation(*_np.atan2(_np.array((-detx, dety, 0)), detz))
+        object.__setattr__(self, "_rotmatrix", rotmatrix)
+
+    def __getattr__(self, attr):
+        print(attr)
+        return getattr(self._simobj, attr)
+
+    def __setattr__(self, name, value):
+        setattr(self._simobj, "name", value)
+
+    def get2(self):
+        pos, phase = self._simobj.get2()
+        pos = _np.matmul(self._rotmatrix, pos.T, order="F").T
+        return pos, phase
+
+    def updatePos(self):
+        return self._simobj.updatePos()
