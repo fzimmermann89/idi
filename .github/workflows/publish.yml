@@ -27,18 +27,18 @@ jobs:
       - uses: actions/setup-python@v5
 
       - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==1.10.0
+        run: python -m pip install cibuildwheel==2.17.0
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
-        # to supply options, put them in 'env', like:
         env:
+           # mkl does not work on manylinux!
            CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
            CIBW_REPAIR_WHEEL_COMMAND_LINUX: ""
            CIBW_ARCHS: "auto64"
-           CIBW_BUILD_VERBOSITY: 1
-           #CIBW_SKIP: pp*
-           CIBW_BUILD: cp37-* cp38-* cp39-* cp310-* cp311-*
+           CIBW_BUILD_VERBOSITY: 0
+           CIBW_BUILD: cp37-manylinux* cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312-manylinux*  cp37-win* cp38-win* cp39-win* cp310-win* cp311-win* cp312-win* 
+
 
       - uses: actions/upload-artifact@v4
         with:
@@ -102,9 +102,16 @@ jobs:
         with:
           name: sdist-${{ github.run_id }}
           path: dist
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: wheels-ubuntu-20.04-${{ github.run_id }}
+      #     path: dist
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: wheels-windows-latest-${{ github.run_id }}
+      #     path: dist
       - run: ls -R dist
-      - run: rm -f dist/*.whl
-
+      - run: rm -rf dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
@@ -162,12 +169,12 @@ jobs:
       - name: Build packages
         run: |
           conda install anaconda-client conda-build -y 
-          python .github/conda/wheel2conda.py "dist/wheels-${{ matrix.os }}-${{ github.run_id }}"
+          python .github/conda/wheel2conda.py "dist"
           
       - run: ls -R dist
       
       - name: Upload
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
-        run: anaconda upload  "dist/wheels-${{ matrix.os }}-${{ github.run_id }}/output/*.tar.bz2" --force
+        run: anaconda upload  "dist/output/*.tar.bz2" --force
 

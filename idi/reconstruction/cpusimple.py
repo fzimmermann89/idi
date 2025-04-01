@@ -28,7 +28,7 @@ def corr(input, axes=(-2, -1), norm=False, fftfunctions=(_np.fft.rfftn, _np.fft.
     return ret
 
 
-class correlator2D:
+class correlator2d:
     def __init__(self, mask=None, norm: bool = True) -> None:
         """Simple 2D correlator
         Does the 2D autocorrelation divided by the mask autocorrelation.

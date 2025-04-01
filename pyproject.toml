@@ -1,5 +1,5 @@
 [project]
-requires-python = ">=3.6"
+requires-python = ">=3.9, <3.13"
 name = "idi"
 dynamic = ["version"]
 description = "idi simulation and reconstruction"
@@ -11,19 +11,17 @@ dependencies = [
   "numexpr",
   "scipy",
   "jinja2",
-  "mkl-service",
   "matplotlib",
   "h5py",
   "mkl",
   "mkl-include",
-  "setuptools<60",
   "tqdm",
 ]
 
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools<60",
+  "setuptools>=61.0",
   "tomli",
   "oldest-supported-numpy",
   "Cython",
@@ -31,6 +29,7 @@ requires = [
   "mkl; sys_platform == 'linux'",
   "mkl-include==2019; sys_platform != 'win32'",
   "mkl-devel; sys_platform == 'win32'",
+  "ipdb",
 ]
 
 [tool.ruff]
