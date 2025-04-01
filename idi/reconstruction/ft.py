@@ -8,7 +8,7 @@ import warnings as _w
 try:
     from .autocorrelate3 import autocorrelate3
 except ImportError:
-    _w.warn('using numpy ft')
+    _w.warn('mkl autocorrelate 3d not compiled. using numpy fft', stacklevel=3)
 
     def autocorrelate3(data):
         tmp = _np.fft.rfftn(data[..., :-2])
